@@ -16,4 +16,4 @@
 
 ## History
 
-<!-- Keep this updated. Earliest to latest -->
+- 2026-05-12: **Initial Setup** - Next.js and Tailwind setup
