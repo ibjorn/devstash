@@ -366,6 +366,13 @@ model Tag {
 - Syntax highlighting for code blocks
 - **References:** [Notion](https://notion.so), [Linear](https://linear.app), [Raycast](https://raycast.com)
 
+### Screenshots
+
+Refer to the screenshots below as a base for the dashboard UI. It does not have to be exact, use it as a reference.
+
+- @context/screenshots/dashboard-ui-main.png
+- @context/screenshots/dashboard-ui-drawer.png
+
 ### Layout
 
 ```
