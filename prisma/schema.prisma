@@ -15,6 +15,7 @@ model User {
   name          String?
   image         String?
   emailVerified DateTime?
+  password      String? // bcrypt hash; null for OAuth-only users
 
   // Pro / billing
   isPro                Boolean @default(false)
