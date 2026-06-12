@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Folder, Layers, Star } from "lucide-react";
+import { Folder, FolderOpen, Layers, Star } from "lucide-react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -19,11 +19,10 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import { collections, currentUser, itemTypes } from "@/lib/mock-data";
+import { currentUser } from "@/lib/mock-data";
 import { getTypeIcon } from "@/lib/type-icons";
-
-const favoriteCollections = collections.filter((c) => c.isFavorite);
-const recentCollections = collections.filter((c) => !c.isFavorite);
+import type { CollectionSummary } from "@/types/collections";
+import type { ItemTypeNavItem } from "@/types/items";
 
 const userInitials = currentUser.name
   .split(" ")
@@ -32,7 +31,17 @@ const userInitials = currentUser.name
   .slice(0, 2)
   .toUpperCase();
 
-export function AppSidebar() {
+interface AppSidebarProps {
+  itemTypes: ItemTypeNavItem[];
+  favoriteCollections: CollectionSummary[];
+  recentCollections: CollectionSummary[];
+}
+
+export function AppSidebar({
+  itemTypes,
+  favoriteCollections,
+  recentCollections,
+}: AppSidebarProps) {
   const pathname = usePathname();
 
   return (
@@ -115,13 +124,37 @@ export function AppSidebar() {
                     tooltip={collection.name}
                   >
                     <Link href={`/collections/${collection.id}`}>
-                      <Folder />
+                      <span className="flex size-4 shrink-0 items-center justify-center">
+                        {/* dot tinted by the collection's most-used item type */}
+                        <span
+                          className="size-2.5 rounded-full"
+                          style={{
+                            backgroundColor:
+                              collection.types[0]?.color ?? "#6b7280",
+                          }}
+                        />
+                      </span>
                       <span>{collection.name}</span>
                     </Link>
                   </SidebarMenuButton>
                   <SidebarMenuBadge>{collection.itemCount}</SidebarMenuBadge>
                 </SidebarMenuItem>
               ))}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === "/collections"}
+                  tooltip="View all collections"
+                >
+                  <Link
+                    href="/collections"
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <FolderOpen />
+                    <span>View all collections</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

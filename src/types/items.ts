@@ -1,3 +1,13 @@
+export interface ItemTypeNavItem {
+  id: string;
+  // pluralized for display, e.g. "Snippets"; slug is its lowercase form for /items/[slug]
+  name: string;
+  slug: string;
+  icon: string;
+  color: string;
+  count: number;
+}
+
 export interface ItemTypeSummary {
   id: string;
   name: string;
