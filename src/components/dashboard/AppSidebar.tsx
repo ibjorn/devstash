@@ -2,19 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Code,
-  File,
-  Folder,
-  Image,
-  Layers,
-  Link as LinkIcon,
-  Sparkles,
-  Star,
-  StickyNote,
-  Terminal,
-  type LucideIcon,
-} from "lucide-react";
+import { Folder, Layers, Star } from "lucide-react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -32,16 +20,7 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 import { collections, currentUser, itemTypes } from "@/lib/mock-data";
-
-const typeIcons: Record<string, LucideIcon> = {
-  Code,
-  Sparkles,
-  Terminal,
-  StickyNote,
-  File,
-  Image,
-  Link: LinkIcon,
-};
+import { getTypeIcon } from "@/lib/type-icons";
 
 const favoriteCollections = collections.filter((c) => c.isFavorite);
 const recentCollections = collections.filter((c) => !c.isFavorite);
@@ -78,7 +57,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {itemTypes.map((type) => {
-                const Icon = typeIcons[type.icon] ?? File;
+                const Icon = getTypeIcon(type.icon);
                 const href = `/items/${type.slug}`;
                 return (
                   <SidebarMenuItem key={type.id}>
