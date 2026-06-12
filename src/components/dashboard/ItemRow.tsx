@@ -1,34 +1,33 @@
 import { File, Pin, Star } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { itemTypes, type Item } from "@/lib/mock-data";
 import { typeIcons } from "@/lib/type-icons";
+import type { ItemSummary } from "@/types/items";
 
 interface ItemRowProps {
-  item: Item;
+  item: ItemSummary;
 }
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
+function formatDate(date: Date): string {
+  return date.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
   });
 }
 
 export function ItemRow({ item }: ItemRowProps) {
-  const type = itemTypes.find((t) => t.id === item.itemTypeId);
-  const Icon = typeIcons[type?.icon ?? ""] ?? File;
+  const Icon = typeIcons[item.type.icon] ?? File;
 
   return (
-    <div className="flex items-start gap-3 rounded-xl bg-card p-4 ring-1 ring-foreground/10 transition-shadow hover:ring-foreground/25">
+    <div
+      className="flex items-start gap-3 rounded-xl border bg-card p-4 transition-shadow hover:ring-1 hover:ring-foreground/25"
+      // border comes from the item type's color
+      style={{ borderColor: `${item.type.color}40` }}
+    >
       <div
         className="flex size-9 shrink-0 items-center justify-center rounded-lg"
         // icon chip tinted with the item type's color
-        style={
-          type
-            ? { backgroundColor: `${type.color}1a`, color: type.color }
-            : undefined
-        }
+        style={{ backgroundColor: `${item.type.color}1a`, color: item.type.color }}
       >
         <Icon className="size-4" />
       </div>

@@ -5,18 +5,19 @@ import { CollectionCard } from "@/components/dashboard/CollectionCard";
 import { ItemRow } from "@/components/dashboard/ItemRow";
 import { StatsCards } from "@/components/dashboard/StatsCards";
 import { getRecentCollections } from "@/lib/db/collections";
-import { items } from "@/lib/mock-data";
+import { getDashboardStats } from "@/lib/db/dashboard";
+import { getPinnedItems, getRecentItems } from "@/lib/db/items";
 
-// Render per request — collections come from the database
+// Render per request — collections, items, and stats come from the database
 export const dynamic = "force-dynamic";
 
-const pinnedItems = items.filter((item) => item.isPinned);
-const recentItems = [...items]
-  .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-  .slice(0, 10);
-
 export default async function DashboardPage() {
-  const collections = await getRecentCollections();
+  const [collections, pinnedItems, recentItems, stats] = await Promise.all([
+    getRecentCollections(),
+    getPinnedItems(),
+    getRecentItems(),
+    getDashboardStats(),
+  ]);
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
@@ -27,7 +28,7 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      <StatsCards />
+      <StatsCards stats={stats} />
 
       <section className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
@@ -46,17 +47,19 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      <section className="flex flex-col gap-4">
-        <h2 className="flex items-center gap-2 text-lg font-semibold">
-          <Pin className="size-4 text-muted-foreground" />
-          Pinned
-        </h2>
-        <div className="flex flex-col gap-3">
-          {pinnedItems.map((item) => (
-            <ItemRow key={item.id} item={item} />
-          ))}
-        </div>
-      </section>
+      {pinnedItems.length > 0 && (
+        <section className="flex flex-col gap-4">
+          <h2 className="flex items-center gap-2 text-lg font-semibold">
+            <Pin className="size-4 text-muted-foreground" />
+            Pinned
+          </h2>
+          <div className="flex flex-col gap-3">
+            {pinnedItems.map((item) => (
+              <ItemRow key={item.id} item={item} />
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="flex flex-col gap-4">
         <h2 className="text-lg font-semibold">Recent</h2>

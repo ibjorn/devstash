@@ -1,11 +1,9 @@
+import { DEMO_USER_EMAIL } from "@/lib/db/demo-user";
 import { prisma } from "@/lib/prisma";
 import type {
   CollectionSummary,
   CollectionTypeStat,
 } from "@/types/collections";
-
-// Auth isn't wired up yet, so queries are scoped to the seeded demo user
-const DEMO_USER_EMAIL = "demo@devstash.io";
 
 export async function getRecentCollections(
   limit = 6
