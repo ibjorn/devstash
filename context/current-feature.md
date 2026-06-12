@@ -1,24 +1,18 @@
 # Current Feature
 
-**Dashboard Items** - Replace the dummy pinned and recent items in the dashboard main area with real data from the Neon database via Prisma (per context/features/dashboard-items-spec.md).
+<!-- Feature name and short description -->
 
 ## Status
 
-In Progress
+<!-- Not Started | In Progress | Completed -->
 
 ## Goals
 
-- Create src/lib/db/items.ts with data fetching functions
-- Fetch items directly in the server component (no mock-data.ts)
-- Item card icon/border derived from the item type
-- Display item type tags and everything else currently shown (reference screenshot if needed)
-- If there are no pinned items, the pinned section should not display
-- Update collection stats display
+<!-- Goals & requirements -->
 
 ## Notes
 
-- Layout and design stay as-is; only the data source changes
-- Reference: context/screenshots/dashboard-ui-main.png
+<!-- Any extra notes -->
 
 ## History
 
@@ -29,3 +23,4 @@ In Progress
 - 2026-06-12: **Database Setup** - Prisma 7 + Neon PostgreSQL: full schema (data models + NextAuth), prisma.config.ts with dotenv, init migration applied to Neon dev branch, system item type seed, client singleton with Neon driver adapter, db:* npm scripts, scripts/test-db.ts smoke test
 - 2026-06-12: **Seed Data** - per context/features/seed-spec.md: User.password migration (nullable, bcrypt hash), seed rewritten with demo user (demo@devstash.io, bcryptjs 12 rounds) + 7 system types + 5 collections with 18 items (real URLs for links), idempotent reseed (upsert user, wipe + recreate their data), smoke test extended to display demo data and verify password hash
 - 2026-06-12: **Dashboard Collections** - per context/features/dashboard-collections-spec.md: dashboard collections grid now fetched from Neon via Prisma (getRecentCollections in src/lib/db/collections.ts, scoped to demo user until auth), CollectionSummary DTOs in src/types/collections.ts, card tint + border from most-used item type with defaultTypeId fallback for empty collections, type icons ordered by usage, real item counts, dashboard page async + force-dynamic; pinned/recent items still mock
+- 2026-06-12: **Dashboard Items** - per context/features/dashboard-items-spec.md: pinned + recent items and stats cards now fetched from Neon via Prisma (getPinnedItems/getRecentItems in src/lib/db/items.ts, getDashboardStats counts in src/lib/db/dashboard.ts, demo-user scope shared via src/lib/db/demo-user.ts), ItemSummary/DashboardStats DTOs, item card border + icon chip tinted from item type, tag badges from DB, pinned section hidden when empty; sidebar still mock
