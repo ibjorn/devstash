@@ -1,18 +1,23 @@
 # Current Feature
 
-<!-- Feature name and short description -->
+**Seed Data** - Seed script to populate the database with sample data for development and demos.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+Not Started
 
 ## Goals
 
-<!-- Goals & requirements -->
+Implement the seed script as specified in @context/features/seed-spec.md:
+
+- Demo user (demo@devstash.io, bcryptjs-hashed password, not Pro, email verified)
+- All 7 system item types (snippet, prompt, command, note, file, image, link)
+- 5 collections with items: React Patterns (3 snippets), AI Workflows (3 prompts), DevOps (1 snippet, 1 command, 2 links), Terminal Commands (4 commands), Design Resources (4 links)
+- Links use real URLs
 
 ## Notes
 
-<!-- Any extra notes -->
+- Overwrite the existing seed file (`prisma/seed.ts`) — replace the current system-type-only seed entirely
 
 ## History
 
