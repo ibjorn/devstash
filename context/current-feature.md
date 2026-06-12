@@ -1,25 +1,18 @@
 # Current Feature
 
-**Dashboard Collections** - Replace the dummy collection data in the main dashboard area (right side) with actual data from the Neon database via Prisma. Keep the current 6-card recent collections design; do not add the items underneath yet (later).
-
-Full spec: @context/features/dashboard-collections-spec.md
+<!-- Feature name and short description -->
 
 ## Status
 
-In Progress
+<!-- Not Started | In Progress | Completed -->
 
 ## Goals
 
-- Create src/lib/db/collections.ts with data fetching functions
-- Fetch collections directly in server component (replace src/lib/mock-data.ts usage)
-- Collection card border color derived from most-used content type in that collection
-- Show small icons of all types in that collection
-- Keep the current design (reference @context/screenshots/dashboard-ui-main.png if needed)
-- Update collection stats display
+<!-- Goals & requirements -->
 
 ## Notes
 
-- Items underneath the collections are out of scope for now — handled in a later feature
+<!-- Any extra notes -->
 
 ## History
 
@@ -29,3 +22,4 @@ In Progress
 - 2026-06-12: **Dashboard UI Phase 3** - main dashboard area from mock data: 4 stats cards (items, collections, favorite items/collections), collections grid with type-tinted cards, pinned items, 10 recent items; shadcn card + badge added, shared type-icons helper extracted to src/lib
 - 2026-06-12: **Database Setup** - Prisma 7 + Neon PostgreSQL: full schema (data models + NextAuth), prisma.config.ts with dotenv, init migration applied to Neon dev branch, system item type seed, client singleton with Neon driver adapter, db:* npm scripts, scripts/test-db.ts smoke test
 - 2026-06-12: **Seed Data** - per context/features/seed-spec.md: User.password migration (nullable, bcrypt hash), seed rewritten with demo user (demo@devstash.io, bcryptjs 12 rounds) + 7 system types + 5 collections with 18 items (real URLs for links), idempotent reseed (upsert user, wipe + recreate their data), smoke test extended to display demo data and verify password hash
+- 2026-06-12: **Dashboard Collections** - per context/features/dashboard-collections-spec.md: dashboard collections grid now fetched from Neon via Prisma (getRecentCollections in src/lib/db/collections.ts, scoped to demo user until auth), CollectionSummary DTOs in src/types/collections.ts, card tint + border from most-used item type with defaultTypeId fallback for empty collections, type icons ordered by usage, real item counts, dashboard page async + force-dynamic; pinned/recent items still mock
