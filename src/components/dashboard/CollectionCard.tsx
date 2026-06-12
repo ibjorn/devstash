@@ -8,29 +8,27 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { itemTypes, type Collection } from "@/lib/mock-data";
 import { getTypeIcon } from "@/lib/type-icons";
+import type { CollectionSummary } from "@/types/collections";
 
 interface CollectionCardProps {
-  collection: Collection;
+  collection: CollectionSummary;
 }
 
 export function CollectionCard({ collection }: CollectionCardProps) {
-  const dominantType = itemTypes.find(
-    (type) => type.id === (collection.defaultTypeId ?? collection.itemTypeIds[0])
-  );
-  const collectionTypes = collection.itemTypeIds.flatMap(
-    (id) => itemTypes.find((type) => type.id === id) ?? []
-  );
+  const dominantType = collection.types[0];
 
   return (
     <Link href={`/collections/${collection.id}`} className="group">
       <Card
         className="h-full transition-shadow group-hover:ring-foreground/25"
-        // background tint comes from the collection's dominant item type color
+        // tint and border come from the collection's most-used item type color
         style={
           dominantType
-            ? { backgroundColor: `${dominantType.color}0d` }
+            ? {
+                backgroundColor: `${dominantType.color}0d`,
+                borderColor: `${dominantType.color}40`,
+              }
             : undefined
         }
       >
@@ -41,14 +39,16 @@ export function CollectionCard({ collection }: CollectionCardProps) {
               <Star className="size-3.5 shrink-0 fill-yellow-400 text-yellow-400" />
             )}
           </CardTitle>
-          <CardDescription>{collection.itemCount} items</CardDescription>
+          <CardDescription>
+            {collection.itemCount} {collection.itemCount === 1 ? "item" : "items"}
+          </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-1 flex-col gap-4">
           <p className="line-clamp-2 text-sm text-muted-foreground">
             {collection.description}
           </p>
           <div className="mt-auto flex items-center gap-2">
-            {collectionTypes.map((type) => {
+            {collection.types.map((type) => {
               const Icon = getTypeIcon(type.icon);
               return (
                 <Icon

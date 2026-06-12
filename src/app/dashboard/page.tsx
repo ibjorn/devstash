@@ -4,14 +4,20 @@ import { Pin } from "lucide-react";
 import { CollectionCard } from "@/components/dashboard/CollectionCard";
 import { ItemRow } from "@/components/dashboard/ItemRow";
 import { StatsCards } from "@/components/dashboard/StatsCards";
-import { collections, items } from "@/lib/mock-data";
+import { getRecentCollections } from "@/lib/db/collections";
+import { items } from "@/lib/mock-data";
+
+// Render per request — collections come from the database
+export const dynamic = "force-dynamic";
 
 const pinnedItems = items.filter((item) => item.isPinned);
 const recentItems = [...items]
   .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
   .slice(0, 10);
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const collections = await getRecentCollections();
+
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
       <div>
