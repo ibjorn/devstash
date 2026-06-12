@@ -15,7 +15,7 @@ This is the common workflow that we will use for every single feature/fix:
 1. **Document** - Document the feature in @context/current-feature.md.
 2. **Branch** - Create new branch for feature, fix, etc
 3. **Implement** - Implement the feature/fix that I create in @context/current-feature.md
-4. **Test** - Verify it works in the browser. Implement unit testing later. Run `npm run build` and fix any errors
+4. **Test** - Run `npm run lint` and `npm run build` and fix any errors. Do NOT set up or run headless browsers in WSL — they don't reproduce what Windows Chrome shows. For browser verification, start the dev server and hand off to Björn to check visually in Windows Chrome; his tab's console errors are forwarded to the dev server terminal/logs. Unit testing comes later.
 5. **Iterate** - Iterate and change things if needed
 6. **Commit** - Only after build passes and everything works
 7. **Merge** - Merge to main
