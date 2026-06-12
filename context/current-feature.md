@@ -1,18 +1,23 @@
 # Current Feature
 
-<!-- Feature name and short description -->
+**Stats & Sidebar** — per context/features/stats-sidebar-spec.md: show stats in the main area from database data instead of src/lib/mock-data.ts, and show system item types + actual collection data from the database in the sidebar.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+Completed
 
 ## Goals
 
-<!-- Goals & requirements -->
+- Display stats pertaining to database data, keeping the current design/layout
+- Display item types in sidebar with their icons, linking to /items/[typename]
+- Add "View all collections" link under the collections list that goes to /collections
+- Keep the star icons for favorite collections; for recents, each collection shows a colored circle based on the most-used item type in that collection
+- Create src/lib/db/items.ts and add the database functions (use src/lib/db/collections.ts for reference if needed)
 
 ## Notes
 
-<!-- Any extra notes -->
+- References: src/lib/db/collections.ts
+- Stats cards and src/lib/db/items.ts already exist from the Dashboard Items feature (2026-06-12) — remaining work is primarily the sidebar (types + collections from DB)
 
 ## History
 
@@ -24,3 +29,4 @@
 - 2026-06-12: **Seed Data** - per context/features/seed-spec.md: User.password migration (nullable, bcrypt hash), seed rewritten with demo user (demo@devstash.io, bcryptjs 12 rounds) + 7 system types + 5 collections with 18 items (real URLs for links), idempotent reseed (upsert user, wipe + recreate their data), smoke test extended to display demo data and verify password hash
 - 2026-06-12: **Dashboard Collections** - per context/features/dashboard-collections-spec.md: dashboard collections grid now fetched from Neon via Prisma (getRecentCollections in src/lib/db/collections.ts, scoped to demo user until auth), CollectionSummary DTOs in src/types/collections.ts, card tint + border from most-used item type with defaultTypeId fallback for empty collections, type icons ordered by usage, real item counts, dashboard page async + force-dynamic; pinned/recent items still mock
 - 2026-06-12: **Dashboard Items** - per context/features/dashboard-items-spec.md: pinned + recent items and stats cards now fetched from Neon via Prisma (getPinnedItems/getRecentItems in src/lib/db/items.ts, getDashboardStats counts in src/lib/db/dashboard.ts, demo-user scope shared via src/lib/db/demo-user.ts), ItemSummary/DashboardStats DTOs, item card border + icon chip tinted from item type, tag badges from DB, pinned section hidden when empty; sidebar still mock
+- 2026-06-13: **Stats & Sidebar** - per context/features/stats-sidebar-spec.md: sidebar now fetched from Neon via Prisma — system item types with per-user counts and pluralized name/slug linking to /items/[slug] (getItemTypeNavItems in src/lib/db/items.ts, ItemTypeNavItem DTO, order: Snippets/Prompts/Commands/Notes/Files/Images/Links), favorite + recent collections via shared findCollectionSummaries helper (getFavoriteCollections/getRecentNonFavoriteCollections in src/lib/db/collections.ts), recents show dot tinted by most-used item type, "View all collections" link to /collections, AppSidebar converted to props fed by async force-dynamic dashboard layout; stats were already DB-backed from Dashboard Items, only remaining mock usage is currentUser in sidebar footer

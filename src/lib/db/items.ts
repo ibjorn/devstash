@@ -2,7 +2,18 @@ import type { Prisma } from "@/generated/prisma/client";
 
 import { DEMO_USER_EMAIL } from "@/lib/db/demo-user";
 import { prisma } from "@/lib/prisma";
-import type { ItemSummary } from "@/types/items";
+import type { ItemSummary, ItemTypeNavItem } from "@/types/items";
+
+// Display order for system types; the table has no sort column
+const SYSTEM_TYPE_ORDER = [
+  "Snippet",
+  "Prompt",
+  "Command",
+  "Note",
+  "File",
+  "Image",
+  "Link",
+];
 
 const itemSummarySelect = {
   id: true,
@@ -28,6 +39,41 @@ function toItemSummary(item: ItemSummaryRow): ItemSummary {
     type: item.itemType,
     tags: item.tags.map((tag) => tag.name),
   };
+}
+
+export async function getItemTypeNavItems(): Promise<ItemTypeNavItem[]> {
+  const types = await prisma.itemType.findMany({
+    where: { isSystem: true },
+    select: {
+      id: true,
+      name: true,
+      icon: true,
+      color: true,
+      _count: {
+        select: { items: { where: { user: { email: DEMO_USER_EMAIL } } } },
+      },
+    },
+  });
+
+  const orderOf = (name: string) => {
+    const index = SYSTEM_TYPE_ORDER.indexOf(name);
+    return index === -1 ? SYSTEM_TYPE_ORDER.length : index;
+  };
+
+  return types
+    .sort((a, b) => orderOf(a.name) - orderOf(b.name))
+    .map((type) => {
+      // All system type names pluralize regularly ("Snippet" -> "Snippets")
+      const plural = `${type.name}s`;
+      return {
+        id: type.id,
+        name: plural,
+        slug: plural.toLowerCase(),
+        icon: type.icon,
+        color: type.color,
+        count: type._count.items,
+      };
+    });
 }
 
 export async function getPinnedItems(): Promise<ItemSummary[]> {
