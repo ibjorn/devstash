@@ -15,6 +15,9 @@ const SYSTEM_TYPE_ORDER = [
   "Link",
 ];
 
+// Pro-only system types, keyed by singular name
+const PRO_TYPE_NAMES = new Set(["File", "Image"]);
+
 const itemSummarySelect = {
   id: true,
   title: true,
@@ -72,6 +75,7 @@ export async function getItemTypeNavItems(): Promise<ItemTypeNavItem[]> {
         icon: type.icon,
         color: type.color,
         count: type._count.items,
+        isPro: PRO_TYPE_NAMES.has(type.name),
       };
     });
 }
