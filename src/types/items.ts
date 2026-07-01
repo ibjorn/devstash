@@ -6,6 +6,8 @@ export interface ItemTypeNavItem {
   icon: string;
   color: string;
   count: number;
+  // Pro-only system types (File, Image) get a PRO badge in the sidebar
+  isPro: boolean;
 }
 
 export interface ItemTypeSummary {

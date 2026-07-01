@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Folder, FolderOpen, Layers, Star } from "lucide-react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import {
   Sidebar,
   SidebarContent,
@@ -79,6 +80,14 @@ export function AppSidebar({
                         {/* data-driven color from the item type, can't be a static class */}
                         <Icon style={{ color: type.color }} />
                         <span>{type.name}</span>
+                        {type.isPro && (
+                          <Badge
+                            variant="outline"
+                            className="h-4 px-1.5 text-[10px] font-semibold tracking-wider text-muted-foreground"
+                          >
+                            PRO
+                          </Badge>
+                        )}
                       </Link>
                     </SidebarMenuButton>
                     <SidebarMenuBadge>{type.count}</SidebarMenuBadge>
