@@ -1,22 +1,18 @@
-# Current Feature: Add Pro Badge to Sidebar
+# Current Feature
 
-Add a PRO badge to the Files and Images item types in the sidebar (both are Pro-only types).
+<!-- Feature name and short description -->
 
 ## Status
 
-In Progress
+<!-- Not Started | In Progress | Completed -->
 
 ## Goals
 
-- Show a PRO badge next to the Files and Images item type links in the sidebar
-- Use the shadcn/ui badge component
-- Keep the badge clean and subtle
-- Render the label as "PRO" (all uppercase)
+<!-- Goals & requirements -->
 
 ## Notes
 
-- Files and Images are the two Pro-only system types (🔒 in project-overview.md)
-- Sidebar type nav is DB-backed via getItemTypeNavItems / ItemTypeNavItem (from Stats & Sidebar feature); badge should key off which types are Pro-only
+<!-- Any extra notes -->
 
 ## History
 
@@ -30,3 +26,4 @@ In Progress
 - 2026-06-12: **Dashboard Items** - per context/features/dashboard-items-spec.md: pinned + recent items and stats cards now fetched from Neon via Prisma (getPinnedItems/getRecentItems in src/lib/db/items.ts, getDashboardStats counts in src/lib/db/dashboard.ts, demo-user scope shared via src/lib/db/demo-user.ts), ItemSummary/DashboardStats DTOs, item card border + icon chip tinted from item type, tag badges from DB, pinned section hidden when empty; sidebar still mock
 - 2026-06-13: **Stats & Sidebar** - per context/features/stats-sidebar-spec.md: sidebar now fetched from Neon via Prisma — system item types with per-user counts and pluralized name/slug linking to /items/[slug] (getItemTypeNavItems in src/lib/db/items.ts, ItemTypeNavItem DTO, order: Snippets/Prompts/Commands/Notes/Files/Images/Links), favorite + recent collections via shared findCollectionSummaries helper (getFavoriteCollections/getRecentNonFavoriteCollections in src/lib/db/collections.ts), recents show dot tinted by most-used item type, "View all collections" link to /collections, AppSidebar converted to props fed by async force-dynamic dashboard layout; stats were already DB-backed from Dashboard Items, only remaining mock usage is currentUser in sidebar footer
 - 2026-06-30: **DB Cold-Start Resilience** - handle Neon compute auto-suspend: Prisma `$allOperations` extension in src/lib/prisma.ts retries only transient connection failures (bare ErrorEvent from Neon WebSocket cold-start, P1001) with exponential backoff (300/600/1200/2400ms, ~4.5s max), real query errors throw immediately; centralized so all src/lib/db queries get it without touching call sites; root src/app/error.tsx graceful boundary with Try-again (reset) for exhausted retries / genuine outage — root level because the dashboard layout itself queries the DB so a boundary can't catch its own layout's errors. Note: editing prisma.ts needs a full dev-server restart (global singleton caches the client across hot reloads)
+- 2026-07-01: **Pro Badge in Sidebar** - per context/features/add-pro-badge-sidebar.md: PRO badge next to Pro-only system types (Files, Images) in sidebar type nav; added `isPro: boolean` to ItemTypeNavItem DTO, computed in getItemTypeNavItems from a PRO_TYPE_NAMES set (File/Image, keyed by singular name) co-located with SYSTEM_TYPE_ORDER; AppSidebar renders a subtle shadcn Badge (outline variant, h-4, text-[10px], muted foreground, wide tracking, uppercase "PRO") inline after the type name, count SidebarMenuBadge stays on the right; no new query or schema change — flag rides existing props pipeline
