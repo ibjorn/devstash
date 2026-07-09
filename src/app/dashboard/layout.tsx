@@ -7,6 +7,7 @@ import {
   getRecentNonFavoriteCollections,
 } from "@/lib/db/collections";
 import { getItemTypeNavItems } from "@/lib/db/items";
+import { getCurrentUser } from "@/lib/db/users";
 
 // Render per request — sidebar types and collections come from the database
 export const dynamic = "force-dynamic";
@@ -16,11 +17,12 @@ export default async function DashboardLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [itemTypes, favoriteCollections, recentCollections] =
+  const [itemTypes, favoriteCollections, recentCollections, user] =
     await Promise.all([
       getItemTypeNavItems(),
       getFavoriteCollections(),
       getRecentNonFavoriteCollections(),
+      getCurrentUser(),
     ]);
 
   return (
@@ -30,6 +32,7 @@ export default async function DashboardLayout({
           itemTypes={itemTypes}
           favoriteCollections={favoriteCollections}
           recentCollections={recentCollections}
+          user={user}
         />
         <SidebarInset className="h-svh overflow-hidden">
           <TopBar />

@@ -1,18 +1,26 @@
 # Current Feature
 
-<!-- Feature name and short description -->
+**Sidebar User from DB** — remove the last live dependency on `src/lib/mock-data.ts` so the entire dashboard is DB-backed. Do NOT delete the mock-data file itself (keeping it around for now, per Björn) — just stop importing from it.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals & requirements -->
+- The only remaining mock-data usage is `currentUser` in the sidebar footer (`src/components/dashboard/AppSidebar.tsx:23` — used for name, email, and avatar initials)
+- Replace it with the demo user fetched from Neon via Prisma:
+  - Add a query in `src/lib/db/` (e.g. `getCurrentUser()` in a new `src/lib/db/users.ts`), scoped via the existing `DEMO_USER_EMAIL` in `src/lib/db/demo-user.ts`, selecting only what the footer needs (name, email, image)
+  - Define a small DTO in `src/types/` for it — do not import the stale `User` interface from mock-data
+  - Fetch in the async dashboard layout and pass to `AppSidebar` via props, same pattern as the existing type-nav/collections data
+- After this, zero imports from `@/lib/mock-data` anywhere in `src/` — verify with a grep
+- `npm run lint` and `npm run build` pass
 
 ## Notes
 
-<!-- Any extra notes -->
+- From the 2026-07-09 code-scanner audit: mock-data.ts is ~270 lines of dead code with stale type definitions that shadow the real DTOs in `src/types/`. Deletion is deliberately deferred — this feature only severs the last import so nothing new grows on it.
+- Demo user comes from the seed (`demo@devstash.io`, name "Demo User" per prisma/seed.ts) — footer will show seeded values instead of mock "John Doe", which is expected.
+- When NextAuth lands (Auth build phase), `getCurrentUser()` swaps its demo-email filter for the session user — keep the signature auth-friendly.
 
 ## History
 
