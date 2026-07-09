@@ -20,30 +20,35 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import { currentUser } from "@/lib/mock-data";
 import { getTypeIcon } from "@/lib/type-icons";
 import type { CollectionSummary } from "@/types/collections";
 import type { ItemTypeNavItem } from "@/types/items";
+import type { CurrentUser } from "@/types/users";
 
-const userInitials = currentUser.name
-  .split(" ")
-  .map((part) => part[0])
-  .join("")
-  .slice(0, 2)
-  .toUpperCase();
+function getInitials(user: CurrentUser) {
+  return (user.name ?? user.email)
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
 
 interface AppSidebarProps {
   itemTypes: ItemTypeNavItem[];
   favoriteCollections: CollectionSummary[];
   recentCollections: CollectionSummary[];
+  user: CurrentUser;
 }
 
 export function AppSidebar({
   itemTypes,
   favoriteCollections,
   recentCollections,
+  user,
 }: AppSidebarProps) {
   const pathname = usePathname();
+  const displayName = user.name ?? user.email;
 
   return (
     <Sidebar collapsible="icon">
@@ -171,14 +176,14 @@ export function AppSidebar({
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" tooltip={currentUser.name}>
+            <SidebarMenuButton size="lg" tooltip={displayName}>
               <Avatar className="size-8">
-                <AvatarFallback>{userInitials}</AvatarFallback>
+                <AvatarFallback>{getInitials(user)}</AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{currentUser.name}</span>
+                <span className="truncate font-medium">{displayName}</span>
                 <span className="truncate text-xs text-muted-foreground">
-                  {currentUser.email}
+                  {user.email}
                 </span>
               </div>
             </SidebarMenuButton>
