@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { typeColorTint } from "@/lib/type-colors";
 import { getTypeIcon } from "@/lib/type-icons";
 import type { CollectionSummary } from "@/types/collections";
 
@@ -26,8 +27,8 @@ export function CollectionCard({ collection }: CollectionCardProps) {
         style={
           dominantType
             ? {
-                backgroundColor: `${dominantType.color}0d`,
-                borderColor: `${dominantType.color}40`,
+                backgroundColor: typeColorTint(dominantType.color, 5),
+                borderColor: typeColorTint(dominantType.color, 25),
               }
             : undefined
         }
