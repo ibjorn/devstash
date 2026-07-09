@@ -37,6 +37,9 @@ yarn-error.log*
 # generated prisma client
 /src/generated/prisma
 
+# claude code local settings
+.claude/settings.local.json
+
 # vercel
 .vercel
 
