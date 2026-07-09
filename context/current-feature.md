@@ -1,26 +1,18 @@
 # Current Feature
 
-**Sidebar User from DB** — remove the last live dependency on `src/lib/mock-data.ts` so the entire dashboard is DB-backed. Do NOT delete the mock-data file itself (keeping it around for now, per Björn) — just stop importing from it.
+<!-- Feature name and short description -->
 
 ## Status
 
-In Progress
+<!-- Not Started | In Progress | Completed -->
 
 ## Goals
 
-- The only remaining mock-data usage is `currentUser` in the sidebar footer (`src/components/dashboard/AppSidebar.tsx:23` — used for name, email, and avatar initials)
-- Replace it with the demo user fetched from Neon via Prisma:
-  - Add a query in `src/lib/db/` (e.g. `getCurrentUser()` in a new `src/lib/db/users.ts`), scoped via the existing `DEMO_USER_EMAIL` in `src/lib/db/demo-user.ts`, selecting only what the footer needs (name, email, image)
-  - Define a small DTO in `src/types/` for it — do not import the stale `User` interface from mock-data
-  - Fetch in the async dashboard layout and pass to `AppSidebar` via props, same pattern as the existing type-nav/collections data
-- After this, zero imports from `@/lib/mock-data` anywhere in `src/` — verify with a grep
-- `npm run lint` and `npm run build` pass
+<!-- Goals & requirements -->
 
 ## Notes
 
-- From the 2026-07-09 code-scanner audit: mock-data.ts is ~270 lines of dead code with stale type definitions that shadow the real DTOs in `src/types/`. Deletion is deliberately deferred — this feature only severs the last import so nothing new grows on it.
-- Demo user comes from the seed (`demo@devstash.io`, name "Demo User" per prisma/seed.ts) — footer will show seeded values instead of mock "John Doe", which is expected.
-- When NextAuth lands (Auth build phase), `getCurrentUser()` swaps its demo-email filter for the session user — keep the signature auth-friendly.
+<!-- Any extra notes -->
 
 ## History
 
@@ -35,3 +27,4 @@ In Progress
 - 2026-06-13: **Stats & Sidebar** - per context/features/stats-sidebar-spec.md: sidebar now fetched from Neon via Prisma — system item types with per-user counts and pluralized name/slug linking to /items/[slug] (getItemTypeNavItems in src/lib/db/items.ts, ItemTypeNavItem DTO, order: Snippets/Prompts/Commands/Notes/Files/Images/Links), favorite + recent collections via shared findCollectionSummaries helper (getFavoriteCollections/getRecentNonFavoriteCollections in src/lib/db/collections.ts), recents show dot tinted by most-used item type, "View all collections" link to /collections, AppSidebar converted to props fed by async force-dynamic dashboard layout; stats were already DB-backed from Dashboard Items, only remaining mock usage is currentUser in sidebar footer
 - 2026-06-30: **DB Cold-Start Resilience** - handle Neon compute auto-suspend: Prisma `$allOperations` extension in src/lib/prisma.ts retries only transient connection failures (bare ErrorEvent from Neon WebSocket cold-start, P1001) with exponential backoff (300/600/1200/2400ms, ~4.5s max), real query errors throw immediately; centralized so all src/lib/db queries get it without touching call sites; root src/app/error.tsx graceful boundary with Try-again (reset) for exhausted retries / genuine outage — root level because the dashboard layout itself queries the DB so a boundary can't catch its own layout's errors. Note: editing prisma.ts needs a full dev-server restart (global singleton caches the client across hot reloads)
 - 2026-07-01: **Pro Badge in Sidebar** - per context/features/add-pro-badge-sidebar.md: PRO badge next to Pro-only system types (Files, Images) in sidebar type nav; added `isPro: boolean` to ItemTypeNavItem DTO, computed in getItemTypeNavItems from a PRO_TYPE_NAMES set (File/Image, keyed by singular name) co-located with SYSTEM_TYPE_ORDER; AppSidebar renders a subtle shadcn Badge (outline variant, h-4, text-[10px], muted foreground, wide tracking, uppercase "PRO") inline after the type name, count SidebarMenuBadge stays on the right; no new query or schema change — flag rides existing props pipeline
+- 2026-07-09: **Sidebar User from DB** - severed the last live mock-data import: sidebar footer user now fetched from Neon via Prisma (getCurrentUser in new src/lib/db/users.ts, findUniqueOrThrow scoped to DEMO_USER_EMAIL, selects name/email/image only), CurrentUser DTO in new src/types/users.ts with schema-accurate nullability, fetched in dashboard layout's existing Promise.all and passed to AppSidebar via props; initials/display name fall back to email when name is null; zero @/lib/mock-data imports in src/ (file itself deliberately kept, deletion deferred per Björn); note: un-seeded DB now errors the dashboard via root boundary, so db:seed is a hard prerequisite for fresh environments; when NextAuth lands, getCurrentUser swaps the demo-email filter for the session user
