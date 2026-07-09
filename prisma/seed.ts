@@ -3,13 +3,13 @@ import { PrismaNeon } from "@prisma/adapter-neon";
 import bcrypt from "bcryptjs";
 import { PrismaClient } from "../src/generated/prisma/client";
 import type { ItemContentType } from "../src/generated/prisma/client";
+import { DEMO_USER_EMAIL } from "../src/lib/db/demo-user";
 
 const adapter = new PrismaNeon({
   connectionString: process.env.DIRECT_URL ?? process.env.DATABASE_URL,
 });
 const prisma = new PrismaClient({ adapter });
 
-const DEMO_EMAIL = "demo@devstash.io";
 const DEMO_PASSWORD = "12345678";
 
 const SYSTEM_TYPES = [
@@ -344,10 +344,10 @@ async function seedDemoUser(): Promise<string> {
   const password = await bcrypt.hash(DEMO_PASSWORD, 12);
 
   const user = await prisma.user.upsert({
-    where: { email: DEMO_EMAIL },
+    where: { email: DEMO_USER_EMAIL },
     update: { name: "Demo User", password, emailVerified: new Date() },
     create: {
-      email: DEMO_EMAIL,
+      email: DEMO_USER_EMAIL,
       name: "Demo User",
       password,
       isPro: false,
@@ -359,7 +359,7 @@ async function seedDemoUser(): Promise<string> {
   await prisma.item.deleteMany({ where: { userId: user.id } });
   await prisma.collection.deleteMany({ where: { userId: user.id } });
 
-  console.log(`Upserted demo user: ${DEMO_EMAIL}`);
+  console.log(`Upserted demo user: ${DEMO_USER_EMAIL}`);
   return user.id;
 }
 

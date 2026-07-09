@@ -80,10 +80,11 @@ export async function getItemTypeNavItems(): Promise<ItemTypeNavItem[]> {
     });
 }
 
-export async function getPinnedItems(): Promise<ItemSummary[]> {
+export async function getPinnedItems(limit = 10): Promise<ItemSummary[]> {
   const items = await prisma.item.findMany({
     where: { user: { email: DEMO_USER_EMAIL }, isPinned: true },
     orderBy: { updatedAt: "desc" },
+    take: limit,
     select: itemSummarySelect,
   });
 

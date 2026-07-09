@@ -2,13 +2,13 @@ import "dotenv/config";
 import { PrismaNeon } from "@prisma/adapter-neon";
 import bcrypt from "bcryptjs";
 import { PrismaClient } from "../src/generated/prisma/client";
+import { DEMO_USER_EMAIL } from "../src/lib/db/demo-user";
 
 const adapter = new PrismaNeon({
   connectionString: process.env.DATABASE_URL,
 });
 const prisma = new PrismaClient({ adapter });
 
-const DEMO_EMAIL = "demo@devstash.io";
 const DEMO_PASSWORD = "12345678";
 
 async function main() {
@@ -40,10 +40,10 @@ async function main() {
   // ---------- Seeded demo data ----------
 
   const demoUser = await prisma.user.findUnique({
-    where: { email: DEMO_EMAIL },
+    where: { email: DEMO_USER_EMAIL },
   });
   if (!demoUser) {
-    throw new Error(`Demo user ${DEMO_EMAIL} not found — run \`npm run db:seed\` first`);
+    throw new Error(`Demo user ${DEMO_USER_EMAIL} not found — run \`npm run db:seed\` first`);
   }
   console.log("✅ Demo user:");
   console.table([

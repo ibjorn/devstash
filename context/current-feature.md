@@ -1,18 +1,27 @@
 # Current Feature
 
-<!-- Feature name and short description -->
+**Audit Quick Wins** — low-risk cleanups from the 2026-07-09 code-scanner audit. Small, mechanical fixes only; no behavior redesigns, no schema changes, no auth prep (auth isn't implemented yet).
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals & requirements -->
+- **Cap `getPinnedItems`** (`src/lib/db/items.ts:83-91`): only list query without a row limit. Add a `limit` parameter with a sane default, mirroring the `getRecentItems` pattern (`take: limit`).
+- **Dedupe the demo email literal**: `"demo@devstash.io"` is defined in three places. Have `prisma/seed.ts:12` and `scripts/test-db.ts:11` import `DEMO_USER_EMAIL` from `src/lib/db/demo-user.ts` instead of redefining `DEMO_EMAIL` locally (both files already import from `../src/generated`, so cross-directory imports are established). Seed's `DEMO_PASSWORD` stays where it is.
+- **Extract a type-color tint helper**: the `` `${color}40` `` / `` `${color}1a` `` / `` `${color}0d` `` hex-alpha suffix trick is duplicated in `src/components/dashboard/ItemRow.tsx:25,30` and `src/components/dashboard/CollectionCard.tsx:29-30`, and silently produces invalid CSS if a type color is ever stored as 3-digit hex or `rgb()` (custom types with user-supplied colors are planned). Add a small helper in `src/lib/` (e.g. `type-colors.ts`) using `color-mix(in srgb, <color> N%, transparent)` and use it in both components. AppSidebar's raw `color`/`backgroundColor` usages are full-strength colors, not alpha compositions — leave them alone.
+- No visual changes intended — tint strengths must match the current hex-alpha values (`40` ≈ 25%, `1a` ≈ 10%, `0d` ≈ 5%); Björn eyeballs the dashboard to confirm cards/rows look identical.
+- `npm run lint` and `npm run build` pass.
 
 ## Notes
 
-<!-- Any extra notes -->
+- Deliberately **excluded** from this feature (from the same audit):
+  - Deleting `src/lib/mock-data.ts` — deferred per Björn.
+  - `findCollectionSummaries` groupBy rework (Medium perf) — real query restructuring, deserves its own feature with the 50-line-function split.
+  - Tag user-scoping schema decision — needs a product call before Item CRUD, not a quick win.
+  - Threading `userId` through `src/lib/db/*` and env-gating the seed's demo user — both are Auth-phase prep; do them when auth lands.
+  - `AppSidebar` decomposition — optional structural refactor, park it until the footer changes for auth anyway.
 
 ## History
 

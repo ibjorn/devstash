@@ -1,6 +1,7 @@
 import { File, Pin, Star } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { typeColorTint } from "@/lib/type-colors";
 import { typeIcons } from "@/lib/type-icons";
 import type { ItemSummary } from "@/types/items";
 
@@ -22,12 +23,15 @@ export function ItemRow({ item }: ItemRowProps) {
     <div
       className="flex items-start gap-3 rounded-xl border bg-card p-4 transition-shadow hover:ring-1 hover:ring-foreground/25"
       // border comes from the item type's color
-      style={{ borderColor: `${item.type.color}40` }}
+      style={{ borderColor: typeColorTint(item.type.color, 25) }}
     >
       <div
         className="flex size-9 shrink-0 items-center justify-center rounded-lg"
         // icon chip tinted with the item type's color
-        style={{ backgroundColor: `${item.type.color}1a`, color: item.type.color }}
+        style={{
+          backgroundColor: typeColorTint(item.type.color, 10),
+          color: item.type.color,
+        }}
       >
         <Icon className="size-4" />
       </div>
