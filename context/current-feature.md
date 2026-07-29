@@ -1,51 +1,18 @@
-# Current Feature: Auth Phase 1 — NextAuth v5 + GitHub Provider
+# Current Feature
 
-Set up NextAuth v5 with the Prisma adapter and GitHub OAuth, using NextAuth's default sign-in page for testing.
-
-Spec: context/features/auth-phase-1-spec.md
+<!-- Feature name and short description -->
 
 ## Status
 
-In Progress
+<!-- Not Started | In Progress | Completed -->
 
 ## Goals
 
-- Install `next-auth@beta` (v5) and `@auth/prisma-adapter`
-- Set up the split auth config pattern for edge compatibility:
-  - `src/auth.config.ts` — edge-safe config (providers only, no adapter)
-  - `src/auth.ts` — full config with Prisma adapter + JWT session strategy
-- Add the GitHub OAuth provider
-- `src/app/api/auth/[...nextauth]/route.ts` — export handlers from `src/auth.ts`
-- `src/proxy.ts` — protect `/dashboard/*` via the Next.js 16 proxy, redirecting unauthenticated users to sign-in
-- `src/types/next-auth.d.ts` — extend the Session type with `user.id`
-- Add `AUTH_SECRET`, `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET` env vars
+<!-- Goals & requirements -->
 
 ## Notes
 
-Verify current config/conventions with Context7 before scaffolding — NextAuth v5 is still beta and moves.
-
-Gotchas from the spec:
-
-- Use `next-auth@beta`, not `@latest` (that installs v4)
-- Proxy file lives at `src/proxy.ts`, same level as `app/`
-- Named export: `export const proxy = auth(...)`, not a default export
-- `session: { strategy: 'jwt' }` is required with the split config pattern
-- Do **not** set a custom `pages.signIn` — use NextAuth's default page this phase
-
-Testing (manual, in Windows Chrome — no headless browser):
-
-1. Visit `/dashboard` → should redirect to sign-in
-2. Click "Sign in with GitHub"
-3. Confirm redirect back to `/dashboard` after auth
-
-References:
-
-- Edge compatibility: https://authjs.dev/getting-started/installation#edge-compatibility
-- Prisma adapter: https://authjs.dev/getting-started/adapters/prisma
-
-Related: `context/features/auth-phase-2-spec.md` and `auth-phase-3-spec.md` exist but are out of scope for this phase.
-
-Downstream touchpoint: `getCurrentUser` in `src/lib/db/users.ts` currently filters by `DEMO_USER_EMAIL` — swapping it to the session user is a later phase, not this one.
+<!-- Any extra notes -->
 
 ## History
 
@@ -62,3 +29,4 @@ Downstream touchpoint: `getCurrentUser` in `src/lib/db/users.ts` currently filte
 - 2026-07-01: **Pro Badge in Sidebar** - per context/features/add-pro-badge-sidebar.md: PRO badge next to Pro-only system types (Files, Images) in sidebar type nav; added `isPro: boolean` to ItemTypeNavItem DTO, computed in getItemTypeNavItems from a PRO_TYPE_NAMES set (File/Image, keyed by singular name) co-located with SYSTEM_TYPE_ORDER; AppSidebar renders a subtle shadcn Badge (outline variant, h-4, text-[10px], muted foreground, wide tracking, uppercase "PRO") inline after the type name, count SidebarMenuBadge stays on the right; no new query or schema change — flag rides existing props pipeline
 - 2026-07-09: **Sidebar User from DB** - severed the last live mock-data import: sidebar footer user now fetched from Neon via Prisma (getCurrentUser in new src/lib/db/users.ts, findUniqueOrThrow scoped to DEMO_USER_EMAIL, selects name/email/image only), CurrentUser DTO in new src/types/users.ts with schema-accurate nullability, fetched in dashboard layout's existing Promise.all and passed to AppSidebar via props; initials/display name fall back to email when name is null; zero @/lib/mock-data imports in src/ (file itself deliberately kept, deletion deferred per Björn); note: un-seeded DB now errors the dashboard via root boundary, so db:seed is a hard prerequisite for fresh environments; when NextAuth lands, getCurrentUser swaps the demo-email filter for the session user
 - 2026-07-09: **Audit Quick Wins** - three low-risk cleanups from the 2026-07-09 code-scanner audit: getPinnedItems now takes limit=10 with take (was the only unbounded list query, mirrors getRecentItems); prisma/seed.ts and scripts/test-db.ts import DEMO_USER_EMAIL from src/lib/db/demo-user.ts via relative path instead of redefining the literal (DEMO_PASSWORD stays local); new typeColorTint(color, percent) helper in src/lib/type-colors.ts using color-mix(in srgb) replaces the format-fragile hex-alpha suffix trick in ItemRow (25% border, 10% icon chip) and CollectionCard (5% bg, 25% border) — future-proofs user-supplied custom type colors, tint strengths matched so visuals unchanged; deliberately excluded from same audit: mock-data deletion (deferred), findCollectionSummaries groupBy rework (own feature), Tag user-scoping decision (needed before Item CRUD), userId threading + seed env-gating (Auth-phase prep), AppSidebar decomposition (park until auth footer work)
+- 2026-07-29: **Auth Phase 1 — NextAuth v5 + GitHub** - per context/features/auth-phase-1-spec.md: next-auth@5.0.0-beta.32 + @auth/prisma-adapter@2.11.3, split config for edge compatibility — src/auth.config.ts is adapter-free (GitHub provider + session callback mapping `token.sub` → `session.user.id`) and src/auth.ts spreads it while adding `PrismaAdapter(prisma)` and `session: { strategy: "jwt" }`; the session callback deliberately lives in the shared edge config, not auth.ts, so `req.auth.user.id` is populated inside the proxy too; src/proxy.ts builds its own NextAuth instance from auth.config (keeps Prisma out of the edge bundle), named `proxy` export per Next 16 convention, matcher `/dashboard/:path*`, redirects signed-out requests to NextAuth's default sign-in page with a `callbackUrl` (no custom `pages.signIn` this phase); src/app/api/auth/[...nextauth]/route.ts re-exports GET/POST from handlers; src/types/next-auth.d.ts augments `Session["user"]` with `id: string`. No schema change — the NextAuth models (User/Account/Session/VerificationToken) were already in place from Database Setup. The `$extends`-wrapped Prisma client from src/lib/prisma.ts typed against PrismaAdapter without a cast, so adapter writes inherit the cold-start retry logic. Verified the full GitHub round-trip in Windows Chrome: `/dashboard` → 307 to sign-in, OAuth callback 302, `/dashboard` 200 through proxy.ts; adapter persisted a User + linked github Account row, Session table stays empty by design under JWT. Known follow-up for phase 2: `getCurrentUser` in src/lib/db/users.ts is still pinned to DEMO_USER_EMAIL, so a freshly signed-in GitHub user still sees the demo user's data until the session-user swap lands.
