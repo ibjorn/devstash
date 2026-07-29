@@ -1,18 +1,31 @@
-# Current Feature
+# Current Feature: Auth Phase 2 — Credentials (Email/Password)
 
-<!-- Feature name and short description -->
+Add a NextAuth Credentials provider for email/password sign-in, plus a registration endpoint.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals & requirements -->
+- Add a Credentials provider to `src/auth.config.ts` with an `authorize: () => null` placeholder (keeps the edge bundle Prisma-free)
+- Override that Credentials provider in `src/auth.ts` with real bcryptjs validation against the `User.password` hash
+- Create `POST /api/auth/register` accepting `name`, `email`, `password`, `confirmPassword`
+  - Validate the two passwords match
+  - Reject if a user with that email already exists
+  - Hash with bcryptjs and create the user
+  - Return the `{ success, data, error }` shape used elsewhere
+- `User.password` exists in the schema already (nullable bcrypt hash, added during Seed Data) — no migration needed unless something proves otherwise
+- Verify: register via curl, sign in at `/api/auth/signin` with email/password, land on `/dashboard`, and confirm GitHub OAuth still works
 
 ## Notes
 
-<!-- Any extra notes -->
+- Split-config pattern from Phase 1 must survive: `auth.config.ts` stays adapter-free/edge-safe, `auth.ts` adds the adapter and the bcrypt `authorize`. The session callback stays in the shared config so `req.auth.user.id` is populated in `src/proxy.ts`.
+- Credentials sign-in only works under `session: { strategy: "jwt" }` — already set in `auth.ts`.
+- bcryptjs is already a dependency (seed uses it at 12 rounds); match that cost factor.
+- Validate the register payload with Zod per coding standards.
+- Still outstanding from Phase 1 (deferred to Phase 3 unless Björn says otherwise): `getCurrentUser` in [users.ts](src/lib/db/users.ts) is still pinned to `DEMO_USER_EMAIL`, so any newly registered user sees demo data.
+- Spec: [auth-phase-2-spec.md](context/features/auth-phase-2-spec.md)
 
 ## History
 
