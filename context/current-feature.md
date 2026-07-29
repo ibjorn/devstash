@@ -1,70 +1,18 @@
-# Current Feature: Auth Phase 3 — Auth UI (Sign In, Register & Sign Out)
+# Current Feature
 
-Replace the NextAuth default pages with custom `/sign-in` and `/register` pages, and wire the sidebar footer to the real signed-in user with an avatar dropdown.
-
-Spec: `context/features/auth-phase-3-spec.md`
+<!-- Feature name and short description -->
 
 ## Status
 
-In Progress — branch `feature/auth-phase-3`
+<!-- Not Started | In Progress | Completed -->
 
 ## Goals
 
-### Sign In Page (`/sign-in`)
-
-- Email + password input fields
-- "Sign in with GitHub" button
-- Link to the register page
-- Form validation and error display
-
-### Register Page (`/register`)
-
-- Name, email, password, confirm password fields
-- Form validation (passwords match, email format)
-- Submits to `POST /api/auth/register`
-- Redirects to `/sign-in` on success
-
-### Sidebar Footer
-
-- User avatar — GitHub `image` if present, otherwise initials from name (e.g. "Brad Traversy" → "BT")
-- Display user name
-- Dropdown (opening upward) on avatar click with a "Sign out" action
-- Clicking the avatar/user block navigates to `/profile`
-- Reusable avatar component handling both image and initials cases
-
-### Wiring (carried into this phase)
-
-- Swap `getCurrentUser` in `src/lib/db/users.ts` off `DEMO_USER_EMAIL` to the NextAuth session user — otherwise the footer avatar and sign-out act on demo data regardless of who signed in. **Scope decision (Björn, 2026-07-29): `getCurrentUser` only.** Items, collections and stats stay demo-scoped this phase; full `userId` threading through `src/lib/db` is its own later phase.
-- Set `pages.signIn: "/sign-in"` in `src/auth.config.ts` so `src/proxy.ts` redirects to the custom page instead of NextAuth's default
+<!-- Goals & requirements -->
 
 ## Notes
 
-- Phase 1 + 2 already landed NextAuth v5 with GitHub OAuth and Credentials (email/password), plus `POST /api/auth/register`. This phase is UI only — no new providers, no schema change.
-- The `getCurrentUser` and `pages.signIn` items above are carry-overs from Phase 2 folded into this phase's scope — the sidebar work is meaningless without the first, and the custom sign-in page is unreachable without the second.
-- `signInSchema` / `registerSchema` already exist in `src/lib/validation/auth.ts` — reuse them client-side rather than redefining validation.
-- Spec mentions "verify avatar shows in top bar" in its testing steps, but the requirements place the avatar in the sidebar footer (where it already lives). Treating **sidebar footer** as the source of truth.
-- **`/profile` is deliberately out of scope** (Björn, 2026-07-29). The avatar links there as specced; the route doesn't exist yet, so the link 404s until a later phase builds it. Not a bug.
-- Still outstanding from Phase 2 review (not this phase unless asked): dummy bcrypt compare for the timing side-channel, rate limiting on `/api/auth/register`, and test rows `test@test.com` / `padded@test.com` left in the Neon development branch.
-
-### Next phase — user-scoped data (agreed 2026-07-29)
-
-Every signed-in user currently sees the **demo user's** items, collections, stats and sidebar counts, because only `getCurrentUser` reads the session. Six queries still filter on `DEMO_USER_EMAIL`:
-
-- `src/lib/db/items.ts` — `getItemTypeNavItems`, `getPinnedItems`, `getRecentItems`
-- `src/lib/db/collections.ts` — `findCollectionSummaries` (feeds `getFavoriteCollections` + `getRecentNonFavoriteCollections`)
-- `src/lib/db/dashboard.ts` — `getDashboardStats`
-
-Björn's calls: thread `userId` through these in **its own phase after Auth Phase 3 merges**, and ship it **without empty states** — new accounts get bare sections until the dashboard work covers them. `DEMO_USER_EMAIL` becomes seed-/script-only at that point.
-
-## Testing
-
-1. `/sign-in` renders the custom page
-2. GitHub sign-in flow works
-3. Email/password sign-in works
-4. Avatar shows GitHub image or initials
-5. Avatar click opens the dropdown
-6. "Sign out" logs out and redirects
-7. `/register` creates an account and redirects to `/sign-in`
+<!-- Any extra notes -->
 
 ## History
 
@@ -83,3 +31,4 @@ Björn's calls: thread `userId` through these in **its own phase after Auth Phas
 - 2026-07-09: **Audit Quick Wins** - three low-risk cleanups from the 2026-07-09 code-scanner audit: getPinnedItems now takes limit=10 with take (was the only unbounded list query, mirrors getRecentItems); prisma/seed.ts and scripts/test-db.ts import DEMO_USER_EMAIL from src/lib/db/demo-user.ts via relative path instead of redefining the literal (DEMO_PASSWORD stays local); new typeColorTint(color, percent) helper in src/lib/type-colors.ts using color-mix(in srgb) replaces the format-fragile hex-alpha suffix trick in ItemRow (25% border, 10% icon chip) and CollectionCard (5% bg, 25% border) — future-proofs user-supplied custom type colors, tint strengths matched so visuals unchanged; deliberately excluded from same audit: mock-data deletion (deferred), findCollectionSummaries groupBy rework (own feature), Tag user-scoping decision (needed before Item CRUD), userId threading + seed env-gating (Auth-phase prep), AppSidebar decomposition (park until auth footer work)
 - 2026-07-29: **Auth Phase 1 — NextAuth v5 + GitHub** - per context/features/auth-phase-1-spec.md: next-auth@5.0.0-beta.32 + @auth/prisma-adapter@2.11.3, split config for edge compatibility — src/auth.config.ts is adapter-free (GitHub provider + session callback mapping `token.sub` → `session.user.id`) and src/auth.ts spreads it while adding `PrismaAdapter(prisma)` and `session: { strategy: "jwt" }`; the session callback deliberately lives in the shared edge config, not auth.ts, so `req.auth.user.id` is populated inside the proxy too; src/proxy.ts builds its own NextAuth instance from auth.config (keeps Prisma out of the edge bundle), named `proxy` export per Next 16 convention, matcher `/dashboard/:path*`, redirects signed-out requests to NextAuth's default sign-in page with a `callbackUrl` (no custom `pages.signIn` this phase); src/app/api/auth/[...nextauth]/route.ts re-exports GET/POST from handlers; src/types/next-auth.d.ts augments `Session["user"]` with `id: string`. No schema change — the NextAuth models (User/Account/Session/VerificationToken) were already in place from Database Setup. The `$extends`-wrapped Prisma client from src/lib/prisma.ts typed against PrismaAdapter without a cast, so adapter writes inherit the cold-start retry logic. Verified the full GitHub round-trip in Windows Chrome: `/dashboard` → 307 to sign-in, OAuth callback 302, `/dashboard` 200 through proxy.ts; adapter persisted a User + linked github Account row, Session table stays empty by design under JWT. Known follow-up for phase 2: `getCurrentUser` in src/lib/db/users.ts is still pinned to DEMO_USER_EMAIL, so a freshly signed-in GitHub user still sees the demo user's data until the session-user swap lands.
 - 2026-07-29: **Auth Phase 2 — Credentials (Email/Password)** - per context/features/auth-phase-2-spec.md: email/password sign-in alongside GitHub OAuth. src/auth.config.ts gains a Credentials placeholder (`authorize: () => null`) plus an exported `credentialFields` ({ email, password } label/type pairs) so the edge config stays free of Prisma and bcryptjs while still describing the sign-in form; src/auth.ts defines the real provider (Zod `signInSchema` parse → `prisma.user.findUnique` → `bcrypt.compare` at 12 rounds, matching the seed) and swaps it in via `authConfig.providers.map(p => typeof p === "object" && p.id === "credentials" ? credentials : p)` — chosen over redeclaring the providers array so GitHub isn't duplicated across the two configs and can't drift. `authorize` returns null for every failure mode (unknown email, OAuth-only account with a null hash, wrong password) so the form leaks no user enumeration; the selected `password` column never leaves the function. New POST /api/auth/register (src/app/api/auth/register/route.ts): static segment beats the sibling [...nextauth] catch-all, validates with `registerSchema`, 409s on duplicate email with P2002 as the race backstop, returns `{ success, data, error }`, 201 on create. New src/lib/validation/auth.ts holds both schemas; emails are `z.string().trim().toLowerCase().pipe(z.email())` — the pipe order matters and was a review fix, since validating before transforming rejected `"  a@b.com  "` outright instead of cleaning it. Added zod@4.4.3 as a dependency (coding standards mandate Zod; it wasn't installed) — note zod 4 prefers top-level `z.email()` over the deprecated `z.string().email()`. No schema change; `User.password` was already nullable from Seed Data. Verified against the dev server by curl: register happy path + duplicate/mismatch/bad-email/short-password/malformed-JSON rejections, credentials sign-in setting a session cookie with `user.id` populated (proving the shared session callback still fires under the provider swap), demo user (demo@devstash.io / 12345678) signing in on the seeded hash, wrong-password and unknown-email both 302ing to `?error=CredentialsSignin` with a null session, the OAuth-only GitHub user rejected via credentials, /api/auth/providers listing both providers, GitHub entry point still 302ing to github.com with PKCE, and signed-out /dashboard still 307ing through proxy.ts. Deliberately not done: dummy bcrypt compare to close the timing side-channel on unknown emails, and rate limiting on the public register endpoint — both flagged at review, neither should reach production unaddressed. Also unresolved: registering with an email that already has an OAuth-only account 409s, so GitHub users cannot add a password (account linking is out of scope). Test rows `test@test.com` and `padded@test.com` were left in the Neon development branch. Phase 3 owns the custom /sign-in and /register pages, the sidebar avatar dropdown, and the still-outstanding `getCurrentUser` swap off DEMO_USER_EMAIL.
+- 2026-07-29: **Auth Phase 3 — Auth UI (Sign In, Register & Sign Out)** - per context/features/auth-phase-3-spec.md: custom auth UI replacing NextAuth's built-in pages. New `(auth)` route group (src/app/(auth)/layout.tsx centered card shell) holding /sign-in and /register, both server components that call `auth()` and redirect already-signed-in visitors away. src/components/auth/SignInForm.tsx drives the credentials provider through `signInWithCredentials` (useActionState) and hands GitHub off via a *second* form calling `signInWithGitHub` — separate forms because forms can't nest; src/components/auth/RegisterForm.tsx reuses `registerSchema` client-side to produce per-field errors, then POSTs to the Phase 2 API route (spec mandated the endpoint over a server action; coding standards carve out API routes for future mobile/CLI clients). New src/actions/auth.ts holds all three actions plus `signOutAction`; `signIn` throws NEXT_REDIRECT on success so only `AuthError` is caught and everything else rethrows. `pages.signIn: "/sign-in"` added to src/auth.config.ts so src/proxy.ts redirects to the custom page, and the proxy now emits a **relative** callbackUrl (`pathname + search`, was `req.nextUrl.href`) which new src/lib/auth-redirect.ts `safeRedirectPath` re-validates on the way back in — rejects `//evil.com` and absolute URLs, defaults to /dashboard. **getCurrentUser in src/lib/db/users.ts now reads `auth()` session user id instead of DEMO_USER_EMAIL** and throws if there's no session (callers sit behind the proxy matcher, so a missing session is a bug worth surfacing). Sidebar footer extracted from AppSidebar into src/components/dashboard/SidebarUserMenu.tsx: shadcn dropdown-menu opening `side="top"`, with a Profile link and Sign out; the sign-out `<form>` deliberately sits *outside* DropdownMenuContent with the button associated via `form={useId()}` — nesting it risks Radix unmounting the form mid-submit and puts a `<form>` between role=menu and role=menuitem. New reusable src/components/user/UserAvatar.tsx (AvatarImage for GitHub `image`, initials fallback) exports `getUserInitials`, moved off AppSidebar; name falls back to email with `||` not `??` so an empty GitHub display name is caught too (review fix). Toasts: sonner@2.0.7 + src/components/ui/sonner.tsx, `<Toaster />` in the root layout so a toast fired just before `router.push` survives the navigation; `richColors` gives success=green / error=red; **all inline alert banners were removed in favour of toasts at Björn's request**, though per-field validation text stays inline next to its input. The `?error=` NextAuth hands back is toasted once (fixed toast id to collapse Strict Mode's double-mount) then stripped from the URL via `history.replaceState` so a refresh can't replay a stale failure. shadcn's Toaster pulled in next-themes, which is unusable here (no ThemeProvider — `dark` is hardcoded on <html>) and would have rendered light toasts on a light-mode OS, so it was **uninstalled** and the toaster pinned to `theme="dark"`; revisit when light mode lands. lucide v1 dropped brand icons so the GitHub mark ships inline as src/components/auth/GitHubIcon.tsx. src/app/(auth)/loading.tsx added to fix a real bug Björn spotted: with both pages dynamic and no loading boundary, Next kept the previous auth page (stale error banner and all) mounted for the whole soft navigation — confirmed fixed. Spec conflict resolved: requirements put the avatar in the sidebar footer while the testing steps said "top bar" — footer won; and "dropdown on avatar click" vs "clicking the icon goes to /profile" can't be the same click, so the footer button opens the menu and /profile is a menu item. /profile itself is deliberately unbuilt, so that link 404s by design. No schema change, no new providers. Verified by curl against the dev server: signed-out /dashboard 307→/sign-in?callbackUrl=%2Fdashboard, both pages 200, credentials sign-in 302 with a session carrying user.id, /dashboard then rendering the footer from the *session* user, signed-in /sign-in 307→/dashboard, register 201 + 409 on duplicate, the open-redirect guard passing /dashboard/items while rejecting //evil.com and https://evil.com, and zero role="alert" markup left server-rendered. Not verifiable here (no headless browser in WSL) and left to Björn in Windows Chrome: the GitHub OAuth round-trip, the sign-out click, and all toast rendering. Test row phase3@test.com was created during testing and deleted; Phase 2's test@test.com / padded@test.com are still in the Neon development branch. next.config.ts (`devIndicators: false`) was Björn's unrelated uncommitted change and was deliberately kept out of this commit. **Next phase — user-scoped data:** six queries still filter on DEMO_USER_EMAIL (getItemTypeNavItems / getPinnedItems / getRecentItems in src/lib/db/items.ts, findCollectionSummaries in collections.ts, getDashboardStats in dashboard.ts), so every signed-in user still sees the demo user's items, collections and stats above their own name; Björn's call is to thread userId in its own phase and ship it **without** empty states.
