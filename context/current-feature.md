@@ -1,18 +1,51 @@
-# Current Feature
+# Current Feature: Auth Phase 1 — NextAuth v5 + GitHub Provider
 
-<!-- Feature name and short description -->
+Set up NextAuth v5 with the Prisma adapter and GitHub OAuth, using NextAuth's default sign-in page for testing.
+
+Spec: context/features/auth-phase-1-spec.md
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals & requirements -->
+- Install `next-auth@beta` (v5) and `@auth/prisma-adapter`
+- Set up the split auth config pattern for edge compatibility:
+  - `src/auth.config.ts` — edge-safe config (providers only, no adapter)
+  - `src/auth.ts` — full config with Prisma adapter + JWT session strategy
+- Add the GitHub OAuth provider
+- `src/app/api/auth/[...nextauth]/route.ts` — export handlers from `src/auth.ts`
+- `src/proxy.ts` — protect `/dashboard/*` via the Next.js 16 proxy, redirecting unauthenticated users to sign-in
+- `src/types/next-auth.d.ts` — extend the Session type with `user.id`
+- Add `AUTH_SECRET`, `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET` env vars
 
 ## Notes
 
-<!-- Any extra notes -->
+Verify current config/conventions with Context7 before scaffolding — NextAuth v5 is still beta and moves.
+
+Gotchas from the spec:
+
+- Use `next-auth@beta`, not `@latest` (that installs v4)
+- Proxy file lives at `src/proxy.ts`, same level as `app/`
+- Named export: `export const proxy = auth(...)`, not a default export
+- `session: { strategy: 'jwt' }` is required with the split config pattern
+- Do **not** set a custom `pages.signIn` — use NextAuth's default page this phase
+
+Testing (manual, in Windows Chrome — no headless browser):
+
+1. Visit `/dashboard` → should redirect to sign-in
+2. Click "Sign in with GitHub"
+3. Confirm redirect back to `/dashboard` after auth
+
+References:
+
+- Edge compatibility: https://authjs.dev/getting-started/installation#edge-compatibility
+- Prisma adapter: https://authjs.dev/getting-started/adapters/prisma
+
+Related: `context/features/auth-phase-2-spec.md` and `auth-phase-3-spec.md` exist but are out of scope for this phase.
+
+Downstream touchpoint: `getCurrentUser` in `src/lib/db/users.ts` currently filters by `DEMO_USER_EMAIL` — swapping it to the session user is a later phase, not this one.
 
 ## History
 
