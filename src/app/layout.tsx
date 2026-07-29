@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -30,6 +31,8 @@ export default function RootLayout({
       {/* suppressHydrationWarning: browser extensions (e.g. ColorZilla) inject attributes into <body> */}
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
         {children}
+        {/* Root-level so toasts survive the client-side nav that fires them */}
+        <Toaster />
       </body>
     </html>
   );

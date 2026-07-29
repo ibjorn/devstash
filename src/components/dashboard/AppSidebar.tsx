@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Folder, FolderOpen, Layers, Star } from "lucide-react";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { SidebarUserMenu } from "@/components/dashboard/SidebarUserMenu";
 import { Badge } from "@/components/ui/badge";
 import {
   Sidebar,
@@ -25,15 +25,6 @@ import type { CollectionSummary } from "@/types/collections";
 import type { ItemTypeNavItem } from "@/types/items";
 import type { CurrentUser } from "@/types/users";
 
-function getInitials(user: CurrentUser) {
-  return (user.name ?? user.email)
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-}
-
 interface AppSidebarProps {
   itemTypes: ItemTypeNavItem[];
   favoriteCollections: CollectionSummary[];
@@ -48,7 +39,6 @@ export function AppSidebar({
   user,
 }: AppSidebarProps) {
   const pathname = usePathname();
-  const displayName = user.name ?? user.email;
 
   return (
     <Sidebar collapsible="icon">
@@ -174,21 +164,7 @@ export function AppSidebar({
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton size="lg" tooltip={displayName}>
-              <Avatar className="size-8">
-                <AvatarFallback>{getInitials(user)}</AvatarFallback>
-              </Avatar>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{displayName}</span>
-                <span className="truncate text-xs text-muted-foreground">
-                  {user.email}
-                </span>
-              </div>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+        <SidebarUserMenu user={user} />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

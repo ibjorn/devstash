@@ -1,18 +1,70 @@
-# Current Feature
+# Current Feature: Auth Phase 3 — Auth UI (Sign In, Register & Sign Out)
 
-<!-- Feature name and short description -->
+Replace the NextAuth default pages with custom `/sign-in` and `/register` pages, and wire the sidebar footer to the real signed-in user with an avatar dropdown.
+
+Spec: `context/features/auth-phase-3-spec.md`
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress — branch `feature/auth-phase-3`
 
 ## Goals
 
-<!-- Goals & requirements -->
+### Sign In Page (`/sign-in`)
+
+- Email + password input fields
+- "Sign in with GitHub" button
+- Link to the register page
+- Form validation and error display
+
+### Register Page (`/register`)
+
+- Name, email, password, confirm password fields
+- Form validation (passwords match, email format)
+- Submits to `POST /api/auth/register`
+- Redirects to `/sign-in` on success
+
+### Sidebar Footer
+
+- User avatar — GitHub `image` if present, otherwise initials from name (e.g. "Brad Traversy" → "BT")
+- Display user name
+- Dropdown (opening upward) on avatar click with a "Sign out" action
+- Clicking the avatar/user block navigates to `/profile`
+- Reusable avatar component handling both image and initials cases
+
+### Wiring (carried into this phase)
+
+- Swap `getCurrentUser` in `src/lib/db/users.ts` off `DEMO_USER_EMAIL` to the NextAuth session user — otherwise the footer avatar and sign-out act on demo data regardless of who signed in. **Scope decision (Björn, 2026-07-29): `getCurrentUser` only.** Items, collections and stats stay demo-scoped this phase; full `userId` threading through `src/lib/db` is its own later phase.
+- Set `pages.signIn: "/sign-in"` in `src/auth.config.ts` so `src/proxy.ts` redirects to the custom page instead of NextAuth's default
 
 ## Notes
 
-<!-- Any extra notes -->
+- Phase 1 + 2 already landed NextAuth v5 with GitHub OAuth and Credentials (email/password), plus `POST /api/auth/register`. This phase is UI only — no new providers, no schema change.
+- The `getCurrentUser` and `pages.signIn` items above are carry-overs from Phase 2 folded into this phase's scope — the sidebar work is meaningless without the first, and the custom sign-in page is unreachable without the second.
+- `signInSchema` / `registerSchema` already exist in `src/lib/validation/auth.ts` — reuse them client-side rather than redefining validation.
+- Spec mentions "verify avatar shows in top bar" in its testing steps, but the requirements place the avatar in the sidebar footer (where it already lives). Treating **sidebar footer** as the source of truth.
+- **`/profile` is deliberately out of scope** (Björn, 2026-07-29). The avatar links there as specced; the route doesn't exist yet, so the link 404s until a later phase builds it. Not a bug.
+- Still outstanding from Phase 2 review (not this phase unless asked): dummy bcrypt compare for the timing side-channel, rate limiting on `/api/auth/register`, and test rows `test@test.com` / `padded@test.com` left in the Neon development branch.
+
+### Next phase — user-scoped data (agreed 2026-07-29)
+
+Every signed-in user currently sees the **demo user's** items, collections, stats and sidebar counts, because only `getCurrentUser` reads the session. Six queries still filter on `DEMO_USER_EMAIL`:
+
+- `src/lib/db/items.ts` — `getItemTypeNavItems`, `getPinnedItems`, `getRecentItems`
+- `src/lib/db/collections.ts` — `findCollectionSummaries` (feeds `getFavoriteCollections` + `getRecentNonFavoriteCollections`)
+- `src/lib/db/dashboard.ts` — `getDashboardStats`
+
+Björn's calls: thread `userId` through these in **its own phase after Auth Phase 3 merges**, and ship it **without empty states** — new accounts get bare sections until the dashboard work covers them. `DEMO_USER_EMAIL` becomes seed-/script-only at that point.
+
+## Testing
+
+1. `/sign-in` renders the custom page
+2. GitHub sign-in flow works
+3. Email/password sign-in works
+4. Avatar shows GitHub image or initials
+5. Avatar click opens the dropdown
+6. "Sign out" logs out and redirects
+7. `/register` creates an account and redirects to `/sign-in`
 
 ## History
 
