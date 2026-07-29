@@ -1,5 +1,13 @@
 import GitHub from "next-auth/providers/github";
+import Credentials from "next-auth/providers/credentials";
 import type { NextAuthConfig } from "next-auth";
+
+// Shared field definitions so the placeholder below and the real provider in
+// src/auth.ts render an identical sign-in form.
+export const credentialFields = {
+  email: { label: "Email", type: "email" },
+  password: { label: "Password", type: "password" },
+};
 
 // Edge-safe config: providers and callbacks only, no adapter.
 // The Prisma adapter can't run on the edge runtime, so the proxy builds its
@@ -7,7 +15,12 @@ import type { NextAuthConfig } from "next-auth";
 // Callbacks live here so req.auth in the proxy has the same shape as the
 // session on the server.
 export default {
-  providers: [GitHub],
+  providers: [
+    GitHub,
+    // Placeholder only — verifying a password needs Prisma and bcryptjs, and
+    // neither runs on the edge. src/auth.ts swaps in the working provider.
+    Credentials({ credentials: credentialFields, authorize: () => null }),
+  ],
   callbacks: {
     session({ session, token }) {
       // With the JWT strategy the user id rides on token.sub
