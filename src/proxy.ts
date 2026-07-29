@@ -9,9 +9,13 @@ const { auth } = NextAuth(authConfig);
 export const proxy = auth((req) => {
   if (req.auth) return;
 
-  // NextAuth's built-in sign-in page; callbackUrl returns here after auth
-  const signInUrl = new URL("/api/auth/signin", req.nextUrl.origin);
-  signInUrl.searchParams.set("callbackUrl", req.nextUrl.href);
+  // Custom sign-in page; callbackUrl returns here after auth. Kept as a
+  // relative path so it can't be turned into an off-site redirect.
+  const signInUrl = new URL("/sign-in", req.nextUrl.origin);
+  signInUrl.searchParams.set(
+    "callbackUrl",
+    `${req.nextUrl.pathname}${req.nextUrl.search}`,
+  );
   return NextResponse.redirect(signInUrl);
 });
 

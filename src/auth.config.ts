@@ -15,6 +15,11 @@ export const credentialFields = {
 // Callbacks live here so req.auth in the proxy has the same shape as the
 // session on the server.
 export default {
+  // Custom sign-in UI replaces NextAuth's built-in page. NextAuth also sends
+  // auth errors here as ?error=..., which the page renders.
+  pages: {
+    signIn: "/sign-in",
+  },
   providers: [
     GitHub,
     // Placeholder only — verifying a password needs Prisma and bcryptjs, and
