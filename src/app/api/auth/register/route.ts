@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { registerSchema } from "@/lib/validation/auth";
+import { issueVerificationEmail } from "@/lib/email/send-verification";
 
 // Match the cost factor used by the seed script
 const BCRYPT_ROUNDS = 12;
@@ -51,6 +52,18 @@ export async function POST(request: Request) {
       data: { name, email, password: await bcrypt.hash(password, BCRYPT_ROUNDS) },
       select: { id: true, name: true, email: true },
     });
+
+    // A send failure must not fail the request. The account exists and is
+    // recoverable through the resend endpoint; rolling it back would leave the
+    // user unable to register at all, and throwing here would strand the row.
+    const sent = await issueVerificationEmail({
+      email: user.email,
+      name: user.name,
+      userId: user.id,
+    });
+    if (!sent.success) {
+      console.error("Verification email not sent for %s: %s", user.email, sent.error);
+    }
 
     return NextResponse.json({ success: true, data: user }, { status: 201 });
   } catch (error) {

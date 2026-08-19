@@ -4,11 +4,13 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { signInSchema } from "@/lib/validation/auth";
+import { EmailNotVerifiedError } from "@/lib/auth/errors";
 import authConfig, { credentialFields } from "./auth.config";
 
-// The real credentials provider — node runtime only. Returning null for every
-// failure keeps the response identical whether the email is unknown, the
-// account is OAuth-only, or the password is simply wrong.
+// The real credentials provider — node runtime only. Returning null keeps the
+// response identical whether the email is unknown, the account is OAuth-only,
+// or the password is simply wrong. The one distinct outcome is an unverified
+// address, which is only reachable once the password already matched.
 const credentials = Credentials({
   credentials: credentialFields,
   authorize: async (raw) => {
@@ -17,7 +19,14 @@ const credentials = Credentials({
 
     const user = await prisma.user.findUnique({
       where: { email: parsed.data.email },
-      select: { id: true, name: true, email: true, image: true, password: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        image: true,
+        password: true,
+        emailVerified: true,
+      },
     });
 
     // OAuth-only users have a null hash and must not be signable this way
@@ -28,6 +37,11 @@ const credentials = Credentials({
       user.password,
     );
     if (!passwordMatches) return null;
+
+    // Deliberately after the password check, so this branch is only reachable
+    // by someone who already proved they hold the credentials — it tells a
+    // stranger nothing about whether an account exists.
+    if (!user.emailVerified) throw new EmailNotVerifiedError();
 
     return {
       id: user.id,

@@ -30,4 +30,6 @@ export const registerSchema = z
     path: ["confirmPassword"],
   });
 
+export const resendVerificationSchema = z.object({ email });
+
 export type RegisterInput = z.infer<typeof registerSchema>;
