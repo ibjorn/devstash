@@ -22,6 +22,9 @@ const ERROR_MESSAGES: Record<string, string> = {
   CredentialsSignin: "Invalid email or password",
   OAuthAccountNotLinked:
     "That email is already registered with a different sign-in method",
+  // Our own code, returned by the signIn callback in src/auth.ts
+  AccountLinkBlocked:
+    "That email already has a password account. Sign in with your password instead.",
   OAuthSignin: "Could not start the GitHub sign-in. Please try again.",
   OAuthCallback: "GitHub sign-in did not complete. Please try again.",
   Configuration: "Sign-in is misconfigured — check the server logs.",

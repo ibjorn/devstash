@@ -1,18 +1,27 @@
-# Current Feature
+# Current Feature: Fix — OAuth Account Linking (GitHub ↔ Credentials)
 
-<!-- Feature name and short description -->
+Signing in with GitHub using the same email as an existing password account
+fails with `OAuthAccountNotLinked`. Allow the link, but only for accounts whose
+`emailVerified` is set.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals & requirements -->
+- GitHub sign-in links to an existing password account only when `emailVerified` is set
+- Unverified match is refused with actionable copy instead of the current dead end
+- Credentials sign-in, new GitHub signups and already-linked users all unaffected
+- No schema change, no new dependency
 
 ## Notes
 
-<!-- Any extra notes -->
+Spec: context/features/fix-oauth-account-linking.md
+
+Stopgap until email verification exists — `emailVerified` is set by hand for now,
+so other new credentials users still hit the wall, just with better copy.
+Mirror case (GitHub-first user adding a password) remains out of scope.
 
 ## History
 
