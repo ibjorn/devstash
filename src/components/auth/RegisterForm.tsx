@@ -89,7 +89,8 @@ export function RegisterForm() {
 
       // Toaster lives in the root layout, so the toast outlives this navigation
       toast.success("Account created", {
-        description: "Sign in with your new credentials to continue.",
+        description:
+          "Check your email for a verification link — you'll need it to sign in.",
       });
       router.push("/sign-in");
     } catch {

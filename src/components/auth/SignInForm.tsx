@@ -10,19 +10,37 @@ import {
   type SignInState,
 } from "@/actions/auth";
 import { GitHubIcon } from "@/components/auth/GitHubIcon";
+import { ResendVerification } from "@/components/auth/ResendVerification";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 const INITIAL_STATE: SignInState = { error: null };
 
+// String, not a URL object — that's the form Next's patched replaceState
+// documents for search-param updates that skip a refetch
+function stripParam(name: string) {
+  const url = new URL(window.location.href);
+  url.searchParams.delete(name);
+  window.history.replaceState(null, "", `${url.pathname}${url.search}`);
+}
+
 interface SignInFormProps {
   callbackUrl: string;
   /** Error handed over by NextAuth as ?error=..., e.g. a failed OAuth callback */
   initialError?: string;
+  /** Success handed over by the verification route as ?verified=... */
+  initialSuccess?: string;
+  /** Offer the resend control straight away, without a sign-in attempt first */
+  showResendVerification?: boolean;
 }
 
-export function SignInForm({ callbackUrl, initialError }: SignInFormProps) {
+export function SignInForm({
+  callbackUrl,
+  initialError,
+  initialSuccess,
+  showResendVerification = false,
+}: SignInFormProps) {
   const [state, formAction, pending] = useActionState(
     signInWithCredentials,
     INITIAL_STATE,
@@ -34,13 +52,15 @@ export function SignInForm({ callbackUrl, initialError }: SignInFormProps) {
   useEffect(() => {
     if (!initialError) return;
     toast.error(initialError, { id: "sign-in-error" });
-
-    // String, not a URL object — that's the form Next's patched replaceState
-    // documents for search-param updates that skip a refetch
-    const url = new URL(window.location.href);
-    url.searchParams.delete("error");
-    window.history.replaceState(null, "", `${url.pathname}${url.search}`);
+    stripParam("error");
   }, [initialError]);
+
+  // Same treatment for the verification route's success hand-off
+  useEffect(() => {
+    if (!initialSuccess) return;
+    toast.success(initialSuccess, { id: "sign-in-verified" });
+    stripParam("verified");
+  }, [initialSuccess]);
 
   // Every failed submit returns a fresh state object, so repeat failures
   // re-fire rather than going silent
@@ -78,6 +98,12 @@ export function SignInForm({ callbackUrl, initialError }: SignInFormProps) {
           Sign in
         </Button>
       </form>
+
+      {/* Shown once we know an address is unverified, or when the user
+          arrived from a link that was stale or malformed */}
+      {(state.unverifiedEmail || showResendVerification) && (
+        <ResendVerification defaultEmail={state.unverifiedEmail} />
+      )}
 
       <div className="flex items-center gap-3 text-xs text-muted-foreground">
         <span className="h-px flex-1 bg-border" />

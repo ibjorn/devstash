@@ -1,18 +1,52 @@
-# Current Feature
+# Current Feature: Email Verification on Register
 
-<!-- Feature name and short description -->
+Prove ownership of an email address before the account is usable — Resend sends a
+verification link on register, and credentials sign-in is blocked until it's clicked.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals & requirements -->
+- Registration issues a single-use, hashed verification token and emails a link via Resend
+- Clicking the link sets `User.emailVerified` and lands the user on sign-in with a success toast
+- Credentials sign-in is refused while `emailVerified` is null, with copy that says why
+- Unverified users can request a fresh email themselves (no support intervention)
+- GitHub sign-in only accepts an email GitHub reports as **primary and verified**
+- Seeded demo user and existing dev rows still sign in once the gate lands
 
 ## Notes
 
-<!-- Any extra notes -->
+Full spec: `context/features/email-verification-spec.md`
+
+- **Why now:** the OAuth account-linking fix gates GitHub↔password linking on
+  `User.emailVerified`, but nothing sets it — so the gate always denies and needs a
+  manual `UPDATE "User" SET "emailVerified" = now()`. Verification makes it pass on its own.
+- **No schema change.** `VerificationToken` (identifier/token/expires) already exists
+  from Database Setup and the Email provider isn't in use, so the table is free. Store a
+  SHA-256 hash of the token, not the raw value; 24h TTL.
+- **Decisions taken at load:** unverified emails *block* sign-in (rather than nag or
+  no-op), and the GitHub primary+verified fix rides along in this feature.
+- **Correction to the earlier deferred note:** overriding the GitHub provider's
+  `profile()` is not enough — by then the address is already chosen and the `verified`
+  flag is gone. `userinfo.request` has to be overridden instead. Default scope is
+  already `read:user user:email`, so no OAuth app change.
+- **Link scanners** (Outlook Safe Links etc.) will GET the verify URL before the human
+  does and burn the token, so an already-verified email gets a friendly
+  `?verified=already` rather than an error.
+- **Resend sandbox:** without a verified domain, only `onboarding@resend.dev` → the
+  account owner's own address is deliverable. Testing needs Björn's address or a
+  verified domain first.
+- **`resend.emails.send` returns `{ data, error }` and does not throw** — missing that
+  check ships a silent no-op.
+- New env vars needed beyond the existing `RESEND_API_KEY`: `EMAIL_FROM` and `APP_URL`.
+- A send failure must **not** roll back the created account — log, still 201, let the
+  user fall back to the resend flow.
+- `prisma/seed.ts` must set `emailVerified` on the demo user or `demo@devstash.io`
+  stops working the moment the gate lands.
+- Still out of scope (open since Phase 2): password reset, GitHub-first users adding a
+  password, a general rate limiter, the dummy-bcrypt timing fix.
 
 ## History
 
