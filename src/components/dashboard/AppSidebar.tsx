@@ -92,34 +92,43 @@ export function AppSidebar({
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-        <SidebarGroup>
-          <SidebarGroupLabel>Favorites</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {favoriteCollections.map((collection) => (
-                <SidebarMenuItem key={collection.id}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname === `/collections/${collection.id}`}
-                    tooltip={collection.name}
-                  >
-                    <Link href={`/collections/${collection.id}`}>
-                      <Folder />
-                      <span>{collection.name}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                  <SidebarMenuBadge>
-                    <Star className="size-3 fill-yellow-400 text-yellow-400" />
-                  </SidebarMenuBadge>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {/* hidden entirely when empty — a bare "Favorites" heading is just noise */}
+        {favoriteCollections.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Favorites</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {favoriteCollections.map((collection) => (
+                  <SidebarMenuItem key={collection.id}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={pathname === `/collections/${collection.id}`}
+                      tooltip={collection.name}
+                    >
+                      <Link href={`/collections/${collection.id}`}>
+                        <Folder />
+                        <span>{collection.name}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                    <SidebarMenuBadge>
+                      <Star className="size-3 fill-yellow-400 text-yellow-400" />
+                    </SidebarMenuBadge>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
         <SidebarGroup>
           <SidebarGroupLabel>Recent</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
+              {recentCollections.length === 0 && (
+                // plain text, so it hides with the labels in the icon rail
+                <li className="px-2 py-1.5 text-xs text-sidebar-foreground/70 group-data-[collapsible=icon]:hidden">
+                  No collections yet
+                </li>
+              )}
               {recentCollections.map((collection) => (
                 <SidebarMenuItem key={collection.id}>
                   <SidebarMenuButton

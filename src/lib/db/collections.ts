@@ -1,6 +1,5 @@
 import type { Prisma } from "@/generated/prisma/client";
 
-import { DEMO_USER_EMAIL } from "@/lib/db/demo-user";
 import { prisma } from "@/lib/prisma";
 import type {
   CollectionSummary,
@@ -8,11 +7,12 @@ import type {
 } from "@/types/collections";
 
 async function findCollectionSummaries(
+  userId: string,
   where: Prisma.CollectionWhereInput,
   limit: number
 ): Promise<CollectionSummary[]> {
   const collections = await prisma.collection.findMany({
-    where: { user: { email: DEMO_USER_EMAIL }, ...where },
+    where: { userId, ...where },
     orderBy: { updatedAt: "desc" },
     take: limit,
     include: {
@@ -73,20 +73,23 @@ async function findCollectionSummaries(
 }
 
 export async function getRecentCollections(
+  userId: string,
   limit = 6
 ): Promise<CollectionSummary[]> {
-  return findCollectionSummaries({}, limit);
+  return findCollectionSummaries(userId, {}, limit);
 }
 
 export async function getFavoriteCollections(
+  userId: string,
   limit = 5
 ): Promise<CollectionSummary[]> {
-  return findCollectionSummaries({ isFavorite: true }, limit);
+  return findCollectionSummaries(userId, { isFavorite: true }, limit);
 }
 
 // Sidebar "Recent" group; favorites are excluded since they have their own group
 export async function getRecentNonFavoriteCollections(
+  userId: string,
   limit = 5
 ): Promise<CollectionSummary[]> {
-  return findCollectionSummaries({ isFavorite: false }, limit);
+  return findCollectionSummaries(userId, { isFavorite: false }, limit);
 }

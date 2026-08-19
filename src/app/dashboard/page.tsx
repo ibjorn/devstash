@@ -1,22 +1,25 @@
 import Link from "next/link";
-import { Pin } from "lucide-react";
+import { Folder, Layers, Pin } from "lucide-react";
 
 import { CollectionCard } from "@/components/dashboard/CollectionCard";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ItemRow } from "@/components/dashboard/ItemRow";
 import { StatsCards } from "@/components/dashboard/StatsCards";
 import { getRecentCollections } from "@/lib/db/collections";
 import { getDashboardStats } from "@/lib/db/dashboard";
 import { getPinnedItems, getRecentItems } from "@/lib/db/items";
+import { requireUserId } from "@/lib/db/session-user";
 
 // Render per request — collections, items, and stats come from the database
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
+  const userId = await requireUserId();
   const [collections, pinnedItems, recentItems, stats] = await Promise.all([
-    getRecentCollections(),
-    getPinnedItems(),
-    getRecentItems(),
-    getDashboardStats(),
+    getRecentCollections(userId),
+    getPinnedItems(userId),
+    getRecentItems(userId),
+    getDashboardStats(userId),
   ]);
 
   return (
@@ -40,11 +43,19 @@ export default async function DashboardPage() {
             View all
           </Link>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {collections.map((collection) => (
-            <CollectionCard key={collection.id} collection={collection} />
-          ))}
-        </div>
+        {collections.length > 0 ? (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {collections.map((collection) => (
+              <CollectionCard key={collection.id} collection={collection} />
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            icon={Folder}
+            title="No collections yet"
+            description="Collections group related items together — a snippet can live in several at once."
+          />
+        )}
       </section>
 
       {pinnedItems.length > 0 && (
@@ -63,11 +74,19 @@ export default async function DashboardPage() {
 
       <section className="flex flex-col gap-4">
         <h2 className="text-lg font-semibold">Recent</h2>
-        <div className="flex flex-col gap-3">
-          {recentItems.map((item) => (
-            <ItemRow key={item.id} item={item} />
-          ))}
-        </div>
+        {recentItems.length > 0 ? (
+          <div className="flex flex-col gap-3">
+            {recentItems.map((item) => (
+              <ItemRow key={item.id} item={item} />
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            icon={Layers}
+            title="No items yet"
+            description="Snippets, prompts, commands, notes and links you save will show up here."
+          />
+        )}
       </section>
     </div>
   );

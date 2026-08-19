@@ -1,6 +1,5 @@
 import type { Prisma } from "@/generated/prisma/client";
 
-import { DEMO_USER_EMAIL } from "@/lib/db/demo-user";
 import { prisma } from "@/lib/prisma";
 import type { ItemSummary, ItemTypeNavItem } from "@/types/items";
 
@@ -44,7 +43,9 @@ function toItemSummary(item: ItemSummaryRow): ItemSummary {
   };
 }
 
-export async function getItemTypeNavItems(): Promise<ItemTypeNavItem[]> {
+export async function getItemTypeNavItems(
+  userId: string
+): Promise<ItemTypeNavItem[]> {
   const types = await prisma.itemType.findMany({
     where: { isSystem: true },
     select: {
@@ -53,7 +54,7 @@ export async function getItemTypeNavItems(): Promise<ItemTypeNavItem[]> {
       icon: true,
       color: true,
       _count: {
-        select: { items: { where: { user: { email: DEMO_USER_EMAIL } } } },
+        select: { items: { where: { userId } } },
       },
     },
   });
@@ -80,9 +81,12 @@ export async function getItemTypeNavItems(): Promise<ItemTypeNavItem[]> {
     });
 }
 
-export async function getPinnedItems(limit = 10): Promise<ItemSummary[]> {
+export async function getPinnedItems(
+  userId: string,
+  limit = 10
+): Promise<ItemSummary[]> {
   const items = await prisma.item.findMany({
-    where: { user: { email: DEMO_USER_EMAIL }, isPinned: true },
+    where: { userId, isPinned: true },
     orderBy: { updatedAt: "desc" },
     take: limit,
     select: itemSummarySelect,
@@ -91,9 +95,12 @@ export async function getPinnedItems(limit = 10): Promise<ItemSummary[]> {
   return items.map(toItemSummary);
 }
 
-export async function getRecentItems(limit = 10): Promise<ItemSummary[]> {
+export async function getRecentItems(
+  userId: string,
+  limit = 10
+): Promise<ItemSummary[]> {
   const items = await prisma.item.findMany({
-    where: { user: { email: DEMO_USER_EMAIL } },
+    where: { userId },
     orderBy: { createdAt: "desc" },
     take: limit,
     select: itemSummarySelect,

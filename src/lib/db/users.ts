@@ -1,18 +1,14 @@
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import type { CurrentUser } from "@/types/users";
 
-// Scoped to the signed-in user. Callers live behind the proxy matcher, so a
-// missing session means the route is unprotected — a bug worth surfacing
-// rather than silently rendering someone else's data.
-export async function getCurrentUser(): Promise<CurrentUser> {
-  const session = await auth();
-  if (!session?.user?.id) {
-    throw new Error("getCurrentUser called without an authenticated session");
-  }
-
-  return prisma.user.findUniqueOrThrow({
-    where: { id: session.user.id },
+// Returns null when the session's user id has no row — the session is a JWT,
+// so it stays syntactically valid after the user is deleted. Callers must
+// treat null as "stale session" rather than letting it throw.
+export async function getCurrentUser(
+  userId: string
+): Promise<CurrentUser | null> {
+  return prisma.user.findUnique({
+    where: { id: userId },
     select: { name: true, email: true, image: true },
   });
 }
