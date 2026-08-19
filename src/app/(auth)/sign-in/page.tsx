@@ -38,6 +38,8 @@ const ERROR_MESSAGES: Record<string, string> = {
     "GitHub didn't give us a verified email address for your account. Verify your primary email on GitHub, then try again.",
   OAuthSignin: "Could not start the GitHub sign-in. Please try again.",
   OAuthCallback: "GitHub sign-in did not complete. Please try again.",
+  SessionExpired:
+    "Your session is no longer valid. Please sign in again.",
   Configuration: "Sign-in is misconfigured — check the server logs.",
 };
 

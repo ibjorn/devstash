@@ -1,9 +1,10 @@
-import { DEMO_USER_EMAIL } from "@/lib/db/demo-user";
 import { prisma } from "@/lib/prisma";
 import type { DashboardStats } from "@/types/dashboard";
 
-export async function getDashboardStats(): Promise<DashboardStats> {
-  const owner = { user: { email: DEMO_USER_EMAIL } };
+export async function getDashboardStats(
+  userId: string
+): Promise<DashboardStats> {
+  const owner = { userId };
 
   const [items, collections, favoriteItems, favoriteCollections] =
     await Promise.all([

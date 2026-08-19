@@ -1,21 +1,50 @@
-# Current Feature
+# Current Feature: User-Scoped Data
 
-<!-- Feature name and short description -->
+Dashboard queries still filter on the seeded demo user, so every signed-in account sees demo@devstash.io's items, collections and stats under its own name. Scope all data reads to the session user.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals & requirements -->
+- Thread the signed-in user's id through every dashboard data query — no query filters on `DEMO_USER_EMAIL` any more
+- A newly registered user (credentials or GitHub) sees only their own items, collections, tags and stats; the demo user's seeded data stays visible to `demo@devstash.io` alone
+- Sidebar item-type counts, favorite/recent collections, dashboard stats cards, pinned items and recent items all reflect the session user
+- Keep the seed's demo data intact and still correct when signing in as the demo user
+- **Empty states** for a brand-new account (GitHub sign-in or email registration): the dashboard reads as new, not broken — no bare headings over empty sections
+- `npm run lint` and `npm run build` pass
 
 ## Notes
 
-<!-- Any extra notes -->
+### Queries to change (all currently scoped by `DEMO_USER_EMAIL`)
+
+| File | Function | Current filter |
+|---|---|---|
+| [src/lib/db/items.ts:56](src/lib/db/items.ts#L56) | `getItemTypeNavItems` | `_count.items.where.user.email` |
+| [src/lib/db/items.ts:85](src/lib/db/items.ts#L85) | `getPinnedItems` | `where.user.email` |
+| [src/lib/db/items.ts:96](src/lib/db/items.ts#L96) | `getRecentItems` | `where.user.email` |
+| [src/lib/db/collections.ts:15](src/lib/db/collections.ts#L15) | `findCollectionSummaries` (feeds `getRecentCollections`, `getFavoriteCollections`, `getRecentNonFavoriteCollections`) | `where.user.email` |
+| [src/lib/db/dashboard.ts:6](src/lib/db/dashboard.ts#L6) | `getDashboardStats` | `owner.user.email` |
+
+[src/lib/db/users.ts](src/lib/db/users.ts) is already session-scoped (Auth Phase 3) and is the pattern to follow: call `auth()`, throw if there's no `session.user.id`.
+
+### Approach
+
+- Add a shared `requireUserId()` (e.g. `src/lib/db/session-user.ts`) that resolves `auth()` → `session.user.id` and throws when absent, mirroring the comment already on `getCurrentUser` — callers sit behind the `/dashboard/:path*` proxy matcher, so a missing session is a bug, not an empty state.
+- Rewrite the five query sites to filter on `userId` directly rather than the relational `user: { email }` hop — `Item.userId` and `Collection.userId` are both indexed, so this is also a small win.
+- Refactor `getCurrentUser` onto the same helper so there's one place that reads the session.
+- **Decided: queries take `userId` as a required first parameter.** Resolving the session inside each query would have kept the call sites untouched, but then a future query that simply forgets to scope itself silently returns everyone's rows. A required parameter makes that a compile error instead. The layout and page each call `requireUserId()` once and thread the id; the helper is wrapped in React `cache()` so the session cookie is decoded once per request either way.
+- `src/lib/db/demo-user.ts` stays — `prisma/seed.ts`, `scripts/test-db.ts` and `scripts/delete-non-demo-users.ts` still legitimately import `DEMO_USER_EMAIL`. Only the `src/lib/db` query imports go.
+
+### Open points
+
+- **Empty states are IN scope** (Björn's call at `/feature start`, reversing the earlier "ship without them"). A fresh account has zero items and zero collections, so the collections grid and the recent-items list both render nothing under a live heading. Note there is no item/collection CRUD yet, so empty states must **not** offer a create button that goes nowhere — descriptive copy only.
+- `Tag` is global (`name @unique`, no `userId`) — item tags are reached through the item, so nothing leaks, but the user-scoping decision for tags is still deferred to Item CRUD.
+- Nothing here touches the schema or requires a migration.
+- **Stale-JWT crash found during testing.** Björn's browser held a session for a `User` row that `delete-non-demo-users.ts` had removed, and `getCurrentUser` threw `findUniqueOrThrow` on every dashboard render. Pre-existing (Auth Phase 3 already keyed on `session.user.id`), but fixed here since the scoping work sits on top of it: `getCurrentUser` returns `null` instead of throwing, and the layout redirects to a new `GET /api/auth/session-expired` route handler that calls `signOut({ redirect: false })` and bounces to `/sign-in?error=SessionExpired`. A route handler rather than the layout because server components can't write cookies, and clearing the cookie is what stops the proxy waving the dead session through into a redirect loop.
 
 ## History
-
 - 2026-05-12: **Initial Setup** - Next.js and Tailwind setup
 - 2026-06-12: **Dashboard UI Phase 1** - shadcn/ui init + button/input components, /dashboard route with layout shell (sidebar/main placeholders), display-only top bar (search + New Item), dark mode by default
 - 2026-06-12: **Dashboard UI Phase 2** - collapsible sidebar (shadcn sidebar + avatar) with item type links to /items/[slug], favorite + recent collections, user avatar footer, top bar drawer trigger, icon rail on desktop, sheet drawer on mobile
