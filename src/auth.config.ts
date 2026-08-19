@@ -21,7 +21,14 @@ export default {
     signIn: "/sign-in",
   },
   providers: [
-    GitHub,
+    // Linking an OAuth sign-in to an existing account with the same email is
+    // off by default because providers vary in how (or whether) they verify
+    // addresses. The flag is all-or-nothing, so the real gate is the signIn
+    // callback in src/auth.ts, which only permits the link when the existing
+    // user's emailVerified is set. The proxy builds its own instance from this
+    // config without that callback, but it never handles a sign-in — its
+    // matcher is /dashboard/:path* — so the ungated flag is unreachable there.
+    GitHub({ allowDangerousEmailAccountLinking: true }),
     // Placeholder only — verifying a password needs Prisma and bcryptjs, and
     // neither runs on the edge. src/auth.ts swaps in the working provider.
     Credentials({ credentials: credentialFields, authorize: () => null }),
