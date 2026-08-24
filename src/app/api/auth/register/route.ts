@@ -4,6 +4,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { registerSchema } from "@/lib/validation/auth";
 import { issueVerificationEmail } from "@/lib/email/send-verification";
+import { skipEmailVerification } from "@/lib/auth/verification-flag";
 
 // Match the cost factor used by the seed script
 const BCRYPT_ROUNDS = 12;
@@ -48,24 +49,42 @@ export async function POST(request: Request) {
       );
     }
 
+    const skipped = skipEmailVerification();
+
     const user = await prisma.user.create({
-      data: { name, email, password: await bcrypt.hash(password, BCRYPT_ROUNDS) },
+      data: {
+        name,
+        email,
+        password: await bcrypt.hash(password, BCRYPT_ROUNDS),
+        // With verification skipped, stamp the account verified at the one
+        // point it's created. Everything downstream — the sign-in gate in
+        // authorize() and the GitHub account-linking gate in src/auth.ts — keeps
+        // reading emailVerified and needs no flag check of its own.
+        ...(skipped ? { emailVerified: new Date() } : {}),
+      },
       select: { id: true, name: true, email: true },
     });
 
-    // A send failure must not fail the request. The account exists and is
-    // recoverable through the resend endpoint; rolling it back would leave the
-    // user unable to register at all, and throwing here would strand the row.
-    const sent = await issueVerificationEmail({
-      email: user.email,
-      name: user.name,
-      userId: user.id,
-    });
-    if (!sent.success) {
-      console.error("Verification email not sent for %s: %s", user.email, sent.error);
+    if (!skipped) {
+      // A send failure must not fail the request. The account exists and is
+      // recoverable through the resend endpoint; rolling it back would leave the
+      // user unable to register at all, and throwing here would strand the row.
+      const sent = await issueVerificationEmail({
+        email: user.email,
+        name: user.name,
+        userId: user.id,
+      });
+      if (!sent.success) {
+        console.error("Verification email not sent for %s: %s", user.email, sent.error);
+      }
     }
 
-    return NextResponse.json({ success: true, data: user }, { status: 201 });
+    // The form is a client component and can't read the flag, so the response
+    // carries the outcome — otherwise it would promise an email nobody sent.
+    return NextResponse.json(
+      { success: true, data: { ...user, emailVerificationSkipped: skipped } },
+      { status: 201 },
+    );
   } catch (error) {
     // Two concurrent registrations can slip past the check above; the unique
     // index is the real guard
