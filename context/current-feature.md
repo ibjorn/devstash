@@ -1,18 +1,79 @@
-# Current Feature
+# Current Feature: Email Verification Toggle
 
-<!-- Feature name and short description -->
+<!-- One server-side flag that turns the whole email-verification requirement on or off, so registration works without a Resend-verified domain. -->
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals & requirements -->
+- Add a single server-side flag that enables/disables the email verification requirement end to end.
+- **Default to verification required.** An unset, misspelled, or garbage value must mean "verification required" — it can only be skipped by explicitly setting the flag to `true`.
+- With the flag **on** (skipping): registration creates an account that can sign in immediately — no Resend call, no `VerificationToken` row, no "check your inbox" dead end.
+- With the flag **on** (skipping): the GitHub ↔ password account-linking gate in `src/auth.ts` passes on its own, with no manual `UPDATE "User" SET "emailVerified" = now()`.
+- With the flag **off**: current behaviour is unchanged in every path (register, sign-in gate, verify, resend, all six `?error=` / `?verified=` codes).
+- The post-register UI copy adapts to the flag — no "check your email for a verification link" toast when no email was sent. The redirect stays `/sign-in` either way; auto-sign-in is deferred to its own feature.
+- Flag is documented in `.env.example` with the Resend-domain context that motivated it.
+- `npm run lint` and `npm run build` pass.
 
 ## Notes
 
-<!-- Any extra notes -->
+### Why this exists
+
+Resend has no verified domain on this account, so `onboarding@resend.dev` only delivers to the Resend account owner (cloud@blackalsatian.co.za). Every other address registers fine but can never receive its link, so it can never sign in. Verification is correct for launch and useless before it.
+
+### Proposed mechanism — env var, safe by default
+
+`SKIP_EMAIL_VERIFICATION` read through one helper (`src/lib/auth/verification-flag.ts`), server-only, never `NEXT_PUBLIC_`. Only a literal `true` skips, so a typo fails *closed*:
+
+```ts
+export function skipEmailVerification(): boolean {
+  return process.env.SKIP_EMAIL_VERIFICATION?.trim().toLowerCase() === "true";
+}
+```
+
+Named for the exception rather than the requirement (Björn's call, after the first cut shipped as `AUTH_REQUIRE_EMAIL_VERIFICATION`): the flag exists to describe the temporary deviation, so `SKIP_…=true` reads as "yes, skip it" with no double negative at the call site. Accepting only `true`/`false` — no `0`/`1`/`yes`/`off` — keeps one spelling to remember.
+
+Read it inside the function on each call, not as a module constant — a captured constant bakes the value into the build and can't be flipped by changing the deployment env alone.
+
+Env var over the alternatives because the flag is a *deployment* property, not a per-user one: a DB row would need its own admin surface, and `NODE_ENV`-keying would tie it to dev/prod when the real trigger is "is a Resend domain verified yet" — those diverge the moment staging exists.
+
+### Scope: a development stopgap, not a product feature
+
+This exists only because Resend has no verified domain *yet*. Production ships with a domain, delivers real links, and runs with the flag off — `.env.production` pins `SKIP_EMAIL_VERIFICATION="false"` with a comment saying so, and the fail-closed parse means even deleting that line leaves verification required. The flag should be removed outright once the domain is verified and nobody needs the escape hatch.
+
+One vocabulary throughout, so no call site has to flip polarity in the reader's head: the env var is `SKIP_EMAIL_VERIFICATION`, the helper is `skipEmailVerification()`, the local is `skipped`, and the register response reports `emailVerificationSkipped`. The response field is past tense because it states what happened to *that* account rather than mirroring deployment config, and the client tests it with `=== true` so a missing field falls back to the verification wording.
+
+### Key design decision: skipping ⇒ stamp `emailVerified` at registration
+
+When the flag is on, `POST /api/auth/register` creates the user with `emailVerified: new Date()` and skips `issueVerificationEmail` entirely.
+
+Chosen over the obvious alternative — leave `emailVerified` null and add a flag check at each gate — because `emailVerified` is read in **two** places with different purposes: the credentials `authorize()` sign-in gate, and the GitHub `signIn` account-linking gate. Bypassing only the sign-in gate would leave GitHub linking broken (`AccountLinkBlocked`) for every account created while the flag was off, which is exactly the manual-`UPDATE` pain this is meant to remove. Stamping at the single point of account creation keeps every downstream check reading one honest field, and means **`src/auth.ts` needs no change at all**.
+
+**Accepted consequence, stated plainly:** accounts created while verification is skipped are indistinguishable afterwards from genuinely verified ones. Turning the flag back off does not retroactively unverify them, and they will link to a GitHub account on that address. Pre-launch with a handful of test rows that's fine — `scripts/delete-non-demo-users.ts --yes` is the cleanup. It must not be how production reaches launch.
+
+### Seams that need touching
+
+| File | Change |
+|---|---|
+| `src/lib/auth/verification-flag.ts` | **New.** The single `skipEmailVerification()` reader. |
+| `src/app/api/auth/register/route.ts` | Skipping → `emailVerified: new Date()` on create, skip `issueVerificationEmail`; return `emailVerificationSkipped` in the 201 payload. |
+| `src/components/auth/RegisterForm.tsx` | Branch the success toast on `emailVerificationSkipped` from the response — it's a client component and cannot read the env itself. Consider routing straight to `/sign-in` (or the dashboard) rather than the "check your inbox" state. |
+| `src/app/api/auth/verify/resend/route.ts` | Skipping → return the existing `ACKNOWLEDGED` 200 without issuing or sending. Reuse the same constant so it stays a non-oracle. |
+| `.env.example` | Document the flag alongside the existing `EMAIL_FROM` note about the sandbox limitation. |
+
+Deliberately **not** changed: `src/auth.ts` (both gates keep reading `emailVerified` and are satisfied by the stamp), `src/app/api/auth/verify/route.ts` (an old link arriving after the flag flips should still resolve — it lands on `verified=already` for a stamped user, which is the truthful answer), and the sign-in page's `?error=` copy (those codes simply stop being reachable).
+
+### Resolved: no auto-sign-in
+
+Registration bounces to `/sign-in` whether or not verification was skipped. Auto-signing-in a freshly registered user touches the sign-in flow and is its own feature; the goal was amended at `/feature complete` to promise adapted *copy* only.
+
+### Known limitation: pre-existing unverified accounts while skipping
+
+Turning the flag on does **not** rescue a password account that was created while it was off and never verified. `authorize()` still throws `EmailNotVerified` for it, the sign-in page still offers "Resend verification email", and the resend endpoint now acknowledges without sending — so the UI claims a link went out when none did, and the row can only be freed from the database.
+
+Left as-is deliberately. Teaching `authorize()` about the flag would rebuild the two-gate design this feature rejected, and the GitHub linking gate would still block those rows. Letting the resend endpoint stamp `emailVerified` while skipping was also rejected: it mutates someone else's account from an unauthenticated request. Deleting the row is the honest dev answer. Zero such rows existed at completion — demo and `test@test.test` are verified, and the GitHub row has no password so it never reaches the gate.
 
 ## History
 - 2026-05-12: **Initial Setup** - Next.js and Tailwind setup

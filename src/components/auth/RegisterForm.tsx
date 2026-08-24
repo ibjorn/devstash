@@ -87,10 +87,17 @@ export function RegisterForm() {
         return;
       }
 
+      // Only the server knows whether verification was skipped, so the copy
+      // follows the response rather than promising an email nobody sent.
+      // Anything but an explicit true keeps the verification wording, so a
+      // missing field can't turn into a promise we didn't keep.
+      const skipped = result?.data?.emailVerificationSkipped === true;
+
       // Toaster lives in the root layout, so the toast outlives this navigation
       toast.success("Account created", {
-        description:
-          "Check your email for a verification link — you'll need it to sign in.",
+        description: skipped
+          ? "You can sign in now."
+          : "Check your email for a verification link — you'll need it to sign in.",
       });
       router.push("/sign-in");
     } catch {

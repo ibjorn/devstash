@@ -6,6 +6,7 @@ import {
 } from "@/lib/auth/verification-token";
 import { issueVerificationEmail } from "@/lib/email/send-verification";
 import { resendVerificationSchema } from "@/lib/validation/auth";
+import { skipEmailVerification } from "@/lib/auth/verification-flag";
 
 /** Minimum gap between two verification emails for the same address. */
 const COOLDOWN_MS = 5 * 60 * 1000;
@@ -44,6 +45,11 @@ export async function POST(request: Request) {
   }
 
   const { email } = parsed.data;
+
+  // Nothing to verify while verification is skipped. Same acknowledgement as
+  // every other outcome, so this doesn't become the one branch that answers
+  // differently and turns the endpoint into an existence oracle.
+  if (skipEmailVerification()) return acknowledge();
 
   try {
     const user = await prisma.user.findUnique({
