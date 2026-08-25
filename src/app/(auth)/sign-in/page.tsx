@@ -54,17 +54,23 @@ const RESET_MESSAGES: Record<string, string> = {
   "1": "Password updated — sign in with your new password.",
 };
 
+// Set by the deleteAccount action in src/actions/profile.ts on its way out
+const DELETED_MESSAGES: Record<string, string> = {
+  "1": "Your account has been deleted.",
+};
+
 interface SignInPageProps {
   searchParams: Promise<{
     callbackUrl?: string;
     error?: string;
     verified?: string;
     reset?: string;
+    deleted?: string;
   }>;
 }
 
 export default async function SignInPage({ searchParams }: SignInPageProps) {
-  const { callbackUrl, error, verified, reset } = await searchParams;
+  const { callbackUrl, error, verified, reset, deleted } = await searchParams;
   const target = safeRedirectPath(callbackUrl);
 
   // Only one success hand-off can be in flight, so the first match wins
@@ -72,7 +78,9 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
     ? { message: VERIFIED_MESSAGES[verified], param: "verified" }
     : reset
       ? { message: RESET_MESSAGES[reset], param: "reset" }
-      : undefined;
+      : deleted
+        ? { message: DELETED_MESSAGES[deleted], param: "deleted" }
+        : undefined;
 
   const session = await auth();
   if (session?.user) {

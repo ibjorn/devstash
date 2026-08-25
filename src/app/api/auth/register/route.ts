@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+import { hashPassword } from "@/lib/auth/password";
 import { registerSchema } from "@/lib/validation/auth";
 import { issueVerificationEmail } from "@/lib/email/send-verification";
 import { skipEmailVerification } from "@/lib/auth/verification-flag";
-
-// Match the cost factor used by the seed script
-const BCRYPT_ROUNDS = 12;
 
 const EMAIL_TAKEN = "An account with that email already exists";
 
@@ -55,7 +52,7 @@ export async function POST(request: Request) {
       data: {
         name,
         email,
-        password: await bcrypt.hash(password, BCRYPT_ROUNDS),
+        password: await hashPassword(password),
         // With verification skipped, stamp the account verified at the one
         // point it's created. Everything downstream — the sign-in gate in
         // authorize() and the GitHub account-linking gate in src/auth.ts — keeps

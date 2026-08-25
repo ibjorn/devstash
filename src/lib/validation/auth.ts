@@ -53,5 +53,35 @@ export const resetPasswordSchema = z
     path: ["confirmPassword"],
   });
 
+// Signed-in password change. The current password is checked against the hash
+// rather than the session alone, so a walked-up-to browser can't silently
+// change the credential.
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Enter your current password"),
+    password,
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  })
+  .refine((data) => data.password !== data.currentPassword, {
+    message: "New password must be different from your current one",
+    path: ["password"],
+  });
+
+// Typed confirmation before account deletion. Normalised but deliberately not
+// validated as an email — the value's only job is to equal the account's own
+// address, and a single "that doesn't match" message reads better than Zod
+// second-guessing the shape of what was typed.
+export const deleteAccountSchema = z.object({
+  confirmEmail: z
+    .string("Type your email address to confirm")
+    .trim()
+    .toLowerCase()
+    .pipe(z.string().min(1, "Type your email address to confirm")),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;

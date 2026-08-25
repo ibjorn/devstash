@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import type { CurrentUser } from "@/types/users";
+import type { CurrentUser, ProfileUser } from "@/types/users";
 
 // Returns null when the session's user id has no row — the session is a JWT,
 // so it stays syntactically valid after the user is deleted. Callers must
@@ -11,4 +11,31 @@ export async function getCurrentUser(
     where: { id: userId },
     select: { name: true, email: true, image: true },
   });
+}
+
+// Profile view of the signed-in user. Returns null on a stale session for the
+// same reason getCurrentUser does.
+export async function getProfileUser(
+  userId: string
+): Promise<ProfileUser | null> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      name: true,
+      email: true,
+      image: true,
+      createdAt: true,
+      password: true,
+    },
+  });
+  if (!user) return null;
+
+  // The hash is reduced to a boolean here and never leaves this function
+  return {
+    name: user.name,
+    email: user.email,
+    image: user.image,
+    createdAt: user.createdAt,
+    hasPassword: user.password !== null,
+  };
 }
