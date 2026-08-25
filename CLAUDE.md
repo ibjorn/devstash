@@ -27,3 +27,18 @@ When using any Neon MCP tool (`mcp__neon__*`):
 - `npm run build` — production build
 - `npm run start` — serve the production build
 - `npm run lint` — ESLint via flat config (`eslint.config.mjs`)
+
+### Database
+
+Schema changes go through `prisma migrate` — never `db push` (see coding standards).
+
+- `npm run db:migrate` — create + apply a migration in dev (`prisma migrate dev`)
+- `npm run db:deploy` — apply pending migrations in production (`prisma migrate deploy`)
+- `npm run db:status` — check migrations are in sync; run before committing
+- `npm run db:validate` — validate `schema.prisma`
+- `npm run db:generate` — regenerate the Prisma client (also runs on `postinstall`)
+- `npm run db:seed` — seed the demo user, system item types and demo content.
+  **Required for a fresh environment** — the dashboard queries the DB on render,
+  so an un-seeded database errors the page.
+- `npm run db:studio` — open Prisma Studio
+- `npm run db:test` — connection + demo-data smoke test (`scripts/test-db.ts`)
