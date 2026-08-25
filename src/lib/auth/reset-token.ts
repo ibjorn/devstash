@@ -21,7 +21,12 @@ export const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
  */
 const RESET_PREFIX = "password-reset:";
 
-function resetIdentifier(email: string): string {
+/**
+ * The VerificationToken.identifier a reset token for this address is stored
+ * under. Exported so account deletion can clear reset tokens as well as
+ * verification ones — nothing else knows the prefix.
+ */
+export function resetIdentifier(email: string): string {
   return `${RESET_PREFIX}${email}`;
 }
 

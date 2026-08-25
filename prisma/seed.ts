@@ -1,9 +1,9 @@
 import "dotenv/config";
 import { PrismaNeon } from "@prisma/adapter-neon";
-import bcrypt from "bcryptjs";
 import { PrismaClient } from "../src/generated/prisma/client";
 import type { ItemContentType } from "../src/generated/prisma/client";
 import { DEMO_USER_EMAIL } from "../src/lib/db/demo-user";
+import { hashPassword } from "../src/lib/auth/password";
 
 const adapter = new PrismaNeon({
   connectionString: process.env.DIRECT_URL ?? process.env.DATABASE_URL,
@@ -341,7 +341,7 @@ async function seedSystemTypes(): Promise<Map<string, string>> {
 }
 
 async function seedDemoUser(): Promise<string> {
-  const password = await bcrypt.hash(DEMO_PASSWORD, 12);
+  const password = await hashPassword(DEMO_PASSWORD);
 
   const user = await prisma.user.upsert({
     where: { email: DEMO_USER_EMAIL },

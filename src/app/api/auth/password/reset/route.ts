@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { hashPassword } from "@/lib/auth/password";
 import {
   consumePasswordResetToken,
   lookupPasswordResetToken,
 } from "@/lib/auth/reset-token";
 import { resetPasswordSchema } from "@/lib/validation/auth";
-
-// Match the cost factor used by the seed script and authorize()
-const BCRYPT_ROUNDS = 12;
 
 // One message for every dead token. Distinguishing "never existed" from
 // "expired" here would say more than the page already told the user, and this
@@ -54,7 +51,7 @@ export async function POST(request: Request) {
     await prisma.user.update({
       where: { id: user.id },
       data: {
-        password: await bcrypt.hash(password, BCRYPT_ROUNDS),
+        password: await hashPassword(password),
         // Following an emailed link proves control of the address just as the
         // verification flow does, so an unverified account is confirmed here
         // rather than being left unable to sign in with the password it just

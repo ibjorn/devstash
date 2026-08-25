@@ -1,18 +1,29 @@
-# Current Feature
+# Current Feature: Profile Page
 
-<!-- Feature name and short description -->
+User profile page at `/profile` — account info, usage stats, and account actions (change password, delete account).
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals & requirements -->
+- Create a protected `/profile` route (authenticated users only)
+- Display user info: email, name, avatar (GitHub image or initials fallback), account creation date
+- Show usage stats: total items, total collections, and a per-item-type breakdown (snippets, prompts, commands, notes, links, files, images)
+- Add a "Change password" action, shown **only** for users who have a password (email/password signups, not GitHub-only accounts)
+- Add "Delete account" with a confirmation dialog to prevent accidental deletion
+- Follow existing codebase patterns for data fetching (server components + Prisma, `userId` as a required first parameter) and components
 
 ## Notes
 
-<!-- Any extra notes -->
+- Avatar: reuse the existing `src/components/user/UserAvatar.tsx` (GitHub `image` → initials fallback) rather than reimplementing
+- "Email user" test is `User.password !== null`, not the absence of a GitHub account — a user could have both after account linking
+- The sidebar footer menu already links to `/profile`; that link currently 404s by design (Auth Phase 3), so this feature makes it live
+- Item-type breakdown should cover all seven system types; decide whether zero-count types are shown or hidden
+- Deletion must respect the schema: `Item.itemTypeId` is `ON DELETE RESTRICT`, so a user holding custom types with items can break a plain User cascade — see `scripts/delete-non-demo-users.ts` for the working dependency order
+- Open question for `/feature start`: does deleting an account sign the user out and clear the JWT cookie (the session-expired route from *User-Scoped Data* is the existing precedent), and is a password/typed-confirmation required to delete?
+- Related still-open items from prior phases that this page touches the edge of: GitHub-first users can't add a password (register 409s, though the forgot-password flow now sets a first password), and JWT sessions aren't re-checked against the DB
 
 ## History
 - 2026-05-12: **Initial Setup** - Next.js and Tailwind setup
