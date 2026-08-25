@@ -9,13 +9,39 @@ const email = z
   .toLowerCase()
   .pipe(z.email("Enter a valid email address"));
 
+// bcrypt reads only the first 72 bytes of its input and silently drops the
+// rest, so two passwords sharing a 72-byte prefix hash to the same value and
+// unlock the same account. Cap new passwords at the algorithm's own limit so
+// that truncation can never happen in the first place.
+const BCRYPT_MAX_BYTES = 72;
+
+// .max() counts UTF-16 code units, not bytes — 72 accented or emoji characters
+// still overflow bcrypt — so the byte check is the guard that actually holds.
+// The length cap stays for the friendlier message in the common ASCII case.
+const withinBcryptLimit = (value: string) =>
+  new TextEncoder().encode(value).length <= BCRYPT_MAX_BYTES;
+
 const password = z
   .string()
-  .min(8, "Password must be at least 8 characters");
+  .min(8, "Password must be at least 8 characters")
+  .max(BCRYPT_MAX_BYTES, `Password must be at most ${BCRYPT_MAX_BYTES} characters`)
+  .refine(
+    withinBcryptLimit,
+    "Password is too long — accented and emoji characters each count as several",
+  );
+
+// Passwords being *compared* rather than created are capped far more loosely:
+// a bound keeps an unbounded body out of bcrypt, but rejecting at 72 would lock
+// out anyone whose existing password was set before that cap — bcrypt truncates
+// their input to the same 72 bytes it hashed, so it still matches.
+const SUBMITTED_PASSWORD_MAX = 1024;
 
 export const signInSchema = z.object({
   email,
-  password: z.string().min(1, "Password is required"),
+  password: z
+    .string()
+    .min(1, "Password is required")
+    .max(SUBMITTED_PASSWORD_MAX, "Password is too long"),
 });
 
 export const registerSchema = z
@@ -58,7 +84,10 @@ export const resetPasswordSchema = z
 // change the credential.
 export const changePasswordSchema = z
   .object({
-    currentPassword: z.string().min(1, "Enter your current password"),
+    currentPassword: z
+      .string()
+      .min(1, "Enter your current password")
+      .max(SUBMITTED_PASSWORD_MAX, "Password is too long"),
     password,
     confirmPassword: z.string(),
   })
