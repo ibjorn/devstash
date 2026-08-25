@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -14,23 +15,18 @@ import { ResendVerification } from "@/components/auth/ResendVerification";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { stripSearchParam } from "@/lib/url-params";
 
 const INITIAL_STATE: SignInState = { error: null };
-
-// String, not a URL object — that's the form Next's patched replaceState
-// documents for search-param updates that skip a refetch
-function stripParam(name: string) {
-  const url = new URL(window.location.href);
-  url.searchParams.delete(name);
-  window.history.replaceState(null, "", `${url.pathname}${url.search}`);
-}
 
 interface SignInFormProps {
   callbackUrl: string;
   /** Error handed over by NextAuth as ?error=..., e.g. a failed OAuth callback */
   initialError?: string;
-  /** Success handed over by the verification route as ?verified=... */
+  /** Success handed over by another route, e.g. ?verified=1 or ?reset=1 */
   initialSuccess?: string;
+  /** Which param carried initialSuccess, so it can be stripped after toasting */
+  successParam?: string;
   /** Offer the resend control straight away, without a sign-in attempt first */
   showResendVerification?: boolean;
 }
@@ -39,6 +35,7 @@ export function SignInForm({
   callbackUrl,
   initialError,
   initialSuccess,
+  successParam,
   showResendVerification = false,
 }: SignInFormProps) {
   const [state, formAction, pending] = useActionState(
@@ -52,15 +49,15 @@ export function SignInForm({
   useEffect(() => {
     if (!initialError) return;
     toast.error(initialError, { id: "sign-in-error" });
-    stripParam("error");
+    stripSearchParam("error");
   }, [initialError]);
 
-  // Same treatment for the verification route's success hand-off
+  // Same treatment for a success hand-off — email verified, password reset
   useEffect(() => {
     if (!initialSuccess) return;
-    toast.success(initialSuccess, { id: "sign-in-verified" });
-    stripParam("verified");
-  }, [initialSuccess]);
+    toast.success(initialSuccess, { id: "sign-in-success" });
+    if (successParam) stripSearchParam(successParam);
+  }, [initialSuccess, successParam]);
 
   // Every failed submit returns a fresh state object, so repeat failures
   // re-fire rather than going silent
@@ -84,7 +81,15 @@ export function SignInForm({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="password">Password</Label>
+            <Link
+              href="/forgot-password"
+              className="text-sm text-muted-foreground underline hover:text-foreground"
+            >
+              Forgot password?
+            </Link>
+          </div>
           <Input
             id="password"
             name="password"
