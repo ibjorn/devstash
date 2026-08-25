@@ -1,22 +1,17 @@
-import { createHash, randomBytes } from "crypto";
+import { randomBytes } from "crypto";
 import { prisma } from "@/lib/prisma";
+import { hashToken } from "@/lib/auth/token-hash";
 
 /** How long a verification link stays usable. */
 export const TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Only the hash is stored, so a read of the VerificationToken table doesn't let
- * anyone verify an address they don't own. SHA-256 is right here where bcrypt
- * isn't: the input is 32 bytes of CSPRNG output, so there's nothing to brute
- * force, and the lookup has to be a plain indexed equality match.
- */
-function hashToken(rawToken: string): string {
-  return createHash("sha256").update(rawToken).digest("hex");
-}
-
-/**
  * Issues a fresh verification token for an email, replacing any outstanding
  * one so a user can only ever hold a single live link.
+ *
+ * The identifier is the bare email. Password-reset tokens live in the same
+ * table under a "password-reset:" prefix (see src/lib/auth/reset-token.ts), so
+ * the deleteMany below can't reach across and clear the other kind.
  *
  * @returns the raw token — this is the only time it exists in plaintext
  */

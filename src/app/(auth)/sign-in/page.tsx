@@ -49,17 +49,30 @@ const VERIFIED_MESSAGES: Record<string, string> = {
   already: "That email is already verified. Go ahead and sign in.",
 };
 
+// Set by the reset form once the password endpoint has accepted the change
+const RESET_MESSAGES: Record<string, string> = {
+  "1": "Password updated — sign in with your new password.",
+};
+
 interface SignInPageProps {
   searchParams: Promise<{
     callbackUrl?: string;
     error?: string;
     verified?: string;
+    reset?: string;
   }>;
 }
 
 export default async function SignInPage({ searchParams }: SignInPageProps) {
-  const { callbackUrl, error, verified } = await searchParams;
+  const { callbackUrl, error, verified, reset } = await searchParams;
   const target = safeRedirectPath(callbackUrl);
+
+  // Only one success hand-off can be in flight, so the first match wins
+  const success = verified
+    ? { message: VERIFIED_MESSAGES[verified], param: "verified" }
+    : reset
+      ? { message: RESET_MESSAGES[reset], param: "reset" }
+      : undefined;
 
   const session = await auth();
   if (session?.user) {
@@ -81,7 +94,8 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
                 "Something went wrong signing you in. Please try again.")
               : undefined
           }
-          initialSuccess={verified ? VERIFIED_MESSAGES[verified] : undefined}
+          initialSuccess={success?.message}
+          successParam={success?.param}
           // A bad or stale link is the one case where the resend control has to
           // be reachable without a sign-in attempt first
           showResendVerification={

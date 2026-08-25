@@ -1,18 +1,105 @@
-# Current Feature
+# Current Feature: Forgot Password
 
-<!-- Feature name and short description -->
+Self-service password reset — a "Forgot password?" link on sign-in, an emailed
+reset link, and a page to set a new password. Reuses the existing
+`VerificationToken` model for reset tokens (no schema change).
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals & requirements -->
+- **Forgot-password page** at `/forgot-password` (inside the `(auth)` route group) taking an email address, reachable from a "Forgot password?" link on the sign-in form.
+- **Request endpoint** `POST /api/auth/password/forgot` that issues a reset token and emails the link. Returns a byte-identical 200 for unknown, OAuth-only and pending addresses — no enumeration oracle — mirroring `/api/auth/verify/resend`.
+- **Per-address cooldown** on requests, same technique as the resend route (derive issue time from `expires - TTL`, no `createdAt` column needed).
+- **Reset tokens stored hashed** (SHA-256 of 32 CSPRNG bytes, base64url) in `VerificationToken`, with a **short TTL (1 hour)**, namespaced so they can never be crossed with email-verification tokens.
+- **Reset page** at `/reset-password?token=…` — validates the token server-side before rendering, shows a clear error + a link back to `/forgot-password` for an invalid/expired token.
+- **Reset endpoint** `POST /api/auth/password/reset` — re-validates the token, applies `resetPasswordSchema`, writes a bcrypt hash at **12 rounds** (matching seed + `authorize`), and **consumes the token**.
+- **New Zod schemas** in `src/lib/validation/auth.ts`: `forgotPasswordSchema` (email) and `resetPasswordSchema` (password + confirmPassword, reusing the existing `password` rule and the `.refine` match check from `registerSchema`).
+- **Reset email** added to `src/lib/email/templates.ts` (HTML + text) and sent through the existing `sendEmail` wrapper, with a `src/lib/email/send-password-reset.ts` that never throws, mirroring `send-verification.ts`.
+- **Success path lands on `/sign-in?reset=1`** with a toast ("Password updated — sign in with your new password"), reusing the existing `VERIFIED_MESSAGES`-style success mapping and `stripParam` treatment.
+- **Toasts and per-field inline errors** consistent with `SignInForm` / `RegisterForm`; no inline alert banners.
+- lint + build pass; every path verified by curl against the Neon **development** branch.
 
 ## Notes
 
-<!-- Any extra notes -->
+### Reusing `VerificationToken` — the crossing problem
+
+The model has no `type` column:
+
+```prisma
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  @@unique([identifier, token])
+}
+```
+
+Two token kinds in one table with no discriminator means an **email-verification
+token could be redeemed as a password reset token** (and vice versa) unless the
+two are separated. That would be a genuine privilege escalation: verification
+links are longer-lived, and one of them turning into "set a new password on this
+account" is not a trade we want.
+
+**Proposed fix without a migration: namespace the identifier.** Verification
+tokens keep `identifier = email`; reset tokens store
+`identifier = "password-reset:" + email`. Every lookup then filters on the
+prefix, so a token issued for one purpose cannot resolve at the other's
+endpoint. It also keeps `createVerificationToken`'s
+`deleteMany({ identifier })` from clobbering the other kind's live token.
+
+Decide at `/feature start`: namespaced identifier (no migration) vs. adding a
+`type` column to `VerificationToken` (explicit, but a migration and a divergence
+from NextAuth's own model — which the Email provider would use if it ever lands).
+
+### Consume-on-use is right here, unlike verification
+
+Email verification deliberately does **not** delete tokens on use, because
+corporate link scanners (Outlook Safe Links) GET the URL before the human does.
+Password reset dodges that: the emailed link is a **GET that only renders a
+form** — validating without consuming — and the actual mutation is a **POST**
+that scanners don't make. So the reset token can and should be consumed on
+successful reset, exactly once.
+
+### Decisions taken at `/feature start`
+
+1. **Token separation: namespaced identifier**, no migration. Reset tokens store
+   `identifier = "password-reset:" + email`; verification keeps the bare email.
+   Verified that `z.email()` rejects a colon anywhere in an address, so the two
+   identifier sets are provably disjoint and neither kind can resolve at the
+   other's endpoint.
+2. **OAuth-only accounts get a link that sets a first password.** This is the
+   only route a GitHub-first user has to email sign-in, since registration 409s
+   on their existing address. The email and both pages adapt their copy — an
+   offer to "reset your password" to someone who never had one reads as
+   phishing.
+3. **A successful reset stamps `emailVerified`** (preserving an existing
+   timestamp). Following an emailed link proves address ownership just as the
+   verification flow does. It rescues the dead-end from *Email Verification
+   Toggle* and lets a reset account past the GitHub linking gate.
+4. **`SKIP_EMAIL_VERIFICATION` does not touch this flow** — there's no
+   equivalent bypass, since a reset with no delivered mail is not a reset.
+   Locally the send path was proven against Resend's `delivered@resend.dev`
+   sink, and token-dependent paths were driven by minting through the real
+   module.
+
+### Existing pieces to reuse, not re-invent
+
+- `src/lib/auth/verification-token.ts` — hashing, TTL-derived issue time, opportunistic expired-row sweep. Either generalise it or write a sibling that shares the hash helper.
+- `src/lib/email/resend.ts` — lazy client (the constructor throws on a missing key), `{ data, error }` result shape, idempotency keys.
+- `src/lib/validation/auth.ts` — the shared `email` and `password` rules.
+- `src/components/auth/ResendVerification.tsx` — closest existing pattern for a standalone "enter your email, POST to an endpoint, toast the acknowledgement" form.
+- `src/app/(auth)/layout.tsx` + `loading.tsx` — the card shell and the loading boundary that stops a stale page hanging around across soft navigation.
+
+### Known constraints carried in
+
+- **Sessions can't be revoked on reset.** `strategy: "jwt"` means the cookie is self-contained and never re-checked against the DB, so an attacker's existing session survives the victim's password reset until the JWT expires. Worth stating as an accepted limitation (the real fix is a token-version claim or DB sessions).
+- **No rate limiter** on the public auth endpoints — still outstanding from Auth Phase 2, and this adds two more public endpoints. Cooldown-per-address is not a rate limiter.
+- **No dummy-bcrypt timing fix** — also outstanding; relevant if the reset endpoint's timing differs by branch.
+- Resend sandbox: `onboarding@resend.dev` only delivers to `cloud@blackalsatian.co.za`.
+- Testing is curl + lint + build; **no headless browser in WSL** — browser verification is handed to Björn in Windows Chrome.
 
 ## History
 - 2026-05-12: **Initial Setup** - Next.js and Tailwind setup
