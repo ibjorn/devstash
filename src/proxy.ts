@@ -20,7 +20,7 @@ export const proxy = auth((req) => {
 });
 
 export const config = {
-  // `:path*` matches zero segments too, so these cover /dashboard and /profile
-  // themselves as well as anything beneath them
-  matcher: ["/dashboard/:path*", "/profile/:path*"],
+  // `:path*` matches zero segments too, so these cover /dashboard, /items and
+  // /profile themselves as well as anything beneath them
+  matcher: ["/dashboard/:path*", "/items/:path*", "/profile/:path*"],
 };

@@ -1,18 +1,46 @@
-# Current Feature
+# Current Feature: Items List View
 
-<!-- Feature name and short description -->
+Dynamic `/items/[type]` page listing a user's items filtered by item type.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals & requirements -->
+- Create dynamic route `/items/[type]` (e.g. `/items/snippets`, `/items/notes`)
+- Fetch and display items filtered by that type, scoped to the signed-in user
+- Responsive grid of item cards — two columns on medium and up
+- Each card carries a left border in its item type's colour
+- Follow existing codebase patterns
 
 ## Notes
 
-<!-- Any extra notes -->
+Spec: `context/features/item-list-view-spec.md`
+
+Observations from the current codebase, to settle at `/feature start`:
+
+- **The sidebar already links here.** `getItemTypeNavItems` builds `slug` as the
+  lowercase plural of the system type name (`snippets`, `prompts`, `commands`,
+  `notes`, `files`, `images`, `links`), and `AppSidebar` links to `/items/[slug]`.
+  Those links have 404'd since Dashboard UI Phase 2 — this feature is what makes
+  them resolve. The route param is therefore the **plural slug**, not the type id.
+- **Auth gap:** `src/proxy.ts` matches only `["/dashboard/:path*", "/profile/:path*"]`,
+  so `/items/*` would ship completely unauthenticated — the same trap `/profile`
+  hit in Profile Page. The matcher needs `/items/:path*` added, and the route needs
+  an `AppShell` layout (four-line wrapper, as both existing layouts are) so the
+  sidebar renders and the stale-JWT `session-expired` guard applies.
+- **Card component:** the spec says "ItemCard", but what exists is
+  `src/components/dashboard/ItemRow.tsx` — a full-width row already tinted with the
+  type colour and carrying the `border-l-4` accent from the last fix. Decision:
+  reuse `ItemRow` inside a two-column grid, or add a distinct `ItemCard`.
+- **New query needed** in `src/lib/db/items.ts` — there's no by-type getter yet.
+  Per the User-Scoped Data convention it takes `userId` as a required first
+  parameter; `itemSummarySelect` / `toItemSummary` are already there to reuse.
+- **Unknown slug** (typo, or a custom type) needs a decision: `notFound()` vs an
+  empty state. Empty states exist (`EmptyState.tsx`) for the zero-items case.
+- No schema change expected. `ItemSummary` may need `content`/`url` if cards show
+  more than title, description, tags and date.
 
 ## History
 - 2026-05-12: **Initial Setup** - Next.js and Tailwind setup

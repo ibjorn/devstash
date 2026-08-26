@@ -1,7 +1,11 @@
 import type { Prisma } from "@/generated/prisma/client";
 
 import { prisma } from "@/lib/prisma";
-import type { ItemSummary, ItemTypeNavItem } from "@/types/items";
+import type {
+  ItemSummary,
+  ItemTypeListing,
+  ItemTypeNavItem,
+} from "@/types/items";
 
 // Display order for system types; the table has no sort column
 const SYSTEM_TYPE_ORDER = [
@@ -107,4 +111,47 @@ export async function getRecentItems(
   });
 
   return items.map(toItemSummary);
+}
+
+// "snippets" -> "snippet". Mirrors the pluralization getItemTypeNavItems uses
+// to build the slugs the sidebar links to; all system type names are regular.
+// Lowercased first so the trailing "s" is stripped whatever case the URL used
+// — the name match below is case-insensitive, and this has to agree with it.
+function singularFromSlug(slug: string): string {
+  const normalized = slug.toLowerCase();
+  return normalized.endsWith("s") ? normalized.slice(0, -1) : normalized;
+}
+
+/**
+ * Items of one type for /items/[type], newest first with pinned items on top.
+ *
+ * Resolves the slug against the system types and the user's own custom types.
+ * An unrecognized slug returns `{ type: null, items: [] }` rather than throwing
+ * — the page renders an empty state for it.
+ */
+export async function getItemsByTypeSlug(
+  userId: string,
+  slug: string
+): Promise<ItemTypeListing> {
+  const type = await prisma.itemType.findFirst({
+    where: {
+      name: { equals: singularFromSlug(slug), mode: "insensitive" },
+      OR: [{ isSystem: true }, { userId }],
+    },
+    // A user's own type could share a name with a system one; the sidebar
+    // links to the system slugs, so let those win rather than leaving it to
+    // findFirst's arbitrary pick
+    orderBy: { isSystem: "desc" },
+    select: { id: true, name: true, icon: true, color: true },
+  });
+
+  if (!type) return { type: null, items: [] };
+
+  const items = await prisma.item.findMany({
+    where: { userId, itemTypeId: type.id },
+    orderBy: [{ isPinned: "desc" }, { createdAt: "desc" }],
+    select: itemSummarySelect,
+  });
+
+  return { type, items: items.map(toItemSummary) };
 }

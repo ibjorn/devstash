@@ -27,3 +27,13 @@ export interface ItemSummary {
   type: ItemTypeSummary;
   tags: string[];
 }
+
+/**
+ * A type-filtered listing for /items/[type]. `type` is null when the slug
+ * matches no item type the user can see — the page still renders, with an
+ * empty state, rather than 404ing.
+ */
+export interface ItemTypeListing {
+  type: ItemTypeSummary | null;
+  items: ItemSummary[];
+}
