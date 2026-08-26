@@ -1,18 +1,116 @@
-# Current Feature
+# Current Feature: Rate Limiting for Auth
 
-<!-- Feature name and short description -->
+Per context/features/rate-limiting-spec.md — brute-force / credential-stuffing /
+email-abuse protection on the public auth surface, the highest-priority item on
+the standing backlog (5 of the 8 findings in the 2026-08-25 auth audit touch it).
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals & requirements -->
+- Reusable rate-limit utility at `src/lib/rate-limit.ts` backed by Upstash Redis
+  (`@upstash/ratelimit`), sliding-window algorithm, returning
+  `{ success, remaining, reset }`.
+- Client IP resolved from `x-forwarded-for` (Vercel) with a request fallback;
+  keys combine IP + email where the spec calls for it.
+- Limits applied per the spec table:
+  - sign-in (credentials) — 5 / 15 min, keyed IP + email
+  - register — 3 / 1 hour, keyed IP
+  - password forgot — 3 / 1 hour, keyed IP
+  - password reset — 5 / 15 min, keyed IP
+  - resend verification — 3 / 15 min, keyed IP + email
+- API routes return **429** with `{ error: "Too many attempts. Please try again in X minutes." }`
+  and a `Retry-After` header.
+- Frontend surfaces the limit as a toast (matching the existing sonner pattern);
+  inline per-field validation text is unaffected.
+- **Fails open** — if Upstash is unreachable the request is allowed, never blocked.
+- `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` documented in `.env.example`.
 
 ## Notes
 
-<!-- Any extra notes -->
+### Spec paths vs. the actual routes
+
+The spec's endpoint table predates the routes it names. Real paths:
+
+| Spec | Actual |
+|---|---|
+| `/api/auth/forgot-password` | `src/app/api/auth/password/forgot/route.ts` |
+| `/api/auth/reset-password` | `src/app/api/auth/password/reset/route.ts` |
+| `/api/auth/resend-verification` | `src/app/api/auth/verify/resend/route.ts` |
+| `/api/auth/register` | `src/app/api/auth/register/route.ts` (matches) |
+| `/api/auth/callback/credentials` | see below — the UI never posts to it |
+
+### Sign-in is a server action, not a fetch
+
+The spec's own note ("login limiting is tricky with NextAuth credentials") is
+correct, and more so than it assumes. `SignInForm` calls the
+`signInWithCredentials` server action (src/actions/auth.ts), which calls
+next-auth's `signIn()`; nothing in the app ever fetches
+`/api/auth/callback/credentials`, so a 429 JSON body + `Retry-After` has no
+reader on that path. Decision owed at `/feature start`: gate inside the server
+action (returns a `SignInState` error the form already renders) vs. inside
+`authorize()` in src/auth.ts (also covers a direct POST to the callback route,
+but has to surface as an `AuthError` subclass like `EmailNotVerifiedError`).
+Note `authorize()` cannot read the request IP — only the credentials — so an
+IP-keyed limit likely has to sit in the action, or read headers via `headers()`.
+
+### Interaction with work already shipped
+
+- `/api/auth/password/forgot` defers its lookup + send into Next 16's `after()`
+  to close a timing oracle. A rate-limit check placed *before* the response
+  flush must stay constant-time across existing/unknown addresses, or it
+  re-opens what that fix closed.
+- The same forgot endpoint has a known duplicate-token/duplicate-email race that
+  `after()` widened; a real limiter is the proper fix for it, so this feature
+  should close that too.
+- `/api/auth/verify/resend` still has the timing oracle the forgot endpoint
+  fixed. Reconciling the two is listed as owed — flag if it's in scope here or
+  stays a separate feature.
+- Both email endpoints already have per-address cooldowns (5 min verification,
+  1 h reset, derived from `expires - TTL`). Those are not a substitute for a
+  limiter, but the new limits should not contradict them.
+- The 60s client-side lockout on the forgot-password button stays; it was always
+  UX, never a control.
+
+### Decisions taken at `/feature start`
+
+1. **Sign-in gate lives in `authorize()`**, not the server action. The load-time
+   note that `authorize()` can't see the IP was wrong: Auth.js hands it a
+   Request rebuilt from the real headers
+   (@auth/core/lib/actions/callback/index.js:231) and next-auth's server-action
+   `signIn()` copies them through from `next/headers`. Putting it in the action
+   would have missed a direct POST to `/api/auth/callback/credentials` — which
+   is what a real brute-forcer uses. Surfaces as a `CredentialsSignin` subclass
+   (`RateLimitedError`) carrying `retryAfterSeconds`, mirroring
+   `EmailNotVerifiedError`.
+2. **A second IP-only sign-in ceiling** (20 / 15 min) on top of the spec's
+   IP+email limit — the spec's table alone never trips on credential stuffing,
+   which walks many addresses a couple of attempts each. Generous, because an
+   office behind one NAT shares an IP.
+3. **`changePassword` included**, keyed by user id rather than IP.
+4. **`/api/auth/verify/resend` reconciled** with the `after()` fix its sibling
+   `/api/auth/password/forgot` already had.
+
+Also decided while implementing: a **successful** sign-in clears the per-account
+bucket (so ordinary logins don't accumulate toward a lockout) but never the
+per-IP one, which would hand anyone holding one valid account a reset lever for
+the stuffing ceiling.
+
+### Deliberately out of the spec — raise at start
+
+`changePassword` in src/actions/profile.ts allows unlimited current-password
+guesses from an authenticated session (audit: High). It is not a public
+endpoint so it is outside the spec's table, but it is the same class of hole and
+the utility built here would cover it cheaply.
+
+### Environment
+
+`UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` are already present in the
+working tree's uncommitted `.env.example` change. `@upstash/ratelimit` and
+`@upstash/redis` are **not** installed yet — this is the first new runtime
+dependency since `resend`.
 
 ## History
 - 2026-05-12: **Initial Setup** - Next.js and Tailwind setup
