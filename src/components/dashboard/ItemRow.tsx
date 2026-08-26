@@ -21,9 +21,12 @@ export function ItemRow({ item }: ItemRowProps) {
 
   return (
     <div
-      className="flex items-start gap-3 rounded-xl border bg-card p-4 transition-shadow hover:ring-1 hover:ring-foreground/25"
-      // border comes from the item type's color
-      style={{ borderColor: typeColorTint(item.type.color, 25) }}
+      className="flex items-start gap-3 rounded-xl border border-l-4 bg-card p-4 transition-shadow hover:ring-1 hover:ring-foreground/25"
+      // subtle border all round, with a solid accent edge in the item type's color
+      style={{
+        borderColor: typeColorTint(item.type.color, 25),
+        borderLeftColor: item.type.color,
+      }}
     >
       <div
         className="flex size-9 shrink-0 items-center justify-center rounded-lg"
