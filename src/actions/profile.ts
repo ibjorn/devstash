@@ -9,6 +9,11 @@ import { resetIdentifier } from "@/lib/auth/reset-token";
 import { requireUserId } from "@/lib/db/session-user";
 import { prisma } from "@/lib/prisma";
 import {
+  checkRateLimit,
+  clearRateLimit,
+  rateLimitMessage,
+} from "@/lib/rate-limit";
+import {
   changePasswordSchema,
   deleteAccountSchema,
 } from "@/lib/validation/auth";
@@ -48,6 +53,19 @@ export async function changePassword(
 
   try {
     const userId = await requireUserId();
+
+    // This action takes an unlimited number of guesses at the *current*
+    // password, which is what makes it a re-auth gate at all. Keyed by user id
+    // rather than IP: the session already names the caller, and an attacker
+    // sitting on a stolen session can change networks but not who they are.
+    const limit = await checkRateLimit("changePassword", userId);
+    if (!limit.success) {
+      return {
+        success: false,
+        error: rateLimitMessage(limit.retryAfterSeconds),
+      };
+    }
+
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { password: true },
@@ -78,6 +96,10 @@ export async function changePassword(
       where: { id: userId },
       data: { password: await hashPassword(parsed.data.password) },
     });
+
+    // The attempts spent getting here ended in a correct password, so they
+    // weren't guesses — don't leave them counting against the next change.
+    await clearRateLimit("changePassword", userId);
 
     return { success: true };
   } catch (error) {

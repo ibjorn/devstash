@@ -6,6 +6,7 @@ import {
   lookupPasswordResetToken,
 } from "@/lib/auth/reset-token";
 import { resetPasswordSchema } from "@/lib/validation/auth";
+import { checkRateLimit, clientIp, tooManyRequests } from "@/lib/rate-limit";
 
 // One message for every dead token. Distinguishing "never existed" from
 // "expired" here would say more than the page already told the user, and this
@@ -34,6 +35,14 @@ export async function POST(request: Request) {
   }
 
   const { token, password } = parsed.data;
+
+  // Keyed by IP alone — the token is the secret being guessed here, so keying
+  // by it would give each guess its own fresh budget.
+  const limit = await checkRateLimit(
+    "passwordReset",
+    clientIp(request.headers),
+  );
+  if (!limit.success) return tooManyRequests(limit);
 
   try {
     // Re-checked here rather than trusted from the page render: the token can

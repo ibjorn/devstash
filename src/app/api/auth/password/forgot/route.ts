@@ -6,6 +6,7 @@ import {
 } from "@/lib/auth/reset-token";
 import { issuePasswordResetEmail } from "@/lib/email/send-password-reset";
 import { forgotPasswordSchema } from "@/lib/validation/auth";
+import { checkRateLimit, clientIp, tooManyRequests } from "@/lib/rate-limit";
 
 /**
  * Minimum gap between two reset emails for the same address. Matches the
@@ -47,6 +48,16 @@ export async function POST(request: Request) {
   }
 
   const { email } = parsed.data;
+
+  // Safe to run before the response is flushed: the key is the IP, and Redis
+  // has no idea whether the address in the body belongs to an account, so this
+  // costs the same for every caller and doesn't reopen the oracle after() was
+  // added to close.
+  const limit = await checkRateLimit(
+    "passwordForgot",
+    clientIp(request.headers),
+  );
+  if (!limit.success) return tooManyRequests(limit);
 
   // Every branch below takes a measurably different amount of time — a real
   // send costs ~1-3s where an unknown address costs ~250ms — and an identical

@@ -13,3 +13,19 @@ import { CredentialsSignin } from "next-auth";
 export class EmailNotVerifiedError extends CredentialsSignin {
   code = "EmailNotVerified";
 }
+
+/**
+ * Thrown by the credentials provider when the caller has spent their sign-in
+ * attempts. Reaches the server action the same way EmailNotVerifiedError does —
+ * as the thrown instance, not a serialised copy — so `retryAfterSeconds`
+ * survives alongside `code` and the form can say how long the wait is.
+ */
+export class RateLimitedError extends CredentialsSignin {
+  code = "RateLimited";
+  retryAfterSeconds: number;
+
+  constructor(retryAfterSeconds: number) {
+    super();
+    this.retryAfterSeconds = retryAfterSeconds;
+  }
+}

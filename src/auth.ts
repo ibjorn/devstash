@@ -4,7 +4,14 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { signInSchema } from "@/lib/validation/auth";
-import { EmailNotVerifiedError } from "@/lib/auth/errors";
+import { EmailNotVerifiedError, RateLimitedError } from "@/lib/auth/errors";
+import {
+  checkRateLimit,
+  clearRateLimit,
+  clientIp,
+  ipEmailKey,
+  peekRateLimit,
+} from "@/lib/rate-limit";
 import authConfig, { credentialFields } from "./auth.config";
 
 // The real credentials provider — node runtime only. Returning null keeps the
@@ -13,9 +20,40 @@ import authConfig, { credentialFields } from "./auth.config";
 // address, which is only reachable once the password already matched.
 const credentials = Credentials({
   credentials: credentialFields,
-  authorize: async (raw) => {
+  authorize: async (raw, request) => {
     const parsed = signInSchema.safeParse(raw);
     if (!parsed.success) return null;
+
+    // Auth.js rebuilds this Request from the real incoming headers
+    // (@auth/core/lib/actions/callback/index.js), and next-auth's server-action
+    // signIn() copies them through from next/headers — so the caller's IP is
+    // readable here on both paths. That is the reason the gate sits in
+    // authorize() rather than in the server action: an attacker brute-forcing
+    // this would POST /api/auth/callback/credentials directly and never touch
+    // the action at all.
+    const ip = clientIp(request.headers);
+    const accountKey = ipEmailKey(ip, parsed.data.email);
+
+    // The wide net first: many addresses, few attempts each, one origin.
+    // Read without spending, because unlike the per-account bucket below this
+    // one is never cleared on success — clearing it would let anyone holding a
+    // single valid account reset the ceiling at will. Counting successes into a
+    // bucket that never empties would instead lock out everyone sharing an
+    // office or carrier-grade NAT, so only failures are charged to it.
+    const perIp = await peekRateLimit("signInPerIp", ip);
+    if (!perIp.success) throw new RateLimitedError(perIp.retryAfterSeconds);
+
+    const perAccount = await checkRateLimit("signIn", accountKey);
+    if (!perAccount.success) {
+      throw new RateLimitedError(perAccount.retryAfterSeconds);
+    }
+
+    // Charged only on a genuine credential failure. Stuffing is almost entirely
+    // failures, so aiming the ceiling at them costs nothing in detection.
+    const chargeFailure = async () => {
+      await checkRateLimit("signInPerIp", ip);
+      return null;
+    };
 
     const user = await prisma.user.findUnique({
       where: { email: parsed.data.email },
@@ -30,18 +68,24 @@ const credentials = Credentials({
     });
 
     // OAuth-only users have a null hash and must not be signable this way
-    if (!user?.password) return null;
+    if (!user?.password) return chargeFailure();
 
     const passwordMatches = await bcrypt.compare(
       parsed.data.password,
       user.password,
     );
-    if (!passwordMatches) return null;
+    if (!passwordMatches) return chargeFailure();
 
     // Deliberately after the password check, so this branch is only reachable
     // by someone who already proved they hold the credentials — it tells a
     // stranger nothing about whether an account exists.
     if (!user.emailVerified) throw new EmailNotVerifiedError();
+
+    // Proven credentials, so the attempts spent getting here weren't an attack.
+    // Only the per-account bucket is cleared: releasing the per-IP ceiling on a
+    // success would let anyone holding one valid account reset the credential-
+    // stuffing limit at will.
+    await clearRateLimit("signIn", accountKey);
 
     return {
       id: user.id,

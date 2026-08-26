@@ -3,6 +3,8 @@
 import { AuthError, CredentialsSignin } from "next-auth";
 import { signIn, signOut } from "@/auth";
 import { safeRedirectPath } from "@/lib/auth-redirect";
+import { RateLimitedError } from "@/lib/auth/errors";
+import { rateLimitMessage } from "@/lib/rate-limit";
 import { signInSchema } from "@/lib/validation/auth";
 
 export interface SignInState {
@@ -39,6 +41,14 @@ export async function signInWithCredentials(
     // A successful sign-in throws NEXT_REDIRECT, which has to bubble up.
     // Auth.js rethrows AuthError subclasses out of the callback route
     // untouched, so the instance authorize() threw arrives here with its code.
+    // Matched on `code` rather than the class alone, mirroring the check
+    // below: the instance is rethrown untouched today, but the code is the
+    // part Auth.js contractually preserves.
+    if (error instanceof CredentialsSignin && error.code === "RateLimited") {
+      const seconds =
+        error instanceof RateLimitedError ? error.retryAfterSeconds : 0;
+      return { error: rateLimitMessage(seconds) };
+    }
     if (
       error instanceof CredentialsSignin &&
       error.code === "EmailNotVerified"

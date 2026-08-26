@@ -5,6 +5,7 @@ import { hashPassword } from "@/lib/auth/password";
 import { registerSchema } from "@/lib/validation/auth";
 import { issueVerificationEmail } from "@/lib/email/send-verification";
 import { skipEmailVerification } from "@/lib/auth/verification-flag";
+import { checkRateLimit, clientIp, tooManyRequests } from "@/lib/rate-limit";
 
 const EMAIL_TAKEN = "An account with that email already exists";
 
@@ -33,6 +34,11 @@ export async function POST(request: Request) {
   }
 
   const { name, email, password } = parsed.data;
+
+  // After validation, not before: a malformed body is the caller's own bug and
+  // shouldn't burn one of the few registrations an honest visitor is allowed.
+  const limit = await checkRateLimit("register", clientIp(request.headers));
+  if (!limit.success) return tooManyRequests(limit);
 
   try {
     const existing = await prisma.user.findUnique({
