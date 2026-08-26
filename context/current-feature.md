@@ -1,18 +1,28 @@
-# Current Feature
+# Current Feature: Three-Column Item Listing
 
-<!-- Feature name and short description -->
+Widen the `/items/[type]` grid from two columns to three on larger screens, without
+losing its responsive behaviour on narrow ones.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals & requirements -->
+- The item listing grid at `/items/[type]` shows **three columns on larger screens** instead of the current maximum of two.
+- Stays fully responsive: one column on mobile, two at an intermediate width, three only where there is room for it.
+- No change to `ItemCard` itself, to the query, or to the empty states — this is a grid-track change.
+- `npm run lint` and `npm run build` pass; Björn confirms the render in Windows Chrome at desktop, tablet and mobile widths.
 
 ## Notes
 
-<!-- Any extra notes -->
+- One line: `src/app/items/[type]/page.tsx:66` — currently `className="grid gap-4 md:grid-cols-2"`.
+- **Which breakpoint gets the third column is the only real decision.** The page sits inside `AppShell`, so the sidebar eats ~16rem of viewport before the `max-w-6xl` (72rem) container applies:
+  - `xl:grid-cols-3` (≥80rem) — **recommended**: matches the dashboard collections grid at `src/app/dashboard/page.tsx:47` (`sm:grid-cols-2 xl:grid-cols-3`) exactly, so the two grids in the app break at the same widths. Cards land at roughly 20rem each.
+  - `lg:grid-cols-3` (≥64rem) — third column arrives sooner, but with the sidebar open the cards drop to roughly 15rem, which is tight for a truncated title plus a wrapping tag row.
+- `ItemCard` is already `h-full` with a truncated title, a `line-clamp-2` description and wrapping tags, so it degrades cleanly at narrower tracks — no card changes needed either way.
+- Worth deciding at `start`: whether the two-column step moves from `md:` (48rem) to `sm:` (40rem) to match the dashboard fully, or stays where it is.
+- **No unit tests expected.** This is a Tailwind class change with no server action or utility logic — per the testing rules just added to this file's workflow, that is a case for saying so rather than writing a test.
 
 ## History
 - 2026-05-12: **Initial Setup** - Next.js and Tailwind setup
