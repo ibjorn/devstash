@@ -15,7 +15,7 @@ This is the common workflow that we will use for every single feature/fix:
 1. **Document** - Document the feature in @context/current-feature.md.
 2. **Branch** - Create new branch for feature, fix, etc
 3. **Implement** - Implement the feature/fix that I create in @context/current-feature.md
-4. **Test** - Run `npm run lint` and `npm run build` and fix any errors. Do NOT set up or run headless browsers in WSL — they don't reproduce what Windows Chrome shows. For browser verification, start the dev server and hand off to Björn to check visually in Windows Chrome; his tab's console errors are forwarded to the dev server terminal/logs. Unit testing comes later.
+4. **Test** - Run `npm run lint`, `npm test` and `npm run build` and fix any errors. Write unit tests for any server action or utility the feature added (see **Testing** below). Do NOT set up or run headless browsers in WSL — they don't reproduce what Windows Chrome shows. For browser verification, start the dev server and hand off to Björn to check visually in Windows Chrome; his tab's console errors are forwarded to the dev server terminal/logs.
 5. **Iterate** - Iterate and change things if needed
 6. **Commit** - Only after build passes and everything works
 7. **Merge** - Merge to main
@@ -24,6 +24,18 @@ This is the common workflow that we will use for every single feature/fix:
 10. Mark as completed in @context/current-feature.md and add to history
 
 Do NOT commit without permission and until the build passes. If build fails, fix the issues first.
+
+## Testing
+
+Unit tests run on **Vitest** in the `node` environment.
+
+- `npm test` runs the suite once; `npm run test:watch` watches.
+- **Scope: server actions (`src/actions/`) and utilities (`src/lib/`) only.** No component tests — there is no jsdom and no Testing Library, and UI is verified visually in Windows Chrome instead.
+- Tests are **colocated** next to the code they cover: `src/lib/auth-redirect.ts` → `src/lib/auth-redirect.test.ts`.
+- Import from `vitest` explicitly (`import { describe, expect, it, vi } from "vitest"`) — globals are off.
+- **Never touch the database or the network.** Mock `@/lib/prisma`, `@/auth`, `@/lib/db/session-user` and `@/lib/rate-limit`. Vitest does not load `.env`, so a test that forgets to mock fails loudly rather than quietly reaching the Neon development branch.
+- Use `vi.hoisted()` for anything a `vi.mock` factory closes over, and `vi.resetAllMocks()` in `beforeEach` — `clearAllMocks` leaves implementations behind and they leak into the next test.
+- Cover the happy path and the error branches that matter, security guards first: redirect validation, credential checks, token namespacing, ownership. Don't write tests just to write them — if a change has no logic worth asserting, say so instead.
 
 ## Branching
 

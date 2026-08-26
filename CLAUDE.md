@@ -27,6 +27,12 @@ When using any Neon MCP tool (`mcp__neon__*`):
 - `npm run build` — production build
 - `npm run start` — serve the production build
 - `npm run lint` — ESLint via flat config (`eslint.config.mjs`)
+- `npm test` — Vitest unit suite, run once
+- `npm run test:watch` — Vitest in watch mode
+
+Unit tests cover **server actions and utilities only** (no components), are colocated as
+`*.test.ts`, and never touch the database — see the Testing section in
+`context/ai-interaction.md`.
 
 ### Database
 
