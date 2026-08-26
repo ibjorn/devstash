@@ -55,6 +55,7 @@ Example v4 configuration:
 - Server Actions: `src/actions/[feature].ts`
 - Types: `src/types/[feature].ts`
 - Lib/Utils: `src/lib/[utility].ts`
+- Tests: colocated next to the file under test — `src/lib/[utility].test.ts`
 
 ## Naming
 
@@ -89,6 +90,15 @@ Example v4 configuration:
 - Use try/catch in Server Actions
 - Return `{ success, data, error }` pattern from actions
 - Display user-friendly error messages via toast
+
+## Testing
+
+- Vitest, `node` environment — `npm test` (once) / `npm run test:watch`
+- **Test server actions and utilities only.** No component tests: no jsdom, no Testing Library
+- Colocate tests as `*.test.ts` beside the source file
+- Import test helpers from `vitest` explicitly; globals are off
+- Mock everything that leaves the process — `@/lib/prisma`, `@/auth`, `@/lib/rate-limit`. A unit test must pass with no `DATABASE_URL` and no Upstash credentials
+- Assert on behaviour worth protecting (validation, auth guards, error branches), not on implementation detail
 
 ## Code Quality
 

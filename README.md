@@ -51,12 +51,28 @@ npm run db:seed      # seed system item types + demo data
 | `npm run build` | Production build |
 | `npm run start` | Serve the production build |
 | `npm run lint` | ESLint via flat config |
+| `npm test` | Run the Vitest unit suite once |
+| `npm run test:watch` | Vitest in watch mode |
 | `npm run db:migrate` | Apply Prisma migrations in dev |
 | `npm run db:deploy` | Apply migrations in production |
 | `npm run db:status` | Check migration sync status |
 | `npm run db:seed` | Seed the database |
 | `npm run db:studio` | Open Prisma Studio |
 | `npm run db:test` | Run the database smoke test |
+
+## 🧪 Testing
+
+Unit tests run on [Vitest](https://vitest.dev) in the `node` environment:
+
+```bash
+npm test          # run once
+npm run test:watch
+```
+
+Scope is deliberately narrow — **server actions and utilities only**. There are no component
+tests (no jsdom, no Testing Library); UI is verified in the browser. Tests are colocated as
+`*.test.ts` next to the file they cover, and everything that leaves the process (Prisma, Auth.js,
+Upstash) is mocked, so the suite needs no database connection or credentials to run.
 
 ## 🗄️ Database
 
@@ -68,6 +84,7 @@ DevStash uses Prisma with Neon PostgreSQL. **All schema changes go through `pris
 - `src/components/[feature]/` — React components
 - `src/actions/[feature].ts` — Server Actions
 - `src/lib/` — utilities and DB access helpers
+- `*.test.ts` — colocated Vitest unit tests
 - `src/types/[feature].ts` — shared types
 - `prisma/` — schema, migrations, and seed
 - `context/` — project specs and coding standards

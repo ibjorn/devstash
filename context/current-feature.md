@@ -1,18 +1,27 @@
 # Current Feature
 
-<!-- Feature name and short description -->
+**Vitest Setup** — unit testing for server actions and utilities.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals & requirements -->
+- Add Vitest as the unit test runner (node environment, no component testing).
+- Wire the `@/*` path alias so tests import the same way source does.
+- Add `npm test` / `npm run test:watch` scripts.
+- Write a first suite covering the highest-value pure logic and server actions:
+  - utilities: `safeRedirectPath`, the auth Zod schemas (incl. the bcrypt 72-byte cap), `clientIp` / `ipEmailKey` / `rateLimitMessage`, `skipEmailVerification`, `getAppUrl`, `hashToken`, the password-reset token namespacing.
+  - server actions: `signInWithCredentials` / `signInWithGitHub` / `signOutAction`, `changePassword` / `deleteAccount`.
+- Update the workflow docs (`context/ai-interaction.md`, `context/coding-standards.md`, `CLAUDE.md`, `README.md`) so testing is part of the standard loop.
 
 ## Notes
 
-<!-- Any extra notes -->
+- **Scope is deliberate: server actions and utilities only.** No component tests, no jsdom, no Testing Library — so the runner stays in the `node` environment and the dependency footprint is one devDependency.
+- Tests are **colocated** as `*.test.ts` next to the code they cover.
+- Anything touching the network or the database is mocked (`@/auth`, `@/lib/prisma`, `@/lib/rate-limit`). **No test may reach Neon** — unit tests must be runnable with no `DATABASE_URL` and no Upstash credentials.
+- bcrypt runs for real in the password tests rather than being mocked; the point is that a hash written by `changePassword` actually verifies.
 
 ## History
 - 2026-05-12: **Initial Setup** - Next.js and Tailwind setup
