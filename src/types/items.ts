@@ -1,3 +1,5 @@
+import type { ItemContentType } from "@/generated/prisma/client";
+
 export interface ItemTypeNavItem {
   id: string;
   // pluralized for display, e.g. "Snippets"; slug is its lowercase form for /items/[slug]
@@ -37,3 +39,35 @@ export interface ItemTypeListing {
   type: ItemTypeSummary | null;
   items: ItemSummary[];
 }
+
+export interface ItemCollectionSummary {
+  id: string;
+  name: string;
+}
+
+/**
+ * Everything the item drawer shows. Extends the card-level summary the listing
+ * pages already hold with the fields only the drawer needs, so the drawer can
+ * paint its header from the summary while this is still in flight.
+ */
+export interface ItemDetail extends ItemSummary {
+  content: string | null;
+  contentType: ItemContentType;
+  url: string | null;
+  fileUrl: string | null;
+  fileName: string | null;
+  fileSize: number | null;
+  language: string | null;
+  updatedAt: Date;
+  collections: ItemCollectionSummary[];
+}
+
+/**
+ * ItemDetail as it survives JSON — `GET /api/items/[id]` serializes the two
+ * dates to ISO strings, so the client parses them back rather than pretending
+ * they arrived as Dates.
+ */
+export type ItemDetailResponse = Omit<ItemDetail, "createdAt" | "updatedAt"> & {
+  createdAt: string;
+  updatedAt: string;
+};

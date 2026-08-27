@@ -2,6 +2,7 @@ import type { Prisma } from "@/generated/prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import type {
+  ItemDetail,
   ItemSummary,
   ItemTypeListing,
   ItemTypeNavItem,
@@ -154,4 +155,50 @@ export async function getItemsByTypeSlug(
   });
 
   return { type, items: items.map(toItemSummary) };
+}
+
+const itemDetailSelect = {
+  ...itemSummarySelect,
+  content: true,
+  contentType: true,
+  url: true,
+  fileUrl: true,
+  fileName: true,
+  fileSize: true,
+  language: true,
+  updatedAt: true,
+  collections: {
+    select: { collection: { select: { id: true, name: true } } },
+    orderBy: { collection: { name: "asc" } },
+  },
+} satisfies Prisma.ItemSelect;
+
+/**
+ * One item in full, for the drawer. Scoped by userId in the same query rather
+ * than fetched and checked afterwards, so another user's id is indistinguishable
+ * from one that doesn't exist — both come back null and the route 404s.
+ */
+export async function getItemDetail(
+  userId: string,
+  id: string,
+): Promise<ItemDetail | null> {
+  const item = await prisma.item.findFirst({
+    where: { id, userId },
+    select: itemDetailSelect,
+  });
+
+  if (!item) return null;
+
+  return {
+    ...toItemSummary(item),
+    content: item.content,
+    contentType: item.contentType,
+    url: item.url,
+    fileUrl: item.fileUrl,
+    fileName: item.fileName,
+    fileSize: item.fileSize,
+    language: item.language,
+    updatedAt: item.updatedAt,
+    collections: item.collections.map((link) => link.collection),
+  };
 }
