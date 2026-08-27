@@ -1,18 +1,66 @@
-# Current Feature
+# Current Feature: Item Drawer
 
-<!-- Feature name and short description -->
+Right-side slide-in Sheet that opens when an item card is clicked — the item detail
+view, with no separate item page. Detail-display only this round; editing and the
+type-specific extras (code editor, file preview) come later.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals & requirements -->
+- shadcn `Sheet` opening from the right, driven by a client wrapper so the server
+  pages (`/dashboard`, `/items/[type]`) can stay server components
+- Clicking an item opens the drawer for that item — on **both** surfaces, which means
+  `ItemRow` (dashboard) and `ItemCard` (items list), not just `ItemCard`
+- Card-level data already on the page renders immediately; full detail (content,
+  language, collections, updatedAt) is fetched on click from `GET /api/items/[id]`
+- Skeleton/loading state in the drawer while that fetch is in flight
+- New query in `src/lib/db/items.ts`; the API route does the auth check and calls it
+- Action bar per the screenshot: Favorite (star, yellow when active), Pin, Copy on the
+  left; Edit (pencil) and Delete (trash, red) right-aligned
+- Body sections in screenshot order: Description, Content, Tags, Collections, Details
+  (Created / Updated)
+- Snappy: no page navigation, no full reload
 
 ## Notes
 
-<!-- Any extra notes -->
+Spec: `context/features/item-drawer-spec.md`. Visual reference:
+`context/screenshots/dashboard-ui-drawer.png`.
+
+**Already in place** — `src/components/ui/sheet.tsx` and `skeleton.tsx` are both
+installed, so no new shadcn component and no new dependency is expected.
+
+**Layout from the screenshot** — header is the type icon chip + title, with a type
+badge ("Snippets") and a language badge ("typescript") beneath it; then the action
+bar; then the body sections listed above. Collections render as badges; Details is a
+label/value pair per row.
+
+**Query shape** — `getItemDetail(userId, id)` in `src/lib/db/items.ts`, taking `userId`
+as a required first parameter per the User-Scoped Data convention, returning null when
+the id doesn't belong to the caller. Needs a new `ItemDetail` DTO in `src/types/items.ts`
+covering `content`, `contentType`, `url`, `fileUrl`/`fileName`/`fileSize`, `language`,
+`updatedAt` and the item's collections, on top of what `ItemSummary` already carries.
+
+**Auth** — `/api/items/[id]` is a **new route outside the proxy matcher**
+(`["/dashboard/:path*", "/items/:path*", "/profile/:path*"]`); `/items/:path*` covers
+the *page*, not `/api/items/...`. The route must call `auth()` itself and 401 rather
+than assume the proxy ran. This is the third time this trap has come up (`/profile`,
+then `/items`), so it is called out up front.
+
+**Decisions taken at `/feature start`:**
+1. Action buttons — Björn: "we'll build those in the next phases of our roadmap, so
+   whatever is less work for later". So each button gets its own handler in the action
+   bar from the outset: **Copy** is real; Favorite, Pin, Edit and Delete render at full
+   visual fidelity (star yellow when `isFavorite`, pin filled when `isPinned`, trash in
+   destructive red) and fire a "coming soon" toast. Not `disabled` — dimming them would
+   lose the state colors the screenshot shows, and swapping one toast line for a
+   mutation call is the smallest possible diff next phase.
+2. Refetch on every open rather than caching per id — small payload, and stale content
+   is worse than a brief skeleton.
+3. Content renders as a plain `<pre>` in the mono font; no highlighter is installed and
+   syntax highlighting belongs with the later editor work.
 
 ## History
 - 2026-05-12: **Initial Setup** - Next.js and Tailwind setup

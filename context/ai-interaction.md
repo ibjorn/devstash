@@ -30,7 +30,7 @@ Do NOT commit without permission and until the build passes. If build fails, fix
 Unit tests run on **Vitest** in the `node` environment.
 
 - `npm test` runs the suite once; `npm run test:watch` watches.
-- **Scope: server actions (`src/actions/`) and utilities (`src/lib/`) only.** No component tests — there is no jsdom and no Testing Library, and UI is verified visually in Windows Chrome instead.
+- **Scope: server-side logic only — server actions (`src/actions/`), utilities (`src/lib/`) and route handlers (`src/app/api/`).** No component tests — there is no jsdom and no Testing Library, and UI is verified visually in Windows Chrome instead.
 - Tests are **colocated** next to the code they cover: `src/lib/auth-redirect.ts` → `src/lib/auth-redirect.test.ts`.
 - Import from `vitest` explicitly (`import { describe, expect, it, vi } from "vitest"`) — globals are off.
 - **Never touch the database or the network.** Mock `@/lib/prisma`, `@/auth`, `@/lib/db/session-user` and `@/lib/rate-limit`. Vitest does not load `.env`, so a test that forgets to mock fails loudly rather than quietly reaching the Neon development branch.

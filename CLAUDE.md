@@ -30,7 +30,7 @@ When using any Neon MCP tool (`mcp__neon__*`):
 - `npm test` — Vitest unit suite, run once
 - `npm run test:watch` — Vitest in watch mode
 
-Unit tests cover **server actions and utilities only** (no components), are colocated as
+Unit tests cover **server actions, utilities and route handlers only** (no components), are colocated as
 `*.test.ts`, and never touch the database — see the Testing section in
 `context/ai-interaction.md`.
 

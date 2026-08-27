@@ -94,7 +94,7 @@ Example v4 configuration:
 ## Testing
 
 - Vitest, `node` environment — `npm test` (once) / `npm run test:watch`
-- **Test server actions and utilities only.** No component tests: no jsdom, no Testing Library
+- **Test server-side logic only: server actions, utilities and route handlers.** No component tests: no jsdom, no Testing Library
 - Colocate tests as `*.test.ts` beside the source file
 - Import test helpers from `vitest` explicitly; globals are off
 - Mock everything that leaves the process — `@/lib/prisma`, `@/auth`, `@/lib/rate-limit`. A unit test must pass with no `DATABASE_URL` and no Upstash credentials
