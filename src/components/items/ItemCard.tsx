@@ -1,5 +1,8 @@
+"use client";
+
 import { File, Pin, Star } from "lucide-react";
 
+import { useItemDrawer } from "@/components/items/ItemDrawerProvider";
 import { Badge } from "@/components/ui/badge";
 import { typeColorTint } from "@/lib/type-colors";
 import { typeIcons } from "@/lib/type-icons";
@@ -20,13 +23,18 @@ function formatDate(date: Date): string {
  * An item in the /items/[type] grid. The dashboard's ItemRow is the same
  * information laid out horizontally for a single-column list; this is the
  * taller shape a two-column grid wants, sharing its type-colour treatment.
+ *
+ * A button rather than a link — the item detail view is a drawer, not a page.
  */
 export function ItemCard({ item }: ItemCardProps) {
+  const { openItem } = useItemDrawer();
   const Icon = typeIcons[item.type.icon] ?? File;
 
   return (
-    <div
-      className="flex h-full flex-col gap-3 rounded-xl border border-l-4 bg-card p-4 transition-shadow hover:ring-1 hover:ring-foreground/25"
+    <button
+      type="button"
+      onClick={() => openItem(item)}
+      className="flex h-full w-full cursor-pointer flex-col gap-3 rounded-xl border border-l-4 bg-card p-4 text-left transition-shadow hover:ring-1 hover:ring-foreground/25"
       // subtle border all round, with a solid accent edge in the item type's color
       style={{
         borderColor: typeColorTint(item.type.color, 25),
@@ -73,6 +81,6 @@ export function ItemCard({ item }: ItemCardProps) {
           {formatDate(item.createdAt)}
         </span>
       </div>
-    </div>
+    </button>
   );
 }

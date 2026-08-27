@@ -1,5 +1,8 @@
+"use client";
+
 import { File, Pin, Star } from "lucide-react";
 
+import { useItemDrawer } from "@/components/items/ItemDrawerProvider";
 import { Badge } from "@/components/ui/badge";
 import { typeColorTint } from "@/lib/type-colors";
 import { typeIcons } from "@/lib/type-icons";
@@ -16,12 +19,16 @@ function formatDate(date: Date): string {
   });
 }
 
+// A button rather than a link — the item detail view is a drawer, not a page.
 export function ItemRow({ item }: ItemRowProps) {
+  const { openItem } = useItemDrawer();
   const Icon = typeIcons[item.type.icon] ?? File;
 
   return (
-    <div
-      className="flex items-start gap-3 rounded-xl border border-l-4 bg-card p-4 transition-shadow hover:ring-1 hover:ring-foreground/25"
+    <button
+      type="button"
+      onClick={() => openItem(item)}
+      className="flex w-full cursor-pointer items-start gap-3 rounded-xl border border-l-4 bg-card p-4 text-left transition-shadow hover:ring-1 hover:ring-foreground/25"
       // subtle border all round, with a solid accent edge in the item type's color
       style={{
         borderColor: typeColorTint(item.type.color, 25),
@@ -66,6 +73,6 @@ export function ItemRow({ item }: ItemRowProps) {
       <span className="shrink-0 text-xs text-muted-foreground">
         {formatDate(item.createdAt)}
       </span>
-    </div>
+    </button>
   );
 }

@@ -69,8 +69,9 @@ npm test          # run once
 npm run test:watch
 ```
 
-Scope is deliberately narrow — **server actions and utilities only**. There are no component
-tests (no jsdom, no Testing Library); UI is verified in the browser. Tests are colocated as
+Scope is deliberately narrow — **server-side logic only: server actions, utilities and route
+handlers**. There are no component tests (no jsdom, no Testing Library); UI is verified in
+the browser. Tests are colocated as
 `*.test.ts` next to the file they cover, and everything that leaves the process (Prisma, Auth.js,
 Upstash) is mocked, so the suite needs no database connection or credentials to run.
 
