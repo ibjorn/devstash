@@ -2,13 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { prisma } = vi.hoisted(() => ({
   prisma: {
-    item: { findFirst: vi.fn() },
+    item: { findFirst: vi.fn(), update: vi.fn() },
   },
 }));
 
 vi.mock("@/lib/prisma", () => ({ prisma }));
 
-import { getItemDetail } from "@/lib/db/items";
+import { getItemDetail, updateItem } from "@/lib/db/items";
 
 const USER_ID = "usr_1";
 const ITEM_ID = "itm_1";
@@ -123,5 +123,98 @@ describe("getItemDetail", () => {
 
     expect(detail?.collections).toEqual([]);
     expect(detail?.tags).toEqual([]);
+  });
+});
+
+describe("updateItem", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  const data = {
+    title: "Updated title",
+    description: "Updated description",
+    content: "export function useAuth() {}",
+    url: null,
+    language: "typescript",
+    tags: ["auth", "react"],
+  };
+
+  it("puts the ownership filter in the update's own where clause", async () => {
+    prisma.item.update.mockResolvedValue(itemRow());
+
+    await updateItem(USER_ID, ITEM_ID, data);
+
+    // Not fetched then checked — a row belonging to someone else matches
+    // nothing and Prisma raises P2025, exactly as for an id that never existed
+    expect(prisma.item.update).toHaveBeenCalledTimes(1);
+    expect(prisma.item.update.mock.calls[0][0].where).toEqual({
+      id: ITEM_ID,
+      userId: USER_ID,
+    });
+  });
+
+  it("replaces the whole tag set rather than adding to it", async () => {
+    prisma.item.update.mockResolvedValue(itemRow());
+
+    await updateItem(USER_ID, ITEM_ID, data);
+
+    const tagWrite = prisma.item.update.mock.calls[0][0].data.tags;
+    expect(tagWrite.set).toEqual([]);
+    expect(tagWrite.connectOrCreate).toHaveLength(2);
+  });
+
+  it("keys tags on the calling user, so a name another user holds is a different row", async () => {
+    prisma.item.update.mockResolvedValue(itemRow());
+
+    await updateItem(USER_ID, ITEM_ID, data);
+
+    const tagWrite = prisma.item.update.mock.calls[0][0].data.tags;
+    expect(tagWrite.connectOrCreate[0]).toEqual({
+      where: { userId_name: { userId: USER_ID, name: "auth" } },
+      create: { name: "auth", userId: USER_ID },
+    });
+  });
+
+  it("clears every tag when given an empty list", async () => {
+    prisma.item.update.mockResolvedValue(itemRow({ tags: [] }));
+
+    const updated = await updateItem(USER_ID, ITEM_ID, { ...data, tags: [] });
+
+    const tagWrite = prisma.item.update.mock.calls[0][0].data.tags;
+    expect(tagWrite.set).toEqual([]);
+    expect(tagWrite.connectOrCreate).toEqual([]);
+    expect(updated.tags).toEqual([]);
+  });
+
+  it("returns the saved item in full so the drawer can repaint without refetching", async () => {
+    prisma.item.update.mockResolvedValue(
+      itemRow({ title: "Updated title", tags: [{ name: "auth" }] }),
+    );
+
+    const updated = await updateItem(USER_ID, ITEM_ID, data);
+
+    expect(updated.title).toBe("Updated title");
+    expect(updated.tags).toEqual(["auth"]);
+    expect(updated.collections).toEqual([
+      { id: "col_1", name: "React Patterns" },
+      { id: "col_2", name: "Interview Prep" },
+    ]);
+  });
+
+  it("writes only the item's own columns — never the type or the collections", async () => {
+    prisma.item.update.mockResolvedValue(itemRow());
+
+    await updateItem(USER_ID, ITEM_ID, data);
+
+    const written = prisma.item.update.mock.calls[0][0].data;
+    expect(Object.keys(written).sort()).toEqual([
+      "content",
+      "description",
+      "language",
+      "tags",
+      "title",
+      "url",
+    ]);
   });
 });

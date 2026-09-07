@@ -189,6 +189,12 @@ export async function getItemDetail(
 
   if (!item) return null;
 
+  return toItemDetail(item);
+}
+
+type ItemDetailRow = Prisma.ItemGetPayload<{ select: typeof itemDetailSelect }>;
+
+function toItemDetail(item: ItemDetailRow): ItemDetail {
   return {
     ...toItemSummary(item),
     content: item.content,
@@ -201,4 +207,53 @@ export async function getItemDetail(
     updatedAt: item.updatedAt,
     collections: item.collections.map((link) => link.collection),
   };
+}
+
+export interface UpdateItemData {
+  title: string;
+  description: string | null;
+  content: string | null;
+  url: string | null;
+  language: string | null;
+  tags: string[];
+}
+
+/**
+ * Apply an edit from the drawer and return the item as it now stands, so the
+ * caller can repaint without a second fetch.
+ *
+ * `userId` sits in the update's own where clause rather than being checked
+ * beforehand: a row belonging to someone else simply matches nothing, and
+ * Prisma raises P2025 exactly as it does for an id that never existed.
+ *
+ * Tags are replaced wholesale — every existing link is dropped and the new set
+ * connected or created. Tag rows are per-user, so `userId_name` is the unique
+ * one user's vocabulary is keyed on and a name another user already holds is a
+ * different row entirely.
+ */
+export async function updateItem(
+  userId: string,
+  id: string,
+  data: UpdateItemData,
+): Promise<ItemDetail> {
+  const item = await prisma.item.update({
+    where: { id, userId },
+    data: {
+      title: data.title,
+      description: data.description,
+      content: data.content,
+      url: data.url,
+      language: data.language,
+      tags: {
+        set: [],
+        connectOrCreate: data.tags.map((name) => ({
+          where: { userId_name: { userId, name } },
+          create: { name, userId },
+        })),
+      },
+    },
+    select: itemDetailSelect,
+  });
+
+  return toItemDetail(item);
 }

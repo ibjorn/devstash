@@ -1,8 +1,10 @@
 "use client";
 
-import { CalendarDays, File, Folder, Tag } from "lucide-react";
+import { CalendarDays, Folder, Tag } from "lucide-react";
 
 import { ItemDrawerActions } from "@/components/items/ItemDrawerActions";
+import { ItemEditForm } from "@/components/items/ItemEditForm";
+import { ItemTypeIcon } from "@/components/items/ItemTypeIcon";
 import { Badge } from "@/components/ui/badge";
 import {
   Sheet,
@@ -11,8 +13,6 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import { typeColorTint } from "@/lib/type-colors";
-import { typeIcons } from "@/lib/type-icons";
 import type { ItemDetail, ItemSummary } from "@/types/items";
 
 interface ItemDrawerProps {
@@ -23,6 +23,14 @@ interface ItemDrawerProps {
   // Fetched on open; null while in flight or after a failure
   detail: ItemDetail | null;
   error: string | null;
+  // Replaces the drawer's copy of the item after a save, so the header and the
+  // detail sections repaint without a second fetch
+  onUpdated: (updated: ItemDetail) => void;
+  // Edit mode is owned by the provider: it's the only place that knows when a
+  // different item is opened, and resetting it from an effect here would mean
+  // a setState during render
+  editing: boolean;
+  onEditingChange: (editing: boolean) => void;
 }
 
 function formatFullDate(date: Date): string {
@@ -72,10 +80,12 @@ export function ItemDrawer({
   item,
   detail,
   error,
+  onUpdated,
+  editing,
+  onEditingChange,
 }: ItemDrawerProps) {
   if (!item) return null;
 
-  const Icon = typeIcons[item.type.icon] ?? File;
   const content = detail?.content ?? detail?.url ?? null;
 
   return (
@@ -86,113 +96,121 @@ export function ItemDrawer({
         // own labelling, and Radix warns unless the association is opted out of
         aria-describedby={undefined}
       >
-        <SheetHeader className="gap-4 border-b p-6 pr-14">
-          <div className="flex items-start gap-3">
-            <div
-              className="flex size-10 shrink-0 items-center justify-center rounded-lg"
-              // icon chip tinted with the item type's color
-              style={{
-                backgroundColor: typeColorTint(item.type.color, 10),
-                color: item.type.color,
-              }}
-            >
-              <Icon className="size-5" />
-            </div>
-            <div className="flex min-w-0 flex-col gap-2">
-              <SheetTitle className="text-lg leading-tight">
-                {item.title}
-              </SheetTitle>
-              <div className="flex flex-wrap items-center gap-1.5">
-                {/* Type names are singular in the database; shown pluralized
-                    here to match the sidebar and the listing headings */}
-                <Badge variant="secondary">{item.type.name}s</Badge>
-                {detail?.language && (
-                  <Badge variant="outline">{detail.language}</Badge>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <ItemDrawerActions item={item} detail={detail} />
-        </SheetHeader>
-
-        <div className="flex flex-1 flex-col gap-6 overflow-y-auto p-6">
-          {item.description && (
-            <Section title="Description">
-              <p className="text-sm">{item.description}</p>
-            </Section>
-          )}
-
-          {error ? (
-            <p className="text-sm text-destructive">{error}</p>
-          ) : !detail ? (
-            <div className="flex flex-col gap-2">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-32 w-full" />
-            </div>
-          ) : (
-            <>
-              {content && (
-                <Section title="Content">
-                  <pre className="max-h-96 overflow-auto rounded-lg border bg-muted/40 p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap">
-                    {content}
-                  </pre>
-                </Section>
-              )}
-
-              {detail.fileName && (
-                <Section title="File">
-                  <p className="text-sm">
-                    {detail.fileName}
-                    {detail.fileSize !== null && (
-                      <span className="text-muted-foreground">
-                        {" "}
-                        · {formatFileSize(detail.fileSize)}
-                      </span>
+        {editing && detail ? (
+          <ItemEditForm
+            detail={detail}
+            onCancel={() => onEditingChange(false)}
+            onSaved={(updated) => {
+              onEditingChange(false);
+              onUpdated(updated);
+            }}
+          />
+        ) : (
+          <>
+            <SheetHeader className="gap-4 border-b p-6 pr-14">
+              <div className="flex items-start gap-3">
+                <ItemTypeIcon type={item.type} />
+                <div className="flex min-w-0 flex-col gap-2">
+                  <SheetTitle className="text-lg leading-tight">
+                    {item.title}
+                  </SheetTitle>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {/* Type names are singular in the database; shown pluralized
+                        here to match the sidebar and the listing headings */}
+                    <Badge variant="secondary">{item.type.name}s</Badge>
+                    {detail?.language && (
+                      <Badge variant="outline">{detail.language}</Badge>
                     )}
-                  </p>
+                  </div>
+                </div>
+              </div>
+
+              <ItemDrawerActions
+                item={item}
+                detail={detail}
+                onEdit={() => onEditingChange(true)}
+              />
+            </SheetHeader>
+
+            <div className="flex flex-1 flex-col gap-6 overflow-y-auto p-6">
+              {item.description && (
+                <Section title="Description">
+                  <p className="text-sm">{item.description}</p>
                 </Section>
               )}
 
-              {item.tags.length > 0 && (
-                <Section icon={Tag} title="Tags">
-                  <div className="flex flex-wrap gap-1.5">
-                    {item.tags.map((tag) => (
-                      <Badge key={tag} variant="secondary">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                </Section>
-              )}
+              {error ? (
+                <p className="text-sm text-destructive">{error}</p>
+              ) : !detail ? (
+                <div className="flex flex-col gap-2">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-32 w-full" />
+                </div>
+              ) : (
+                <>
+                  {content && (
+                    <Section title="Content">
+                      <pre className="max-h-96 overflow-auto rounded-lg border bg-muted/40 p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap">
+                        {content}
+                      </pre>
+                    </Section>
+                  )}
 
-              {detail.collections.length > 0 && (
-                <Section icon={Folder} title="Collections">
-                  <div className="flex flex-wrap gap-1.5">
-                    {detail.collections.map((collection) => (
-                      <Badge key={collection.id} variant="outline">
-                        {collection.name}
-                      </Badge>
-                    ))}
-                  </div>
-                </Section>
-              )}
+                  {detail.fileName && (
+                    <Section title="File">
+                      <p className="text-sm">
+                        {detail.fileName}
+                        {detail.fileSize !== null && (
+                          <span className="text-muted-foreground">
+                            {" "}
+                            · {formatFileSize(detail.fileSize)}
+                          </span>
+                        )}
+                      </p>
+                    </Section>
+                  )}
 
-              <Section icon={CalendarDays} title="Details">
-                <dl className="flex flex-col gap-1 text-sm">
-                  <div className="flex items-center justify-between gap-4">
-                    <dt className="text-muted-foreground">Created</dt>
-                    <dd>{formatFullDate(detail.createdAt)}</dd>
-                  </div>
-                  <div className="flex items-center justify-between gap-4">
-                    <dt className="text-muted-foreground">Updated</dt>
-                    <dd>{formatFullDate(detail.updatedAt)}</dd>
-                  </div>
-                </dl>
-              </Section>
-            </>
-          )}
-        </div>
+                  {item.tags.length > 0 && (
+                    <Section icon={Tag} title="Tags">
+                      <div className="flex flex-wrap gap-1.5">
+                        {item.tags.map((tag) => (
+                          <Badge key={tag} variant="secondary">
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    </Section>
+                  )}
+
+                  {detail.collections.length > 0 && (
+                    <Section icon={Folder} title="Collections">
+                      <div className="flex flex-wrap gap-1.5">
+                        {detail.collections.map((collection) => (
+                          <Badge key={collection.id} variant="outline">
+                            {collection.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    </Section>
+                  )}
+
+                  <Section icon={CalendarDays} title="Details">
+                    <dl className="flex flex-col gap-1 text-sm">
+                      <div className="flex items-center justify-between gap-4">
+                        <dt className="text-muted-foreground">Created</dt>
+                        <dd>{formatFullDate(detail.createdAt)}</dd>
+                      </div>
+                      <div className="flex items-center justify-between gap-4">
+                        <dt className="text-muted-foreground">Updated</dt>
+                        <dd>{formatFullDate(detail.updatedAt)}</dd>
+                      </div>
+                    </dl>
+                  </Section>
+                </>
+              )}
+            </div>
+          </>
+        )}
       </SheetContent>
     </Sheet>
   );

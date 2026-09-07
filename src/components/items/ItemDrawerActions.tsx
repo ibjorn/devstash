@@ -10,19 +10,24 @@ import type { ItemDetail, ItemSummary } from "@/types/items";
 interface ItemDrawerActionsProps {
   item: ItemSummary;
   detail: ItemDetail | null;
+  onEdit: () => void;
 }
 
 /**
  * The drawer's action bar: Favorite, Pin and Copy on the left, Edit and Delete
  * right-aligned.
  *
- * Only Copy does anything yet — item CRUD is a later phase. The other four are
- * deliberately not `disabled`: dimming them would drop the state colours (a
- * favorited item's yellow star, a pinned item's filled pin) that make the bar
- * readable at a glance, and each already has its own handler, so wiring one up
- * later means replacing a single toast call.
+ * Copy and Edit are live; Favorite, Pin and Delete are still later phases. The
+ * three that aren't wired are deliberately not `disabled`: dimming them would
+ * drop the state colours (a favorited item's yellow star, a pinned item's
+ * filled pin) that make the bar readable at a glance, and each already has its
+ * own handler, so wiring one up later means replacing a single toast call.
  */
-export function ItemDrawerActions({ item, detail }: ItemDrawerActionsProps) {
+export function ItemDrawerActions({
+  item,
+  detail,
+  onEdit,
+}: ItemDrawerActionsProps) {
   // Whatever this item actually holds — text content, a link, or a file URL
   const copyable = detail?.content ?? detail?.url ?? detail?.fileUrl ?? null;
 
@@ -74,7 +79,10 @@ export function ItemDrawerActions({ item, detail }: ItemDrawerActionsProps) {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => toast("Editing items is coming soon")}
+          onClick={onEdit}
+          // Content, url and language live only on the detail fetch, so there
+          // is nothing to open a form over until it lands
+          disabled={!detail}
         >
           <Pencil className="size-4" />
           Edit

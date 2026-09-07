@@ -58,12 +58,16 @@ export function ItemDrawerProvider({
   const [item, setItem] = useState<ItemSummary | null>(null);
   const [detail, setDetail] = useState<ItemDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
   // Identifies the newest open, so a slow fetch for an item the user has
   // already navigated past can't overwrite the one they're looking at
   const latestRequest = useRef(0);
 
   const openItem = useCallback((next: ItemSummary) => {
     setItem(next);
+    // Opening is the one moment edit mode has to be cleared. Doing it on close
+    // instead would flip the drawer back to view mode mid-slide-out.
+    setEditing(false);
     setDetail(null);
     setError(null);
     setOpen(true);
@@ -89,6 +93,14 @@ export function ItemDrawerProvider({
     })();
   }, []);
 
+  // A save returns the item in full, so the drawer repaints from that rather
+  // than refetching. The summary is refreshed too — the header, description and
+  // tags render from it, and it would otherwise still show the old values.
+  const applyUpdate = useCallback((updated: ItemDetail) => {
+    setDetail(updated);
+    setItem((current) => (current?.id === updated.id ? updated : current));
+  }, []);
+
   const value = useMemo(() => ({ openItem }), [openItem]);
 
   return (
@@ -102,6 +114,9 @@ export function ItemDrawerProvider({
         item={item}
         detail={detail}
         error={error}
+        onUpdated={applyUpdate}
+        editing={editing}
+        onEditingChange={setEditing}
       />
     </ItemDrawerContext.Provider>
   );

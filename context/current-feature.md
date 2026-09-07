@@ -1,18 +1,92 @@
-# Current Feature
+# Current Feature: Item Drawer — Edit Mode
 
-<!-- Feature name and short description -->
+Clicking Edit in the item drawer switches the same drawer inline from view mode
+to an editable form. Spec: `context/features/item-drawer-edit-spec.md`.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals & requirements -->
+- Edit button toggles the open drawer into edit mode; the action bar is replaced
+  by Save and Cancel. Cancel discards, Save persists and returns to view mode.
+- Editable for all types: **title** (required), **description**, **tags**
+  (comma-separated input ↔ string array).
+- Type-conditional fields: **content** (snippet, prompt, command, note),
+  **language** (snippet, command), **url** (link).
+- Display-only in edit mode: item type, collections, created/updated dates.
+- `updateItem(itemId, data)` server action in `src/actions/items.ts` — Zod
+  validation, `auth()` session, ownership check, returns the standard
+  `{ success, data, error }` shape with per-field Zod errors for the client.
+- `updateItem` query in `src/lib/db/items.ts` — disconnect all tags then
+  connect-or-create, returns the fresh `ItemDetail` so the drawer refreshes
+  without a second fetch.
+- Toast on success and on error; `router.refresh()` after save so the card list
+  behind the drawer reflects the change.
+- Controlled inputs with local state (no form library); Save disabled while the
+  title is empty.
 
 ## Notes
 
-<!-- Any extra notes -->
+### Grounding against the current code
+
+- **The action bar already has the seam.** `ItemDrawerActions` (94 lines) was
+  built during Item Drawer with each button holding its own handler precisely so
+  wiring one up means replacing a single `toast(...)` call — Edit is that call at
+  `src/components/items/ItemDrawerActions.tsx:78`.
+- **Edit must wait for the detail fetch**, exactly as Copy already does. The bar
+  receives `item: ItemSummary` plus `detail: ItemDetail | null`; content,
+  language and url live only on `detail`, so entering edit mode before it lands
+  would open a form over fields it does not have.
+- **`textarea` is not installed.** `src/components/ui/` has input/label but no
+  textarea — needs `shadcn add textarea`. No other new dependency.
+- **`ItemDrawer` owns `detail` as read-only state** fed by the provider's fetch.
+  Returning `ItemDetail` from the action (rather than refetching) means the
+  provider needs a way to replace that state — a small lift, but it does change
+  `ItemDrawerProvider`'s contract, not just the drawer's.
+- **Existing action result shape is `{ success, error, fieldErrors }`**
+  (`ProfileActionResult`, `src/actions/profile.ts:27`) with a `toFieldErrors`
+  helper whose first-message-per-field rule matters here too — the bcrypt-cap
+  work proved a single field can emit two issues. The spec says
+  `{ success, data, error }`; reconcile deliberately rather than by drift, since
+  this action needs both a payload and field errors.
+- **Name collision:** the spec calls both the action and the query `updateItem`.
+  Consistent with `getItemDetail`/`getItemsByTypeSlug`, but the action file will
+  need an aliased import.
+- **`userId` is a required first parameter** on every query in
+  `src/lib/db/items.ts` per the User-Scoped Data convention, and ownership
+  belongs *inside* the where clause (`{ id, userId }`) as `getItemDetail` does —
+  an update whose `where` omits `userId` is an IDOR, and a fetch-then-check has a
+  window an atomic filter does not.
+
+### Open decisions for `/feature start`
+
+1. **`Tag` user-scoping — this feature is the reckoning.** Tag is global
+   (`name @unique`, no `userId`, `prisma/schema.prisma:165`) and has been flagged
+   "owed before Item CRUD" since User-Scoped Data. Read paths never leaked
+   because tags are only reachable through an item, but this is the **first write
+   path**: `connectOrCreate` on a globally-unique name means two users tagging
+   "react" share one row, one user's tag name is unavailable to another in any
+   different casing, and disconnect-all leaves orphan rows nothing sweeps
+   (Profile Page deliberately left orphans behind for the same reason). Options
+   are (a) migrate to `@@unique([userId, name])` now, (b) ship global and accept
+   the shared-row semantics, or (c) ship global but scope reads/writes through
+   the owning item. Needs a call — (a) is the only one that needs a migration.
+2. **URL validation vs. the `contentType` column.** The spec validates `url` as a
+   URL string, but `Item.contentType` (TEXT/FILE/URL) is what actually decides
+   which column is meaningful. Should the action refuse a `content` write to a
+   URL-type item and vice versa, or trust the client's conditional rendering?
+3. **Does an empty tag input mean "no tags" or "leave alone"?** Disconnect-all
+   makes clearing the field destructive by design; worth confirming that is
+   intended.
+
+### Out of scope
+
+- The other four action-bar buttons (Favorite, Pin, Copy, Delete) stay as they
+  are — this feature only lights up Edit.
+- Collections editing, item creation, item deletion, syntax highlighting / a
+  real code editor.
 
 ## History
 - 2026-05-12: **Initial Setup** - Next.js and Tailwind setup
