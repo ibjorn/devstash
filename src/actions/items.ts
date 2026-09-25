@@ -4,7 +4,11 @@ import { ZodError } from "zod";
 
 import { auth } from "@/auth";
 import { Prisma } from "@/generated/prisma/client";
-import { getItemDetail, updateItem as updateItemQuery } from "@/lib/db/items";
+import {
+  deleteItem as deleteItemQuery,
+  getItemDetail,
+  updateItem as updateItemQuery,
+} from "@/lib/db/items";
 import { updateItemSchema } from "@/lib/validation/items";
 import type { ItemDetail } from "@/types/items";
 
@@ -108,5 +112,36 @@ export async function updateItem(
 
     console.error("updateItem failed", error);
     return { success: false, error: "Could not save your changes." };
+  }
+}
+
+export async function deleteItem(itemId: string): Promise<ItemActionResult> {
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) {
+    return {
+      success: false,
+      error: "You need to be signed in to delete items.",
+    };
+  }
+
+  if (typeof itemId !== "string" || itemId.length === 0) {
+    return { success: false, error: "That item no longer exists." };
+  }
+
+  try {
+    await deleteItemQuery(userId, itemId);
+    return { success: true };
+  } catch (error) {
+    // Already deleted — perhaps in another tab — or never the caller's.
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2025"
+    ) {
+      return { success: false, error: "That item no longer exists." };
+    }
+
+    console.error("deleteItem failed", error);
+    return { success: false, error: "Could not delete this item." };
   }
 }

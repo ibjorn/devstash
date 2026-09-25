@@ -115,6 +115,7 @@ export function ItemDrawerProvider({
         detail={detail}
         error={error}
         onUpdated={applyUpdate}
+        onDeleted={() => setOpen(false)}
         editing={editing}
         onEditingChange={setEditing}
       />

@@ -2,13 +2,23 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { prisma } = vi.hoisted(() => ({
   prisma: {
-    item: { findFirst: vi.fn(), update: vi.fn() },
+    $transaction: vi.fn(),
+    item: { findFirst: vi.fn(), update: vi.fn(), delete: vi.fn() },
+    tag: { deleteMany: vi.fn() },
   },
 }));
 
+// Runs an interactive transaction's callback against the same mocks, so the
+// writes inside it can be asserted on as if they'd been made directly
+function passThroughTransactions() {
+  prisma.$transaction.mockImplementation((fn: (tx: typeof prisma) => unknown) =>
+    fn(prisma),
+  );
+}
+
 vi.mock("@/lib/prisma", () => ({ prisma }));
 
-import { getItemDetail, updateItem } from "@/lib/db/items";
+import { deleteItem, getItemDetail, updateItem } from "@/lib/db/items";
 
 const USER_ID = "usr_1";
 const ITEM_ID = "itm_1";
@@ -129,6 +139,7 @@ describe("getItemDetail", () => {
 describe("updateItem", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    passThroughTransactions();
   });
 
   const data = {
@@ -176,6 +187,21 @@ describe("updateItem", () => {
     });
   });
 
+  it("sweeps the user's now-unused tags in the same transaction", async () => {
+    prisma.item.update.mockResolvedValue(itemRow());
+
+    await updateItem(USER_ID, ITEM_ID, data);
+
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(prisma.tag.deleteMany).toHaveBeenCalledWith({
+      where: { userId: USER_ID, items: { none: {} } },
+    });
+    // After the write that orphans them, not before
+    expect(prisma.tag.deleteMany.mock.invocationCallOrder[0]).toBeGreaterThan(
+      prisma.item.update.mock.invocationCallOrder[0],
+    );
+  });
+
   it("clears every tag when given an empty list", async () => {
     prisma.item.update.mockResolvedValue(itemRow({ tags: [] }));
 
@@ -216,5 +242,54 @@ describe("updateItem", () => {
       "title",
       "url",
     ]);
+  });
+});
+
+describe("deleteItem", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    passThroughTransactions();
+  });
+
+  it("puts the ownership filter in the delete's own where clause", async () => {
+    prisma.item.delete.mockResolvedValue({ id: ITEM_ID });
+
+    await deleteItem(USER_ID, ITEM_ID);
+
+    expect(prisma.item.delete).toHaveBeenCalledTimes(1);
+    expect(prisma.item.delete.mock.calls[0][0].where).toEqual({
+      id: ITEM_ID,
+      userId: USER_ID,
+    });
+  });
+
+  it("sweeps the user's now-unused tags after the delete", async () => {
+    prisma.item.delete.mockResolvedValue({ id: ITEM_ID });
+
+    await deleteItem(USER_ID, ITEM_ID);
+
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(prisma.tag.deleteMany).toHaveBeenCalledWith({
+      where: { userId: USER_ID, items: { none: {} } },
+    });
+    expect(prisma.tag.deleteMany.mock.invocationCallOrder[0]).toBeGreaterThan(
+      prisma.item.delete.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("sweeps nothing when the item isn't the caller's", async () => {
+    prisma.item.delete.mockRejectedValue(
+      Object.assign(new Error("not found"), { code: "P2025" }),
+    );
+
+    await expect(deleteItem(USER_ID, ITEM_ID)).rejects.toThrow();
+    expect(prisma.tag.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it("lets P2025 propagate so the caller can report a missing item", async () => {
+    const notFound = Object.assign(new Error("not found"), { code: "P2025" });
+    prisma.item.delete.mockRejectedValue(notFound);
+
+    await expect(deleteItem(USER_ID, ITEM_ID)).rejects.toBe(notFound);
   });
 });

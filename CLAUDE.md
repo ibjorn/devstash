@@ -29,6 +29,7 @@ When using any Neon MCP tool (`mcp__neon__*`):
 - `npm run lint` — ESLint via flat config (`eslint.config.mjs`)
 - `npm test` — Vitest unit suite, run once
 - `npm run test:watch` — Vitest in watch mode
+- `npm run ui:add -- <component>` — add a shadcn component. **Use this, not `npx shadcn add`**: the registry now imports `cn` from shadcn's `cn` npm package; this rewrites it back to `@/lib/utils` and removes the package
 
 Unit tests cover **server actions, utilities and route handlers only** (no components), are colocated as
 `*.test.ts`, and never touch the database — see the Testing section in

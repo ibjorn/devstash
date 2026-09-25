@@ -218,6 +218,19 @@ export interface UpdateItemData {
   tags: string[];
 }
 
+type TransactionClient = Parameters<
+  Parameters<typeof prisma.$transaction>[0]
+>[0];
+
+/**
+ * Delete the user's tags that no item references any more. Tags only exist to
+ * label items, so an unreferenced one is dead weight — and scoped to one user,
+ * it can't race anyone else's save now that tags are per-user.
+ */
+async function sweepOrphanTags(tx: TransactionClient, userId: string) {
+  await tx.tag.deleteMany({ where: { userId, items: { none: {} } } });
+}
+
 /**
  * Apply an edit from the drawer and return the item as it now stands, so the
  * caller can repaint without a second fetch.
@@ -229,31 +242,51 @@ export interface UpdateItemData {
  * Tags are replaced wholesale — every existing link is dropped and the new set
  * connected or created. Tag rows are per-user, so `userId_name` is the unique
  * one user's vocabulary is keyed on and a name another user already holds is a
- * different row entirely.
+ * different row entirely. Tags the edit leaves unused are swept in the same
+ * transaction.
  */
 export async function updateItem(
   userId: string,
   id: string,
   data: UpdateItemData,
 ): Promise<ItemDetail> {
-  const item = await prisma.item.update({
-    where: { id, userId },
-    data: {
-      title: data.title,
-      description: data.description,
-      content: data.content,
-      url: data.url,
-      language: data.language,
-      tags: {
-        set: [],
-        connectOrCreate: data.tags.map((name) => ({
-          where: { userId_name: { userId, name } },
-          create: { name, userId },
-        })),
+  const item = await prisma.$transaction(async (tx) => {
+    const updated = await tx.item.update({
+      where: { id, userId },
+      data: {
+        title: data.title,
+        description: data.description,
+        content: data.content,
+        url: data.url,
+        language: data.language,
+        tags: {
+          set: [],
+          connectOrCreate: data.tags.map((name) => ({
+            where: { userId_name: { userId, name } },
+            create: { name, userId },
+          })),
+        },
       },
-    },
-    select: itemDetailSelect,
+      select: itemDetailSelect,
+    });
+    await sweepOrphanTags(tx, userId);
+    return updated;
   });
 
   return toItemDetail(item);
+}
+
+/**
+ * Delete one of the user's items.
+ *
+ * As with `updateItem`, ownership lives in the delete's own where clause: a row
+ * belonging to someone else matches nothing and raises P2025, the same as an id
+ * that never existed. Collection and tag links cascade with the item; any tag
+ * this leaves unused is swept in the same transaction.
+ */
+export async function deleteItem(userId: string, id: string): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    await tx.item.delete({ where: { id, userId }, select: { id: true } });
+    await sweepOrphanTags(tx, userId);
+  });
 }

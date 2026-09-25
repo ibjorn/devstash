@@ -1,18 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { auth, getItemDetail, updateItemQuery } = vi.hoisted(() => ({
-  auth: vi.fn(),
-  getItemDetail: vi.fn(),
-  updateItemQuery: vi.fn(),
-}));
+const { auth, deleteItemQuery, getItemDetail, updateItemQuery } = vi.hoisted(
+  () => ({
+    auth: vi.fn(),
+    deleteItemQuery: vi.fn(),
+    getItemDetail: vi.fn(),
+    updateItemQuery: vi.fn(),
+  }),
+);
 
 vi.mock("@/auth", () => ({ auth }));
 vi.mock("@/lib/db/items", () => ({
+  deleteItem: deleteItemQuery,
   getItemDetail,
   updateItem: updateItemQuery,
 }));
 
-import { updateItem } from "@/actions/items";
+import { deleteItem, updateItem } from "@/actions/items";
 import { Prisma } from "@/generated/prisma/client";
 
 const USER_ID = "usr_1";
@@ -219,5 +223,64 @@ describe("updateItem", () => {
       error: "Could not save your changes.",
     });
     consoleError.mockRestore();
+  });
+});
+
+describe("deleteItem", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("refuses a caller with no session and never touches the database", async () => {
+    auth.mockResolvedValue(null);
+
+    const result = await deleteItem(ITEM_ID);
+
+    expect(result.success).toBe(false);
+    expect(deleteItemQuery).not.toHaveBeenCalled();
+  });
+
+  it("deletes as the session user, not anyone the caller could name", async () => {
+    signedIn();
+    deleteItemQuery.mockResolvedValue(undefined);
+
+    await expect(deleteItem(ITEM_ID)).resolves.toEqual({ success: true });
+    expect(deleteItemQuery).toHaveBeenCalledWith(USER_ID, ITEM_ID);
+  });
+
+  it("rejects a missing or non-string id without querying", async () => {
+    signedIn();
+
+    for (const bad of ["", undefined, 42, { id: ITEM_ID }]) {
+      const result = await deleteItem(bad as unknown as string);
+      expect(result.success).toBe(false);
+    }
+    expect(deleteItemQuery).not.toHaveBeenCalled();
+  });
+
+  it("reports a missing or non-owned item as no longer existing", async () => {
+    signedIn();
+    deleteItemQuery.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError("Record to delete not found", {
+        code: "P2025",
+        clientVersion: "7.8.0",
+      }),
+    );
+
+    await expect(deleteItem(ITEM_ID)).resolves.toEqual({
+      success: false,
+      error: "That item no longer exists.",
+    });
+  });
+
+  it("returns a generic error for anything else", async () => {
+    signedIn();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    deleteItemQuery.mockRejectedValue(new Error("connection reset"));
+
+    await expect(deleteItem(ITEM_ID)).resolves.toEqual({
+      success: false,
+      error: "Could not delete this item.",
+    });
   });
 });

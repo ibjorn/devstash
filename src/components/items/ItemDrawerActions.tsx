@@ -1,8 +1,9 @@
 "use client";
 
-import { Copy, Pencil, Pin, Star, Trash2 } from "lucide-react";
+import { Copy, Pencil, Pin, Star } from "lucide-react";
 import { toast } from "sonner";
 
+import { DeleteItemDialog } from "@/components/items/DeleteItemDialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { ItemDetail, ItemSummary } from "@/types/items";
@@ -11,14 +12,15 @@ interface ItemDrawerActionsProps {
   item: ItemSummary;
   detail: ItemDetail | null;
   onEdit: () => void;
+  onDeleted: () => void;
 }
 
 /**
  * The drawer's action bar: Favorite, Pin and Copy on the left, Edit and Delete
  * right-aligned.
  *
- * Copy and Edit are live; Favorite, Pin and Delete are still later phases. The
- * three that aren't wired are deliberately not `disabled`: dimming them would
+ * Copy, Edit and Delete are live; Favorite and Pin are still later phases. The
+ * two that aren't wired are deliberately not `disabled`: dimming them would
  * drop the state colours (a favorited item's yellow star, a pinned item's
  * filled pin) that make the bar readable at a glance, and each already has its
  * own handler, so wiring one up later means replacing a single toast call.
@@ -27,6 +29,7 @@ export function ItemDrawerActions({
   item,
   detail,
   onEdit,
+  onDeleted,
 }: ItemDrawerActionsProps) {
   // Whatever this item actually holds — text content, a link, or a file URL
   const copyable = detail?.content ?? detail?.url ?? detail?.fileUrl ?? null;
@@ -87,15 +90,7 @@ export function ItemDrawerActions({
           <Pencil className="size-4" />
           Edit
         </Button>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          className="text-destructive hover:text-destructive"
-          onClick={() => toast("Deleting items is coming soon")}
-        >
-          <Trash2 className="size-4" />
-          <span className="sr-only">Delete</span>
-        </Button>
+        <DeleteItemDialog item={item} onDeleted={onDeleted} />
       </div>
     </div>
   );

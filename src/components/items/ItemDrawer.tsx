@@ -26,6 +26,7 @@ interface ItemDrawerProps {
   // Replaces the drawer's copy of the item after a save, so the header and the
   // detail sections repaint without a second fetch
   onUpdated: (updated: ItemDetail) => void;
+  onDeleted: () => void;
   // Edit mode is owned by the provider: it's the only place that knows when a
   // different item is opened, and resetting it from an effect here would mean
   // a setState during render
@@ -81,6 +82,7 @@ export function ItemDrawer({
   detail,
   error,
   onUpdated,
+  onDeleted,
   editing,
   onEditingChange,
 }: ItemDrawerProps) {
@@ -129,6 +131,7 @@ export function ItemDrawer({
                 item={item}
                 detail={detail}
                 onEdit={() => onEditingChange(true)}
+                onDeleted={onDeleted}
               />
             </SheetHeader>
 

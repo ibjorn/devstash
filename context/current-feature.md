@@ -1,18 +1,28 @@
-# Current Feature
-
-<!-- Feature name and short description -->
+# Current Feature: Delete Item
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals & requirements -->
+- The Delete (trash) button in the item drawer's action bar — currently a "Deleting items is coming soon" toast in `src/components/items/ItemDrawerActions.tsx` — opens a shadcn **AlertDialog** confirmation naming the item
+- Confirming deletes the item via a new `deleteItem` server action in `src/actions/items.ts`, returning the standard `{ success, error }` shape
+- Ownership enforced **inside the delete's own where clause** (`where: { id, userId }`), so another user's item and a nonexistent id are the same "not found" result — no fetch-then-check window, matching `updateItem`
+- On success: success toast, drawer closes, and the listing/dashboard refreshes (`router.refresh()`) so the card, counts, sidebar badges and stats drop the item
+- On failure: error toast, dialog stays usable; confirm button shows a pending spinner and is disabled while in flight (same `Loader2 … animate-spin` treatment as the other submit buttons)
+- Unit tests for the new query and action: auth guard never reaching the DB, runs as the session user, ownership in the where clause, not-found (P2025) mapped to a friendly error
 
 ## Notes
 
-<!-- Additional context, constraints, details -->
+- **`alert-dialog` from shadcn** — the CLI generated `import { cn } from "cn"` and installed a `cn` npm package, as it did for textarea in Edit Mode. **Not a bug on our side:** since Sept 2026 shadcn's hosted registry imports every component's class helper from `cn`, shadcn's own new package (0.4.0, maintained by shadcn, drop-in for clsx + tailwind-merge) — confirmed across 7 components in both radix-nova and new-york-v4. Kept `@/lib/utils`; added `npm run ui:add` (scripts/ui-add.ts) to rewrite the import and remove the package after each add, documented in CLAUDE.md
+- Cascades cover the join rows (`ItemCollection` `onDelete: Cascade`, implicit `_ItemTags`). **Added scope at Björn's call:** orphaned Tag rows are now swept (`tag.deleteMany({ where: { userId, items: { none: {} } } })`) in the same transaction as both `deleteItem` **and** `updateItem`; safe now that tags are per-user
+- Toast copy `Deleted "<title>"` confirmed; no undo (Björn)
+- Keep the `try` around only the action call, with `toast`/close/`router.refresh()` after it — the bug class caught in both DeleteAccountDialog and ItemEditForm reviews
+- Dates aren't returned (delete returns no data), so no serialization concerns
+- Delete/Pin/Favorite were left as individual handlers in the drawer precisely so each is a one-line swap
+- Scope: drawer only — no delete from card hover menus, no bulk delete
+- Browser verification in Windows Chrome by Björn (no headless browser in WSL)
 
 ## History
 - 2026-05-12: **Initial Setup** - Next.js and Tailwind setup
