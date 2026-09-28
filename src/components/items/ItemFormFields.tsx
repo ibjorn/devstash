@@ -4,6 +4,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { ItemContentType } from "@/generated/prisma/client";
+import { isCodeType } from "@/lib/code-language";
+
+import { CodeEditor } from "./CodeEditor";
 
 export interface ItemFormValues {
   title: string;
@@ -16,14 +19,11 @@ export interface ItemFormValues {
 
 export interface VisibleFields {
   content: boolean;
+  /** Content is edited in the code editor rather than a plain textarea. */
+  code: boolean;
   language: boolean;
   url: boolean;
 }
-
-// Which system types carry a language. This only decides what the form
-// *offers*; the server's rule is contentType-based, so a custom text type is
-// still allowed one — it just isn't asked for here.
-const LANGUAGE_TYPE_NAMES = new Set(["Snippet", "Command"]);
 
 /** The optional fields a type's form renders, beyond title/description/tags. */
 export function visibleFieldsFor(
@@ -31,9 +31,11 @@ export function visibleFieldsFor(
   typeName: string,
 ): VisibleFields {
   const content = contentType === "TEXT";
+  const code = content && isCodeType(typeName);
   return {
     content,
-    language: content && LANGUAGE_TYPE_NAMES.has(typeName),
+    code,
+    language: code,
     url: contentType === "URL",
   };
 }
@@ -104,7 +106,25 @@ export function ItemFormFields({
         <FieldError id="description-error" message={errors.description} />
       </div>
 
-      {visible.content && (
+      {visible.content && visible.code && (
+        <div className="flex flex-col gap-2">
+          {/* Monaco's input isn't a labellable element; it takes an ariaLabel
+              option instead, so this label is visual only */}
+          <Label asChild>
+            <span>Content</span>
+          </Label>
+          <CodeEditor
+            value={values.content}
+            language={values.language}
+            onChange={(value) => onChange("content", value)}
+            ariaLabel="Content"
+            invalid={Boolean(errors.content)}
+          />
+          <FieldError id="content-error" message={errors.content} />
+        </div>
+      )}
+
+      {visible.content && !visible.code && (
         <div className="flex flex-col gap-2">
           <Label htmlFor="item-content">Content</Label>
           <Textarea

@@ -1,18 +1,34 @@
-# Current Feature
+# Current Feature: Code Editor
 
-<!-- Feature name and short description -->
+Monaco Editor for snippets and commands, with macOS-style window chrome, language label and copy button, used both read-only in the drawer and editable in the create/edit forms. Spec: context/features/code-editor-spec.md.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals & requirements -->
+- New `CodeEditor` component (src/components/items/CodeEditor.tsx) built on Monaco with a dark theme
+- Snippet and Command items use `CodeEditor` for content; Note, Prompt and every other text type keep the `Textarea`
+- Header bar with macOS window dots (red/yellow/green) on the left, and the language label plus a quick copy button on the right
+- Two modes on one component: read-only (drawer view mode) and editable (New Item dialog + drawer edit mode)
+- Fluid height that grows with the content and caps at 400px, then scrolls with a scrollbar styled to match the dark theme
 
 ## Notes
 
-<!-- Additional context, constraints, details -->
+- **Loaded as `context-editor-spec`, taken as a typo** — no such file exists in context/features/ or context/fixes/; `code-editor-spec.md` is the only near match
+- **Where it plugs in:**
+  - Edit/create: the content `Textarea` in src/components/items/ItemFormFields.tsx, shared by NewItemDialog and ItemEditForm. The "which types get the editor" rule should reuse `LANGUAGE_TYPE_NAMES` (Snippet/Command) there — the same set that already decides which types get a language field — rather than a second list that can drift
+  - View: the `<pre>` at src/components/items/ItemDrawer.tsx:156, which currently renders content for every type (and the URL fallback for links — those must stay a `<pre>`/plain text, not Monaco)
+- **New dependency:** `@monaco-editor/react` (nothing Monaco-related is installed). By default it loads Monaco from the jsdelivr CDN at runtime rather than bundling it; worth deciding at `/feature start` whether that's acceptable or whether to self-host via the `loader.config({ monaco })` route (bigger bundle, no third-party fetch)
+- **Client-only:** Monaco touches `window`, so the component must be `"use client"` and loaded with `next/dynamic` `{ ssr: false }` or it will break SSR / the build. Needs a loading placeholder (skeleton) while Monaco initialises
+- **Language id mapping:** the `language` column is free text. Seeded values are `typescript`, `dockerfile` and `bash` (×5 commands) — Monaco has no `bash` id, it's `shell`, so a small alias map is needed (bash/sh/zsh → shell, js → javascript, ts → typescript, etc.) with a `plaintext` fallback. The header label should show what the user typed, not the Monaco id
+- **Form integration:** Monaco isn't a native input, so the existing controlled `values`/`onChange` pattern carries it (the form already submits from state, not FormData) — but `errorProps`/`aria-invalid` and the `<Label htmlFor>` association won't attach to Monaco's hidden textarea automatically; keep the content error text visible under the editor
+- **Copy:** the drawer already has a Copy button in its action bar; the editor-header copy is an additional quick copy of content only. Reuse the same toast wording
+- **Height:** "fluid" means auto-sizing from `editor.getContentHeight()` via `onDidContentSizeChange`, clamped to 400px; Monaco doesn't auto-size on its own. Needs `scrollBeyondLastLine: false`, `minimap: { enabled: false }`, and `automaticLayout` or a manual layout call so it survives the drawer's slide-in animation
+- **Scrollbar:** Monaco draws its own scrollbars (not native), so styling is via `scrollbar` editor options and the theme's `scrollbarSlider.*` colours, not CSS `::-webkit-scrollbar`. A custom theme via `monaco.editor.defineTheme` is the natural home for both the background (to match the card/muted surface rather than `vs-dark`'s #1e1e1e) and the slider colours
+- **Tests:** the language alias mapping is the only pure logic here — if it lives in src/lib it's unit-testable; everything else is component scope (no component tests per the testing rules)
+- **Not in scope:** Markdown editor for notes/prompts (a separate roadmap item), syntax highlighting outside the drawer/forms (dashboard cards stay as they are), language picker/dropdown (language stays a free-text input)
 
 ## History
 - 2026-05-12: **Initial Setup** - Next.js and Tailwind setup

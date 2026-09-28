@@ -75,7 +75,7 @@ export function NewItemDialog({ types }: NewItemDialogProps) {
   const type = types.find((candidate) => candidate.id === typeId);
   const visible = type
     ? visibleFieldsFor(type.contentType, type.name)
-    : { content: false, language: false, url: false };
+    : { content: false, code: false, language: false, url: false };
 
   const canSave =
     Boolean(type) &&

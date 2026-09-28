@@ -2,6 +2,7 @@
 
 import { CalendarDays, Folder, Tag } from "lucide-react";
 
+import { CodeEditor } from "@/components/items/CodeEditor";
 import { ItemDrawerActions } from "@/components/items/ItemDrawerActions";
 import { ItemEditForm } from "@/components/items/ItemEditForm";
 import { ItemTypeIcon } from "@/components/items/ItemTypeIcon";
@@ -13,6 +14,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { isCodeType } from "@/lib/code-language";
 import type { ItemDetail, ItemSummary } from "@/types/items";
 
 interface ItemDrawerProps {
@@ -89,6 +91,8 @@ export function ItemDrawer({
   if (!item) return null;
 
   const content = detail?.content ?? detail?.url ?? null;
+  // Only real content goes in the editor; a link's URL fallback stays plain text
+  const code = isCodeType(item.type.name) ? detail?.content : null;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -120,7 +124,8 @@ export function ItemDrawer({
                     {/* Type names are singular in the database; shown pluralized
                         here to match the sidebar and the listing headings */}
                     <Badge variant="secondary">{item.type.name}s</Badge>
-                    {detail?.language && (
+                    {/* The code editor's own header shows the language */}
+                    {detail?.language && !code && (
                       <Badge variant="outline">{detail.language}</Badge>
                     )}
                   </div>
@@ -151,12 +156,23 @@ export function ItemDrawer({
                 </div>
               ) : (
                 <>
-                  {content && (
+                  {code ? (
                     <Section title="Content">
-                      <pre className="max-h-96 overflow-auto rounded-lg border bg-muted/40 p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap">
-                        {content}
-                      </pre>
+                      <CodeEditor
+                        value={code}
+                        language={detail.language}
+                        readOnly
+                        ariaLabel={`${item.title} (read-only)`}
+                      />
                     </Section>
+                  ) : (
+                    content && (
+                      <Section title="Content">
+                        <pre className="max-h-96 overflow-auto rounded-lg border bg-muted/40 p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap">
+                          {content}
+                        </pre>
+                      </Section>
+                    )
                   )}
 
                   {detail.fileName && (
