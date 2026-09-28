@@ -12,6 +12,21 @@ export interface ItemTypeNavItem {
   isPro: boolean;
 }
 
+/**
+ * A type the New Item dialog offers. `name` is singular ("Snippet") — the
+ * dialog decides which fields to show from it and `contentType` — while `slug`
+ * matches the /items/[slug] the sidebar links to, so the dialog can preselect
+ * the type of the page it was opened from.
+ */
+export interface CreatableItemType {
+  id: string;
+  name: string;
+  slug: string;
+  icon: string;
+  color: string;
+  contentType: ItemContentType;
+}
+
 export interface ItemTypeSummary {
   id: string;
   name: string;

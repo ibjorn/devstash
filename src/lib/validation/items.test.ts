@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  createItemSchema,
   normalizeTags,
   parseTagInput,
   updateItemSchema,
@@ -118,6 +119,34 @@ describe("updateItemSchema", () => {
       language: null,
       tags: [],
     });
+  });
+});
+
+describe("createItemSchema", () => {
+  it("requires a type id", () => {
+    expect(createItemSchema.safeParse(base).success).toBe(false);
+    const empty = createItemSchema.safeParse({ ...base, itemTypeId: "  " });
+    expect(empty.success).toBe(false);
+    expect(empty.error?.issues[0].message).toBe("Choose a type");
+  });
+
+  it("shares the edit schema's field limits", () => {
+    const result = createItemSchema.safeParse({
+      ...base,
+      itemTypeId: "typ_1",
+      title: "x".repeat(201),
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("leaves requiring a URL to the action, which knows the type", () => {
+    const result = createItemSchema.safeParse({
+      ...base,
+      itemTypeId: "typ_link",
+      url: "",
+    });
+    expect(result.success).toBe(true);
+    expect(result.data?.url).toBeNull();
   });
 });
 

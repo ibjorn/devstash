@@ -5,11 +5,17 @@ import { ZodError } from "zod";
 import { auth } from "@/auth";
 import { Prisma } from "@/generated/prisma/client";
 import {
+  createItem as createItemQuery,
   deleteItem as deleteItemQuery,
+  getCreatableItemType,
   getItemDetail,
   updateItem as updateItemQuery,
 } from "@/lib/db/items";
-import { updateItemSchema } from "@/lib/validation/items";
+import {
+  createItemSchema,
+  type UpdateItemInput,
+  updateItemSchema,
+} from "@/lib/validation/items";
 import type { ItemDetail } from "@/types/items";
 
 /**
@@ -51,6 +57,77 @@ const ALLOWED_FIELDS = {
   FILE: { content: false, language: false, url: false },
 } as const;
 
+type AllowedFields = (typeof ALLOWED_FIELDS)[keyof typeof ALLOWED_FIELDS];
+
+// The first column a type has no use for but the caller filled in anyway
+function unusedFieldError(
+  allowed: AllowedFields,
+  data: Pick<UpdateItemInput, "content" | "language" | "url">,
+): string | null {
+  if (!allowed.content && data.content !== null) {
+    return "This item type has no content field.";
+  }
+  if (!allowed.language && data.language !== null) {
+    return "This item type has no language field.";
+  }
+  if (!allowed.url && data.url !== null) {
+    return "This item type has no URL field.";
+  }
+  return null;
+}
+
+export async function createItem(input: unknown): Promise<ItemActionResult> {
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) {
+    return {
+      success: false,
+      error: "You need to be signed in to create items.",
+    };
+  }
+
+  const parsed = createItemSchema.safeParse(input);
+  if (!parsed.success) {
+    return toFieldErrors(parsed.error);
+  }
+
+  const data = parsed.data;
+
+  try {
+    // The client names the type; the server decides what it is and whether it
+    // may be used. contentType comes from here, never from the request.
+    const type = await getCreatableItemType(data.itemTypeId);
+    if (!type) {
+      return { success: false, error: "That item type isn't available." };
+    }
+
+    const allowed = ALLOWED_FIELDS[type.contentType];
+    const unused = unusedFieldError(allowed, data);
+    if (unused) {
+      return { success: false, error: unused };
+    }
+    if (type.contentType === "URL" && data.url === null) {
+      return { success: false, fieldErrors: { url: "URL is required" } };
+    }
+
+    const created = await createItemQuery(userId, {
+      itemTypeId: type.id,
+      contentType: type.contentType,
+      title: data.title,
+      description: data.description,
+      content: data.content,
+      language: data.language,
+      url: data.url,
+      tags: data.tags,
+    });
+
+    return { success: true, data: created };
+  } catch (error) {
+    console.error("createItem failed", error);
+    return { success: false, error: "Could not create this item." };
+  }
+}
+
 export async function updateItem(
   itemId: string,
   input: unknown,
@@ -78,14 +155,9 @@ export async function updateItem(
     }
 
     const allowed = ALLOWED_FIELDS[existing.contentType];
-    if (!allowed.content && data.content !== null) {
-      return { success: false, error: "This item type has no content field." };
-    }
-    if (!allowed.language && data.language !== null) {
-      return { success: false, error: "This item type has no language field." };
-    }
-    if (!allowed.url && data.url !== null) {
-      return { success: false, error: "This item type has no URL field." };
+    const unused = unusedFieldError(allowed, data);
+    if (unused) {
+      return { success: false, error: unused };
     }
 
     const updated = await updateItemQuery(userId, itemId, {

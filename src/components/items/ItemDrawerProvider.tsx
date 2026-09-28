@@ -17,7 +17,11 @@ import type {
 } from "@/types/items";
 
 interface ItemDrawerContextValue {
-  openItem: (item: ItemSummary) => void;
+  /**
+   * Open the drawer on an item. Pass `detail` when it's already in hand — a
+   * just-created item — to skip the fetch.
+   */
+  openItem: (item: ItemSummary, detail?: ItemDetail) => void;
 }
 
 const ItemDrawerContext = createContext<ItemDrawerContextValue | null>(null);
@@ -45,9 +49,10 @@ function toItemDetail(data: ItemDetailResponse): ItemDetail {
 }
 
 /**
- * Holds the drawer's state for a page. The listing pages are server
- * components, so they can't own this or hand a click handler to a card — the
- * cards reach it through context instead.
+ * Holds the drawer's state for the signed-in shell. The listing pages are
+ * server components, so they can't own this or hand a click handler to a card
+ * — the cards reach it through context instead. It sits in AppShell rather than
+ * each page so the top bar's New Item dialog can open what it creates.
  */
 export function ItemDrawerProvider({
   children,
@@ -63,16 +68,20 @@ export function ItemDrawerProvider({
   // already navigated past can't overwrite the one they're looking at
   const latestRequest = useRef(0);
 
-  const openItem = useCallback((next: ItemSummary) => {
+  const openItem = useCallback((next: ItemSummary, preloaded?: ItemDetail) => {
     setItem(next);
     // Opening is the one moment edit mode has to be cleared. Doing it on close
     // instead would flip the drawer back to view mode mid-slide-out.
     setEditing(false);
-    setDetail(null);
+    setDetail(preloaded ?? null);
     setError(null);
     setOpen(true);
 
+    // Bumped either way, so a fetch still in flight for an earlier open can't
+    // land on top of a preloaded item
     const request = ++latestRequest.current;
+    if (preloaded) return;
+
     void (async () => {
       try {
         const response = await fetch(`/api/items/${next.id}`);

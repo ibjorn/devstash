@@ -1,22 +1,31 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { auth, deleteItemQuery, getItemDetail, updateItemQuery } = vi.hoisted(
-  () => ({
-    auth: vi.fn(),
-    deleteItemQuery: vi.fn(),
-    getItemDetail: vi.fn(),
-    updateItemQuery: vi.fn(),
-  }),
-);
+const {
+  auth,
+  createItemQuery,
+  deleteItemQuery,
+  getCreatableItemType,
+  getItemDetail,
+  updateItemQuery,
+} = vi.hoisted(() => ({
+  auth: vi.fn(),
+  createItemQuery: vi.fn(),
+  deleteItemQuery: vi.fn(),
+  getCreatableItemType: vi.fn(),
+  getItemDetail: vi.fn(),
+  updateItemQuery: vi.fn(),
+}));
 
 vi.mock("@/auth", () => ({ auth }));
 vi.mock("@/lib/db/items", () => ({
+  createItem: createItemQuery,
   deleteItem: deleteItemQuery,
+  getCreatableItemType,
   getItemDetail,
   updateItem: updateItemQuery,
 }));
 
-import { deleteItem, updateItem } from "@/actions/items";
+import { createItem, deleteItem, updateItem } from "@/actions/items";
 import { Prisma } from "@/generated/prisma/client";
 
 const USER_ID = "usr_1";
@@ -281,6 +290,150 @@ describe("deleteItem", () => {
     await expect(deleteItem(ITEM_ID)).resolves.toEqual({
       success: false,
       error: "Could not delete this item.",
+    });
+  });
+});
+
+describe("createItem", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  const snippetType = {
+    id: "typ_snip",
+    name: "Snippet",
+    slug: "snippets",
+    icon: "Code",
+    color: "#3b82f6",
+    contentType: "TEXT",
+  };
+  const linkType = {
+    id: "typ_link",
+    name: "Link",
+    slug: "links",
+    icon: "Link",
+    color: "#10b981",
+    contentType: "URL",
+  };
+
+  const snippet = {
+    itemTypeId: "typ_snip",
+    title: "useAuth Hook",
+    description: "",
+    content: "export function useAuth() {}",
+    language: "typescript",
+    url: null,
+    tags: ["react", "React"],
+  };
+
+  const link = {
+    itemTypeId: "typ_link",
+    title: "Next.js docs",
+    description: null,
+    content: null,
+    language: null,
+    url: "https://nextjs.org/docs",
+    tags: [],
+  };
+
+  it("refuses a caller with no session and never touches the database", async () => {
+    auth.mockResolvedValue(null);
+
+    const result = await createItem(snippet);
+
+    expect(result.success).toBe(false);
+    expect(getCreatableItemType).not.toHaveBeenCalled();
+    expect(createItemQuery).not.toHaveBeenCalled();
+  });
+
+  it("creates as the session user, never anyone the caller names", async () => {
+    signedIn();
+    getCreatableItemType.mockResolvedValue(snippetType);
+    createItemQuery.mockResolvedValue(detail());
+
+    const result = await createItem({ ...snippet, userId: "usr_other" });
+
+    expect(result.success).toBe(true);
+    expect(createItemQuery).toHaveBeenCalledWith(USER_ID, {
+      itemTypeId: "typ_snip",
+      contentType: "TEXT",
+      title: "useAuth Hook",
+      description: null,
+      content: "export function useAuth() {}",
+      language: "typescript",
+      url: null,
+      tags: ["react"],
+    });
+  });
+
+  it("takes the content type from the resolved type, not the request", async () => {
+    signedIn();
+    getCreatableItemType.mockResolvedValue(linkType);
+    createItemQuery.mockResolvedValue(detail({ contentType: "URL" }));
+
+    await createItem({ ...link, contentType: "FILE" });
+
+    expect(createItemQuery.mock.calls[0][1].contentType).toBe("URL");
+  });
+
+  it("returns field errors for invalid input without resolving the type", async () => {
+    signedIn();
+
+    const result = await createItem({ ...snippet, title: "  " });
+
+    expect(result.fieldErrors).toHaveProperty("title");
+    expect(getCreatableItemType).not.toHaveBeenCalled();
+  });
+
+  it("refuses a type the dialog wouldn't offer", async () => {
+    signedIn();
+    getCreatableItemType.mockResolvedValue(null);
+
+    const result = await createItem({ ...snippet, itemTypeId: "typ_file" });
+
+    expect(result).toMatchObject({
+      success: false,
+      error: "That item type isn't available.",
+    });
+    expect(createItemQuery).not.toHaveBeenCalled();
+  });
+
+  it("requires a URL for a link", async () => {
+    signedIn();
+    getCreatableItemType.mockResolvedValue(linkType);
+
+    const result = await createItem({ ...link, url: "" });
+
+    expect(result.fieldErrors).toEqual({ url: "URL is required" });
+    expect(createItemQuery).not.toHaveBeenCalled();
+  });
+
+  it("refuses content on a link and a URL on a text type", async () => {
+    signedIn();
+    getCreatableItemType.mockResolvedValue(linkType);
+    await expect(createItem({ ...link, content: "hi" })).resolves.toMatchObject(
+      { success: false, error: "This item type has no content field." },
+    );
+
+    getCreatableItemType.mockResolvedValue(snippetType);
+    await expect(
+      createItem({ ...snippet, url: "https://example.com" }),
+    ).resolves.toMatchObject({
+      success: false,
+      error: "This item type has no URL field.",
+    });
+    expect(createItemQuery).not.toHaveBeenCalled();
+  });
+
+  it("reports a failed write generically", async () => {
+    signedIn();
+    getCreatableItemType.mockResolvedValue(snippetType);
+    createItemQuery.mockRejectedValue(new Error("connection reset"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(createItem(snippet)).resolves.toEqual({
+      success: false,
+      error: "Could not create this item.",
     });
   });
 });

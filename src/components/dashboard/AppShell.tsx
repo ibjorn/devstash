@@ -2,13 +2,14 @@ import { redirect } from "next/navigation";
 
 import { AppSidebar } from "@/components/dashboard/AppSidebar";
 import { TopBar } from "@/components/dashboard/TopBar";
+import { ItemDrawerProvider } from "@/components/items/ItemDrawerProvider";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import {
   getFavoriteCollections,
   getRecentNonFavoriteCollections,
 } from "@/lib/db/collections";
-import { getItemTypeNavItems } from "@/lib/db/items";
+import { getCreatableItemTypes, getItemTypeNavItems } from "@/lib/db/items";
 import { requireUserId } from "@/lib/db/session-user";
 import { getCurrentUser } from "@/lib/db/users";
 
@@ -23,13 +24,19 @@ export async function AppShell({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const userId = await requireUserId();
-  const [itemTypes, favoriteCollections, recentCollections, user] =
-    await Promise.all([
-      getItemTypeNavItems(userId),
-      getFavoriteCollections(userId),
-      getRecentNonFavoriteCollections(userId),
-      getCurrentUser(userId),
-    ]);
+  const [
+    itemTypes,
+    favoriteCollections,
+    recentCollections,
+    user,
+    newItemTypes,
+  ] = await Promise.all([
+    getItemTypeNavItems(userId),
+    getFavoriteCollections(userId),
+    getRecentNonFavoriteCollections(userId),
+    getCurrentUser(userId),
+    getCreatableItemTypes(),
+  ]);
 
   // Signed in against a User row that no longer exists — clear the stale
   // JWT rather than crashing on every render.
@@ -45,8 +52,10 @@ export async function AppShell({
           user={user}
         />
         <SidebarInset className="h-svh overflow-hidden">
-          <TopBar />
-          <div className="flex-1 overflow-y-auto p-6">{children}</div>
+          <ItemDrawerProvider>
+            <TopBar newItemTypes={newItemTypes} />
+            <div className="flex-1 overflow-y-auto p-6">{children}</div>
+          </ItemDrawerProvider>
         </SidebarInset>
       </SidebarProvider>
     </TooltipProvider>

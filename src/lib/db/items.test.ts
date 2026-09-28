@@ -3,7 +3,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { prisma } = vi.hoisted(() => ({
   prisma: {
     $transaction: vi.fn(),
-    item: { findFirst: vi.fn(), update: vi.fn(), delete: vi.fn() },
+    item: {
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+    },
+    itemType: { findFirst: vi.fn(), findMany: vi.fn() },
     tag: { deleteMany: vi.fn() },
   },
 }));
@@ -18,7 +24,14 @@ function passThroughTransactions() {
 
 vi.mock("@/lib/prisma", () => ({ prisma }));
 
-import { deleteItem, getItemDetail, updateItem } from "@/lib/db/items";
+import {
+  createItem,
+  deleteItem,
+  getCreatableItemType,
+  getCreatableItemTypes,
+  getItemDetail,
+  updateItem,
+} from "@/lib/db/items";
 
 const USER_ID = "usr_1";
 const ITEM_ID = "itm_1";
@@ -291,5 +304,122 @@ describe("deleteItem", () => {
     prisma.item.delete.mockRejectedValue(notFound);
 
     await expect(deleteItem(USER_ID, ITEM_ID)).rejects.toBe(notFound);
+  });
+});
+
+describe("getCreatableItemTypes", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("offers only free system types, in sidebar order, with their content type", async () => {
+    prisma.itemType.findMany.mockResolvedValue([
+      { id: "t_link", name: "Link", icon: "Link", color: "#10b981" },
+      { id: "t_note", name: "Note", icon: "StickyNote", color: "#fde047" },
+      { id: "t_snip", name: "Snippet", icon: "Code", color: "#3b82f6" },
+    ]);
+
+    const types = await getCreatableItemTypes();
+
+    expect(prisma.itemType.findMany.mock.calls[0][0].where).toEqual({
+      isSystem: true,
+      name: { notIn: ["File", "Image"] },
+    });
+    expect(
+      types.map((type) => [type.name, type.slug, type.contentType]),
+    ).toEqual([
+      ["Snippet", "snippets", "TEXT"],
+      ["Note", "notes", "TEXT"],
+      ["Link", "links", "URL"],
+    ]);
+  });
+});
+
+describe("getCreatableItemType", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("resolves the id only among free system types", async () => {
+    prisma.itemType.findFirst.mockResolvedValue(null);
+
+    await expect(getCreatableItemType("t_other")).resolves.toBeNull();
+    expect(prisma.itemType.findFirst.mock.calls[0][0].where).toEqual({
+      id: "t_other",
+      isSystem: true,
+      name: { notIn: ["File", "Image"] },
+    });
+  });
+
+  it("derives a Link's content type as URL", async () => {
+    prisma.itemType.findFirst.mockResolvedValue({
+      id: "t_link",
+      name: "Link",
+      icon: "Link",
+      color: "#10b981",
+    });
+
+    await expect(getCreatableItemType("t_link")).resolves.toMatchObject({
+      contentType: "URL",
+      slug: "links",
+    });
+  });
+});
+
+describe("createItem", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  const data = {
+    itemTypeId: "typ_1",
+    contentType: "TEXT" as const,
+    title: "useAuth Hook",
+    description: null,
+    content: "export function useAuth() {}",
+    url: null,
+    language: "typescript",
+    tags: ["react", "auth"],
+  };
+
+  it("creates the item as the given user with per-user tags", async () => {
+    prisma.item.create.mockResolvedValue(itemRow());
+
+    await createItem(USER_ID, data);
+
+    const call = prisma.item.create.mock.calls[0][0];
+    expect(call.data).toMatchObject({
+      userId: USER_ID,
+      itemTypeId: "typ_1",
+      contentType: "TEXT",
+      title: "useAuth Hook",
+      language: "typescript",
+    });
+    expect(call.data.tags.connectOrCreate).toEqual([
+      {
+        where: { userId_name: { userId: USER_ID, name: "react" } },
+        create: { name: "react", userId: USER_ID },
+      },
+      {
+        where: { userId_name: { userId: USER_ID, name: "auth" } },
+        create: { name: "auth", userId: USER_ID },
+      },
+    ]);
+  });
+
+  it("returns the created item in the drawer's shape", async () => {
+    prisma.item.create.mockResolvedValue(itemRow());
+
+    const created = await createItem(USER_ID, data);
+
+    expect(created).toMatchObject({
+      id: ITEM_ID,
+      type: { name: "Snippet" },
+      tags: ["auth", "react"],
+      collections: [
+        { id: "col_1", name: "React Patterns" },
+        { id: "col_2", name: "Interview Prep" },
+      ],
+    });
   });
 });

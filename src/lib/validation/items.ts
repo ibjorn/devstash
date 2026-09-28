@@ -71,6 +71,18 @@ export const updateItemSchema = z.object({
 
 export type UpdateItemInput = z.infer<typeof updateItemSchema>;
 
+// Every field limit is shared with editing so the two can't drift. Whether a
+// URL is *required* depends on the type, which only the server can resolve, so
+// that check lives in the action rather than here.
+export const createItemSchema = updateItemSchema.extend({
+  itemTypeId: z
+    .string({ error: "Choose a type" })
+    .trim()
+    .min(1, "Choose a type"),
+});
+
+export type CreateItemInput = z.infer<typeof createItemSchema>;
+
 /**
  * Trim, drop blanks, and de-duplicate case-insensitively while keeping the
  * casing the user typed. Tags are unique per user in the database, so sending

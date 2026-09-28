@@ -1,18 +1,40 @@
-# Current Feature
+# Current Feature: Item Create
 
-<!-- Feature name and short description -->
+Add new items via a modal dialog opened from the "New Item" button in the top bar.
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals & requirements -->
+- "New Item" button in `src/components/dashboard/TopBar.tsx` (currently inert) opens a shadcn `Dialog` (already installed)
+- Type selector limited to the five free system types: Snippet, Prompt, Command, Note, Link (File/Image excluded — Pro-only and R2 uploads aren't built)
+- Fields shown based on selected type:
+  - All types: title (required), description, tags
+  - Snippet / Command: content, language
+  - Prompt / Note: content
+  - Link: URL (required)
+- Server action `createItem` in `src/actions/items.ts` with Zod validation
+- Query function `createItem` in `src/lib/db/items.ts`
+- On success: toast, close the modal, `router.refresh()` so cards, sidebar counts and stats update
+- Unit tests for the schema, query and action (auth guard, runs as session user, type/field guards, error branches)
 
 ## Notes
 
-<!-- Additional context, constraints, details -->
+- Spec: `context/features/item-create-spec.md` (loaded as `item-deas-create-spec` — no file by that name exists, taken as a typo for this one)
+- **Reuse from Edit Mode rather than fork:** `updateItemSchema` + `normalizeTags` in `src/lib/validation/items.ts` already bound every field; a create schema should extend/share them (plus an item type id) so the limits can't drift. `ALLOWED_FIELDS` in `src/actions/items.ts` is keyed on `contentType` — create should derive `contentType` from the chosen ItemType server-side, never trust it from the client
+- **Type id must be validated server-side:** only system types (or, later, the user's own custom types) — never another user's custom type id. Pro gating for File/Image should be refused server-side too, not just hidden
+- Per-field requirement differs from edit: Link needs a non-null URL on create
+- Tags: per-user `connectOrCreate` on `userId_name`, same as `updateItem`
+- Spec says prompts get no language field, though `ALLOWED_FIELDS.TEXT` allows it — form hides it; server keeps accepting null
+- Form layout can likely share fields with `src/components/items/ItemEditForm.tsx` — worth extracting a shared fields component vs duplicating (decide at start)
+- The top bar lives in `AppShell`, so the dialog is available on /dashboard, /items/[type] and /profile; could default the type selector to the current `/items/[type]` page's type (nice-to-have, not in spec)
+- Free-tier 50-item limit is **not** enforced — Pro gating stays bypassed during development per project overview
+- **Decisions (Björn, 2026-09-28, at load):**
+  1. **Share the form fields** with `ItemEditForm` — extract a shared fields component used by both create and edit
+  2. **Preselect the type** from the current `/items/[type]` page when the dialog opens there (falls back to Snippet elsewhere)
+  3. **Open the new item in the drawer** after a successful create (in addition to toast + close + refresh) — the dialog must sit inside `ItemDrawerProvider`'s tree, or the provider must be lifted to cover the top bar
 
 ## History
 - 2026-05-12: **Initial Setup** - Next.js and Tailwind setup

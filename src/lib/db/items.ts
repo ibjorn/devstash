@@ -1,7 +1,8 @@
-import type { Prisma } from "@/generated/prisma/client";
+import type { ItemContentType, Prisma } from "@/generated/prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import type {
+  CreatableItemType,
   ItemDetail,
   ItemSummary,
   ItemTypeListing,
@@ -21,6 +22,23 @@ const SYSTEM_TYPE_ORDER = [
 
 // Pro-only system types, keyed by singular name
 const PRO_TYPE_NAMES = new Set(["File", "Image"]);
+
+// ItemType has no contentType column — it lives on each Item — so a new item's
+// is decided by its system type here. Anything not listed stores text.
+const SYSTEM_TYPE_CONTENT: Record<string, ItemContentType> = {
+  Link: "URL",
+  File: "FILE",
+  Image: "FILE",
+};
+
+function contentTypeFor(typeName: string): ItemContentType {
+  return SYSTEM_TYPE_CONTENT[typeName] ?? "TEXT";
+}
+
+function systemTypeOrder(name: string): number {
+  const index = SYSTEM_TYPE_ORDER.indexOf(name);
+  return index === -1 ? SYSTEM_TYPE_ORDER.length : index;
+}
 
 const itemSummarySelect = {
   id: true,
@@ -64,13 +82,8 @@ export async function getItemTypeNavItems(
     },
   });
 
-  const orderOf = (name: string) => {
-    const index = SYSTEM_TYPE_ORDER.indexOf(name);
-    return index === -1 ? SYSTEM_TYPE_ORDER.length : index;
-  };
-
   return types
-    .sort((a, b) => orderOf(a.name) - orderOf(b.name))
+    .sort((a, b) => systemTypeOrder(a.name) - systemTypeOrder(b.name))
     .map((type) => {
       // All system type names pluralize regularly ("Snippet" -> "Snippets")
       const plural = `${type.name}s`;
@@ -289,4 +302,87 @@ export async function deleteItem(userId: string, id: string): Promise<void> {
     await tx.item.delete({ where: { id, userId }, select: { id: true } });
     await sweepOrphanTags(tx, userId);
   });
+}
+
+// File and Image need uploads, which aren't built, and are Pro-only besides —
+// so a new item can only be one of the free system types. Custom types join
+// this list when they ship.
+const creatableTypeWhere = {
+  isSystem: true,
+  name: { notIn: [...PRO_TYPE_NAMES] },
+} satisfies Prisma.ItemTypeWhereInput;
+
+/** The types the New Item dialog offers, in sidebar order. */
+export async function getCreatableItemTypes(): Promise<CreatableItemType[]> {
+  const types = await prisma.itemType.findMany({
+    where: creatableTypeWhere,
+    select: { id: true, name: true, icon: true, color: true },
+  });
+
+  return types
+    .sort((a, b) => systemTypeOrder(a.name) - systemTypeOrder(b.name))
+    .map((type) => ({
+      ...type,
+      slug: `${type.name}s`.toLowerCase(),
+      contentType: contentTypeFor(type.name),
+    }));
+}
+
+/**
+ * Resolve a type id a caller wants to create an item with. Returns null for
+ * anything the dialog wouldn't have offered — an unknown id, a Pro type, or
+ * another user's custom type — so the id is never trusted as sent.
+ */
+export async function getCreatableItemType(
+  id: string,
+): Promise<CreatableItemType | null> {
+  const type = await prisma.itemType.findFirst({
+    where: { id, ...creatableTypeWhere },
+    select: { id: true, name: true, icon: true, color: true },
+  });
+
+  if (!type) return null;
+
+  return {
+    ...type,
+    slug: `${type.name}s`.toLowerCase(),
+    contentType: contentTypeFor(type.name),
+  };
+}
+
+export interface CreateItemData extends UpdateItemData {
+  itemTypeId: string;
+  contentType: ItemContentType;
+}
+
+/**
+ * Create an item for the user and return it in full, so the drawer can open on
+ * it without a fetch. Tags are connected or created per user on `userId_name`,
+ * exactly as `updateItem` does — a name another user holds is a different row.
+ */
+export async function createItem(
+  userId: string,
+  data: CreateItemData,
+): Promise<ItemDetail> {
+  const item = await prisma.item.create({
+    data: {
+      userId,
+      itemTypeId: data.itemTypeId,
+      contentType: data.contentType,
+      title: data.title,
+      description: data.description,
+      content: data.content,
+      url: data.url,
+      language: data.language,
+      tags: {
+        connectOrCreate: data.tags.map((name) => ({
+          where: { userId_name: { userId, name } },
+          create: { name, userId },
+        })),
+      },
+    },
+    select: itemDetailSelect,
+  });
+
+  return toItemDetail(item);
 }
