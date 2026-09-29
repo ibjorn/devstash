@@ -7,6 +7,7 @@ const {
   requireUserId,
   checkRateLimit,
   clearRateLimit,
+  deleteObjectsWithPrefix,
 } = vi.hoisted(() => ({
   signOut: vi.fn(),
   prisma: {
@@ -16,11 +17,13 @@ const {
   requireUserId: vi.fn(),
   checkRateLimit: vi.fn(),
   clearRateLimit: vi.fn(),
+  deleteObjectsWithPrefix: vi.fn(),
 }));
 
 vi.mock("@/auth", () => ({ signOut }));
 vi.mock("@/lib/prisma", () => ({ prisma }));
 vi.mock("@/lib/db/session-user", () => ({ requireUserId }));
+vi.mock("@/lib/r2", () => ({ deleteObjectsWithPrefix }));
 // Partial: the limiter itself is stubbed, but rateLimitMessage stays real so
 // the copy a user would actually see is what gets asserted.
 vi.mock("@/lib/rate-limit", async (importOriginal) => ({
@@ -307,6 +310,32 @@ describe("deleteAccount", () => {
     });
   });
 
+  it("removes every R2 object under the user's prefix after the rows are gone", async () => {
+    prisma.user.findUnique.mockResolvedValue({ email: EMAIL });
+    const tx = withTransaction();
+
+    await deleteAccount(deleteForm(EMAIL));
+
+    expect(deleteObjectsWithPrefix).toHaveBeenCalledWith(`${USER_ID}/`);
+    expect(deleteObjectsWithPrefix.mock.invocationCallOrder[0]).toBeGreaterThan(
+      tx.user.delete.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("still signs out when the R2 cleanup fails", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    prisma.user.findUnique.mockResolvedValue({ email: EMAIL });
+    withTransaction();
+    deleteObjectsWithPrefix.mockRejectedValue(new Error("R2 down"));
+
+    await deleteAccount(deleteForm(EMAIL));
+
+    expect(signOut).toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
+
   it("lets the sign-out redirect bubble rather than catching it as a failure", async () => {
     prisma.user.findUnique.mockResolvedValue({ email: EMAIL });
     withTransaction();
@@ -341,6 +370,7 @@ describe("deleteAccount", () => {
       error: "Could not delete your account",
     });
     expect(signOut).not.toHaveBeenCalled();
+    expect(deleteObjectsWithPrefix).not.toHaveBeenCalled();
     consoleError.mockRestore();
   });
 });

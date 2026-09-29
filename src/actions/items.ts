@@ -9,14 +9,22 @@ import {
   deleteItem as deleteItemQuery,
   getCreatableItemType,
   getItemDetail,
+  isFileKeyInUse,
   updateItem as updateItemQuery,
 } from "@/lib/db/items";
+import { deleteObject, getObjectSize } from "@/lib/r2";
+import {
+  fileNameFromKey,
+  type UploadKind,
+  uploadKindFor,
+  validateUpload,
+} from "@/lib/uploads";
 import {
   createItemSchema,
   type UpdateItemInput,
   updateItemSchema,
 } from "@/lib/validation/items";
-import type { ItemDetail } from "@/types/items";
+import type { CreatableItemType, ItemDetail } from "@/types/items";
 
 /**
  * Actions return `{ success, data, error, fieldErrors }` per the project's
@@ -76,6 +84,86 @@ function unusedFieldError(
   return null;
 }
 
+interface ResolvedFile {
+  fileUrl: string;
+  fileName: string;
+  fileSize: number;
+}
+
+const UPLOAD_NOT_FOUND =
+  "That upload could not be found — please upload the file again.";
+
+// Best effort: the item's outcome is already decided by the time this runs, so
+// a failure here is logged rather than reported — it leaves an orphan object,
+// not a broken item
+async function removeObject(key: string) {
+  try {
+    await deleteObject(key);
+  } catch (error) {
+    console.error("R2 delete failed for %s", key, error);
+  }
+}
+
+/**
+ * Check what the browser uploaded before an item points at it. The key is only
+ * accepted in the exact shape the upload route builds under this user's
+ * prefix, and the object's real size — not anything the client reported — is
+ * checked against the type's limit. An object that fails is deleted.
+ */
+async function resolveUploadedFile(
+  userId: string,
+  kind: UploadKind,
+  key: string,
+): Promise<ResolvedFile | string> {
+  const fileName = fileNameFromKey(userId, key);
+  if (!fileName) return UPLOAD_NOT_FOUND;
+  if (await isFileKeyInUse(userId, key)) return UPLOAD_NOT_FOUND;
+
+  const fileSize = await getObjectSize(key);
+  if (fileSize === null) return UPLOAD_NOT_FOUND;
+
+  const invalid = validateUpload(kind, { fileName, fileSize });
+  if (invalid) {
+    await removeObject(key);
+    return invalid;
+  }
+
+  return { fileUrl: key, fileName, fileSize };
+}
+
+// The file columns for a new item: resolved from the upload for File and
+// Image, refused for every other type
+async function fileFieldsFor(
+  userId: string,
+  type: CreatableItemType,
+  fileKey: string | null,
+): Promise<ResolvedFile | null | ItemActionResult> {
+  const kind = uploadKindFor(type.name);
+  if (type.contentType !== "FILE" || !kind) {
+    if (fileKey !== null) {
+      return { success: false, error: "This item type has no file field." };
+    }
+    if (type.contentType === "FILE") {
+      return { success: false, error: "That item type isn't available." };
+    }
+    return null;
+  }
+
+  if (fileKey === null) {
+    return { success: false, fieldErrors: { file: "Upload a file first" } };
+  }
+
+  const resolved = await resolveUploadedFile(userId, kind, fileKey);
+  if (typeof resolved === "string") {
+    return { success: false, fieldErrors: { file: resolved } };
+  }
+  return resolved;
+}
+
+function isActionResult(value: unknown): value is ItemActionResult {
+  return typeof value === "object" && value !== null && "success" in value;
+}
+
 export async function createItem(input: unknown): Promise<ItemActionResult> {
   const session = await auth();
   const userId = session?.user?.id;
@@ -110,6 +198,9 @@ export async function createItem(input: unknown): Promise<ItemActionResult> {
       return { success: false, fieldErrors: { url: "URL is required" } };
     }
 
+    const file = await fileFieldsFor(userId, type, data.fileKey);
+    if (isActionResult(file)) return file;
+
     const created = await createItemQuery(userId, {
       itemTypeId: type.id,
       contentType: type.contentType,
@@ -119,6 +210,9 @@ export async function createItem(input: unknown): Promise<ItemActionResult> {
       language: data.language,
       url: data.url,
       tags: data.tags,
+      fileUrl: file?.fileUrl ?? null,
+      fileName: file?.fileName ?? null,
+      fileSize: file?.fileSize ?? null,
     });
 
     return { success: true, data: created };
@@ -201,9 +295,9 @@ export async function deleteItem(itemId: string): Promise<ItemActionResult> {
     return { success: false, error: "That item no longer exists." };
   }
 
+  let fileKey: string | null;
   try {
-    await deleteItemQuery(userId, itemId);
-    return { success: true };
+    ({ fileKey } = await deleteItemQuery(userId, itemId));
   } catch (error) {
     // Already deleted — perhaps in another tab — or never the caller's.
     if (
@@ -216,4 +310,9 @@ export async function deleteItem(itemId: string): Promise<ItemActionResult> {
     console.error("deleteItem failed", error);
     return { success: false, error: "Could not delete this item." };
   }
+
+  // Only once the row is gone: deleting the object first would leave an item
+  // pointing at nothing if the database delete then failed
+  if (fileKey) await removeObject(fileKey);
+  return { success: true };
 }

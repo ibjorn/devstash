@@ -79,9 +79,28 @@ export const createItemSchema = updateItemSchema.extend({
     .string({ error: "Choose a type" })
     .trim()
     .min(1, "Choose a type"),
+  // The R2 object key a File or Image item's upload landed at. Required for
+  // those types and refused for every other — both decided in the action,
+  // which is the only place that knows the type.
+  fileKey: z.string().trim().max(512).nullable().default(null),
 });
 
 export type CreateItemInput = z.infer<typeof createItemSchema>;
+
+// Only the shape is checked here; whether the file itself is acceptable for
+// the type is decided by validateUpload once the type is resolved
+export const requestUploadSchema = z.object({
+  itemTypeId: z.string().trim().min(1, "Choose a type"),
+  fileName: z
+    .string()
+    .trim()
+    .min(1, "Choose a file")
+    .max(255, "File name is too long"),
+  fileSize: z.number().int().nonnegative(),
+  mimeType: z.string().max(100).default(""),
+});
+
+export type RequestUploadInput = z.infer<typeof requestUploadSchema>;
 
 /**
  * Trim, drop blanks, and de-duplicate case-insensitively while keeping the

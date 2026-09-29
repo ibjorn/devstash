@@ -6,6 +6,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { createItem, type ItemActionResult } from "@/actions/items";
+import { FileUpload, type UploadedFile } from "@/components/items/FileUpload";
 import { useItemDrawer } from "@/components/items/ItemDrawerProvider";
 import {
   ItemFormFields,
@@ -26,6 +27,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { typeColorTint } from "@/lib/type-colors";
 import { typeIcons } from "@/lib/type-icons";
+import { uploadKindFor } from "@/lib/uploads";
 import { parseTagInput } from "@/lib/validation/items";
 import type { CreatableItemType } from "@/types/items";
 
@@ -71,8 +73,11 @@ export function NewItemDialog({ types }: NewItemDialogProps) {
   const [values, setValues] = useState<ItemFormValues>(EMPTY_VALUES);
   const [pending, setPending] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [file, setFile] = useState<UploadedFile | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const type = types.find((candidate) => candidate.id === typeId);
+  const uploadKind = type ? uploadKindFor(type.name) : null;
   const visible = type
     ? visibleFieldsFor(type.contentType, type.name)
     : {
@@ -87,17 +92,21 @@ export function NewItemDialog({ types }: NewItemDialogProps) {
     Boolean(type) &&
     values.title.trim().length > 0 &&
     (!visible.url || values.url.trim().length > 0) &&
+    (!uploadKind || file !== null) &&
+    !uploading &&
     !pending;
 
   function handleOpenChange(next: boolean) {
     // A request still in flight is going to land either way; closing would
-    // only hide its outcome
+    // only hide its outcome. An upload in flight is simply abandoned.
     if (pending) return;
     if (next) {
       // Every open starts fresh, on the type of the page it was opened from
       setTypeId(initialTypeId(types, pathname));
       setValues(EMPTY_VALUES);
       setFieldErrors({});
+      setFile(null);
+      setUploading(false);
     }
     setOpen(next);
   }
@@ -127,6 +136,7 @@ export function NewItemDialog({ types }: NewItemDialogProps) {
         language: visible.language ? values.language : null,
         url: visible.url ? values.url : null,
         tags: parseTagInput(values.tags),
+        fileKey: uploadKind ? (file?.key ?? null) : null,
       });
     } catch {
       toast.error("Could not reach the server — the item was not created.");
@@ -167,7 +177,8 @@ export function NewItemDialog({ types }: NewItemDialogProps) {
           <DialogHeader>
             <DialogTitle>New item</DialogTitle>
             <DialogDescription>
-              Save a snippet, prompt, command, note or link to your stash.
+              Save a snippet, prompt, command, note, file, image or link to your
+              stash.
             </DialogDescription>
           </DialogHeader>
 
@@ -188,7 +199,12 @@ export function NewItemDialog({ types }: NewItemDialogProps) {
                     variant="outline"
                     size="sm"
                     aria-pressed={selected}
-                    onClick={() => setTypeId(option.id)}
+                    onClick={() => {
+                      // An upload is only valid for the kind it was made for
+                      if (option.id !== typeId) setFile(null);
+                      setTypeId(option.id);
+                    }}
+                    disabled={uploading}
                     className={cn(!selected && "text-muted-foreground")}
                     style={
                       selected
@@ -206,6 +222,23 @@ export function NewItemDialog({ types }: NewItemDialogProps) {
               })}
             </div>
           </div>
+
+          {uploadKind && type && (
+            <div className="flex flex-col gap-2">
+              <Label asChild>
+                <span>{uploadKind === "image" ? "Image" : "File"}</span>
+              </Label>
+              <FileUpload
+                key={type.id}
+                itemTypeId={type.id}
+                kind={uploadKind}
+                value={file}
+                onChange={setFile}
+                onUploadingChange={setUploading}
+                error={fieldErrors.file}
+              />
+            </div>
+          )}
 
           <ItemFormFields
             values={values}

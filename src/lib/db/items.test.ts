@@ -30,6 +30,8 @@ import {
   getCreatableItemType,
   getCreatableItemTypes,
   getItemDetail,
+  getItemFile,
+  isFileKeyInUse,
   updateItem,
 } from "@/lib/db/items";
 
@@ -265,7 +267,7 @@ describe("deleteItem", () => {
   });
 
   it("puts the ownership filter in the delete's own where clause", async () => {
-    prisma.item.delete.mockResolvedValue({ id: ITEM_ID });
+    prisma.item.delete.mockResolvedValue({ fileUrl: null });
 
     await deleteItem(USER_ID, ITEM_ID);
 
@@ -276,8 +278,16 @@ describe("deleteItem", () => {
     });
   });
 
+  it("returns the deleted item's file key so its object can be removed", async () => {
+    prisma.item.delete.mockResolvedValue({ fileUrl: "usr_1/abc/a.png" });
+
+    await expect(deleteItem(USER_ID, ITEM_ID)).resolves.toEqual({
+      fileKey: "usr_1/abc/a.png",
+    });
+  });
+
   it("sweeps the user's now-unused tags after the delete", async () => {
-    prisma.item.delete.mockResolvedValue({ id: ITEM_ID });
+    prisma.item.delete.mockResolvedValue({ fileUrl: null });
 
     await deleteItem(USER_ID, ITEM_ID);
 
@@ -312,10 +322,12 @@ describe("getCreatableItemTypes", () => {
     vi.resetAllMocks();
   });
 
-  it("offers only free system types, in sidebar order, with their content type", async () => {
+  it("offers every system type, in sidebar order, with its content type", async () => {
     prisma.itemType.findMany.mockResolvedValue([
       { id: "t_link", name: "Link", icon: "Link", color: "#10b981" },
+      { id: "t_img", name: "Image", icon: "Image", color: "#ec4899" },
       { id: "t_note", name: "Note", icon: "StickyNote", color: "#fde047" },
+      { id: "t_file", name: "File", icon: "File", color: "#6b7280" },
       { id: "t_snip", name: "Snippet", icon: "Code", color: "#3b82f6" },
     ]);
 
@@ -323,13 +335,14 @@ describe("getCreatableItemTypes", () => {
 
     expect(prisma.itemType.findMany.mock.calls[0][0].where).toEqual({
       isSystem: true,
-      name: { notIn: ["File", "Image"] },
     });
     expect(
       types.map((type) => [type.name, type.slug, type.contentType]),
     ).toEqual([
       ["Snippet", "snippets", "TEXT"],
       ["Note", "notes", "TEXT"],
+      ["File", "files", "FILE"],
+      ["Image", "images", "FILE"],
       ["Link", "links", "URL"],
     ]);
   });
@@ -340,14 +353,13 @@ describe("getCreatableItemType", () => {
     vi.resetAllMocks();
   });
 
-  it("resolves the id only among free system types", async () => {
+  it("resolves the id only among system types", async () => {
     prisma.itemType.findFirst.mockResolvedValue(null);
 
     await expect(getCreatableItemType("t_other")).resolves.toBeNull();
     expect(prisma.itemType.findFirst.mock.calls[0][0].where).toEqual({
       id: "t_other",
       isSystem: true,
-      name: { notIn: ["File", "Image"] },
     });
   });
 
@@ -380,7 +392,31 @@ describe("createItem", () => {
     url: null,
     language: "typescript",
     tags: ["react", "auth"],
+    fileUrl: null,
+    fileName: null,
+    fileSize: null,
   };
+
+  it("writes the file columns for an uploaded item", async () => {
+    prisma.item.create.mockResolvedValue(itemRow());
+
+    await createItem(USER_ID, {
+      ...data,
+      contentType: "FILE",
+      content: null,
+      language: null,
+      fileUrl: "usr_1/abc/diagram.png",
+      fileName: "diagram.png",
+      fileSize: 2048,
+    });
+
+    expect(prisma.item.create.mock.calls[0][0].data).toMatchObject({
+      contentType: "FILE",
+      fileUrl: "usr_1/abc/diagram.png",
+      fileName: "diagram.png",
+      fileSize: 2048,
+    });
+  });
 
   it("creates the item as the given user with per-user tags", async () => {
     prisma.item.create.mockResolvedValue(itemRow());
@@ -420,6 +456,57 @@ describe("createItem", () => {
         { id: "col_1", name: "React Patterns" },
         { id: "col_2", name: "Interview Prep" },
       ],
+    });
+  });
+});
+
+describe("getItemFile", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("scopes the lookup to the user in the query itself", async () => {
+    prisma.item.findFirst.mockResolvedValue({
+      fileUrl: "usr_1/abc/a.pdf",
+      fileName: "a.pdf",
+    });
+
+    await expect(getItemFile(USER_ID, ITEM_ID)).resolves.toEqual({
+      key: "usr_1/abc/a.pdf",
+      fileName: "a.pdf",
+    });
+    expect(prisma.item.findFirst.mock.calls[0][0].where).toEqual({
+      id: ITEM_ID,
+      userId: USER_ID,
+    });
+  });
+
+  it("returns null for another user's item or one with no file", async () => {
+    prisma.item.findFirst.mockResolvedValueOnce(null);
+    await expect(getItemFile(USER_ID, ITEM_ID)).resolves.toBeNull();
+
+    prisma.item.findFirst.mockResolvedValueOnce({
+      fileUrl: null,
+      fileName: null,
+    });
+    await expect(getItemFile(USER_ID, ITEM_ID)).resolves.toBeNull();
+  });
+});
+
+describe("isFileKeyInUse", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("looks for the key among the user's own items", async () => {
+    prisma.item.findFirst.mockResolvedValue({ id: ITEM_ID });
+
+    await expect(isFileKeyInUse(USER_ID, "usr_1/abc/a.pdf")).resolves.toBe(
+      true,
+    );
+    expect(prisma.item.findFirst.mock.calls[0][0].where).toEqual({
+      userId: USER_ID,
+      fileUrl: "usr_1/abc/a.pdf",
     });
   });
 });

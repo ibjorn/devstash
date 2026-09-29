@@ -1,10 +1,38 @@
-# Current Feature
+# Current Feature: File & Image Upload (Cloudflare R2)
 
 ## Status
+In Progress
 
 ## Goals
+- File and Image become creatable types in the New Item dialog (currently excluded server-side by `creatableTypeWhere` / `PRO_TYPE_NAMES`; Pro gating stays bypassed during development per the project overview)
+- Upload API route that stores the file in R2 and returns its key, name and size
+- `FileUpload` component with drag-and-drop, click-to-browse, upload progress indicator, and client-side size/extension checks
+- New Item dialog swaps the content field for `FileUpload` when File or Image is selected; `fileUrl` / `fileName` / `fileSize` persisted via `createItem` in src/lib/db/items.ts
+- Server-side enforcement of the constraints below — size, extension and MIME, not trusting the browser's `type`
+- Download proxy API route (owner-checked) to avoid CORS; download button in ItemDrawer for file items
+- ItemDrawer shows an image preview for Image items and file info (name, size) for File items
+- Deleting an item deletes its R2 object
+- Unit tests for the validation utility, upload/download route handlers and the R2 cleanup path (R2 client mocked)
+
+### Constraints
+| Type | Max | Extensions | MIME |
+|---|---|---|---|
+| Image | 5 MB | png, jpg, jpeg, gif, webp, svg | image/png, image/jpeg, image/gif, image/webp, image/svg+xml |
+| File | 10 MB | pdf, txt, md, json, yaml, yml, xml, csv, toml, ini | application/pdf, text/plain, text/markdown, application/json, application/x-yaml, text/yaml, application/xml, text/xml, text/csv, application/toml |
 
 ## Notes
+- Spec: context/features/file-image-spec.md
+- R2 env vars (`R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_PUBLIC_URL`) are already in .env and .env.example; no schema change needed — `Item.fileUrl/fileName/fileSize` exist since Database Setup
+- New dependency expected: `@aws-sdk/client-s3` (R2 speaks the S3 API); lazy client, same reason as resend.ts and rate-limit.ts — a module-level client would fail builds without credentials
+- **Decided at `start` (all Björn's pick of the recommendation):** Vercel hosting → **presigned PUT direct to R2**; **private bucket + owner-checked proxy**, `fileUrl` stores the object key; **account deletion sweeps the user's R2 prefix**. Originally listed options:
+  1. **Private bucket + proxy vs public URL.** `R2_PUBLIC_URL` is an r2.dev public URL, so anything stored is world-readable to anyone with the link. Recommend storing the object **key** (e.g. `<userId>/<cuid>-<name>`) in `fileUrl` and serving everything — preview and download — through the owner-checked proxy, then disabling public access on the bucket
+  2. **Upload path.** Spec says upload through an API route (XHR gives progress). Caveat: if production is on Vercel, serverless request bodies cap at ~4.5 MB, below the 10 MB file limit. Alternative is presigned PUT direct to R2 (needs bucket CORS). Recommend the route for now if hosting isn't Vercel; confirm hosting
+  3. **SVG is a stored-XSS vector.** Served inline from our origin, an SVG can run script. Proxy must send `Content-Disposition: attachment` for downloads and `Content-Security-Policy: sandbox` + `X-Content-Type-Options: nosniff` for inline previews (an `<img>` tag doesn't execute SVG script, but direct navigation to the proxy URL would)
+  4. **Account deletion** (`deleteAccount` in src/actions/profile.ts) should also remove the user's R2 objects — not in the spec, recommend including (prefix delete on `<userId>/`)
+- Upload happens before the item exists, so a cancelled dialog leaves an orphan object; acceptable for now (userId-prefixed keys make a later sweep easy) — flag, don't solve
+- Upload endpoint should be rate limited via src/lib/rate-limit.ts (per user id)
+- Probed live against R2: signed Content-Length and Content-Type are both enforced (a larger body and a wrong type each 403); the R2 token is object-scoped and cannot read/set bucket CORS, so the CORS rule is set in the Cloudflare dashboard
+- Out of scope: replacing a file in edit mode, free-tier limits, image resizing/thumbnails
 
 ## History
 - 2026-05-12: **Initial Setup** - Next.js and Tailwind setup

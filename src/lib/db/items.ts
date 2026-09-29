@@ -290,26 +290,67 @@ export async function updateItem(
 }
 
 /**
- * Delete one of the user's items.
+ * Delete one of the user's items, returning the R2 key of its file (null for
+ * anything that isn't a File or Image) so the caller can remove the object.
  *
  * As with `updateItem`, ownership lives in the delete's own where clause: a row
  * belonging to someone else matches nothing and raises P2025, the same as an id
  * that never existed. Collection and tag links cascade with the item; any tag
  * this leaves unused is swept in the same transaction.
  */
-export async function deleteItem(userId: string, id: string): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    await tx.item.delete({ where: { id, userId }, select: { id: true } });
+export async function deleteItem(
+  userId: string,
+  id: string,
+): Promise<{ fileKey: string | null }> {
+  return prisma.$transaction(async (tx) => {
+    const deleted = await tx.item.delete({
+      where: { id, userId },
+      select: { fileUrl: true },
+    });
     await sweepOrphanTags(tx, userId);
+    return { fileKey: deleted.fileUrl };
   });
 }
 
-// File and Image need uploads, which aren't built, and are Pro-only besides —
-// so a new item can only be one of the free system types. Custom types join
-// this list when they ship.
+/**
+ * Whether one of the user's items already points at this object. Two items
+ * sharing a key would mean deleting either removes the other's file.
+ */
+export async function isFileKeyInUse(
+  userId: string,
+  key: string,
+): Promise<boolean> {
+  const item = await prisma.item.findFirst({
+    where: { userId, fileUrl: key },
+    select: { id: true },
+  });
+  return item !== null;
+}
+
+/**
+ * The stored file behind one of the user's items, for the download proxy.
+ * Scoped by userId in the query, like getItemDetail, so another user's item
+ * and a missing one are the same null.
+ */
+export async function getItemFile(
+  userId: string,
+  id: string,
+): Promise<{ key: string; fileName: string } | null> {
+  const item = await prisma.item.findFirst({
+    where: { id, userId },
+    select: { fileUrl: true, fileName: true },
+  });
+
+  if (!item?.fileUrl || !item.fileName) return null;
+  return { key: item.fileUrl, fileName: item.fileName };
+}
+
+// Every system type, File and Image included: they're Pro-only, but Pro gating
+// stays bypassed during development (see the project overview), so they're
+// only badged in the sidebar for now. Custom types join this list when they
+// ship.
 const creatableTypeWhere = {
   isSystem: true,
-  name: { notIn: [...PRO_TYPE_NAMES] },
 } satisfies Prisma.ItemTypeWhereInput;
 
 /** The types the New Item dialog offers, in sidebar order. */
@@ -330,8 +371,8 @@ export async function getCreatableItemTypes(): Promise<CreatableItemType[]> {
 
 /**
  * Resolve a type id a caller wants to create an item with. Returns null for
- * anything the dialog wouldn't have offered — an unknown id, a Pro type, or
- * another user's custom type — so the id is never trusted as sent.
+ * anything the dialog wouldn't have offered — an unknown id or another user's
+ * custom type — so the id is never trusted as sent.
  */
 export async function getCreatableItemType(
   id: string,
@@ -353,6 +394,12 @@ export async function getCreatableItemType(
 export interface CreateItemData extends UpdateItemData {
   itemTypeId: string;
   contentType: ItemContentType;
+  // Set together for File and Image items, null for everything else. fileUrl
+  // holds the private R2 object key, not a URL anyone can fetch — files are
+  // only ever served through the owner-checked proxy.
+  fileUrl: string | null;
+  fileName: string | null;
+  fileSize: number | null;
 }
 
 /**
@@ -374,6 +421,9 @@ export async function createItem(
       content: data.content,
       url: data.url,
       language: data.language,
+      fileUrl: data.fileUrl,
+      fileName: data.fileName,
+      fileSize: data.fileSize,
       tags: {
         connectOrCreate: data.tags.map((name) => ({
           where: { userId_name: { userId, name } },

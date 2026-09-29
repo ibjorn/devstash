@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, Folder, Tag } from "lucide-react";
+import { CalendarDays, Download, Folder, Tag } from "lucide-react";
 
 import { CodeEditor } from "@/components/items/CodeEditor";
 import { ItemDrawerActions } from "@/components/items/ItemDrawerActions";
@@ -8,6 +8,7 @@ import { ItemEditForm } from "@/components/items/ItemEditForm";
 import { ItemTypeIcon } from "@/components/items/ItemTypeIcon";
 import { MarkdownEditor } from "@/components/items/MarkdownEditor";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Sheet,
   SheetContent,
@@ -16,6 +17,7 @@ import {
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { isCodeType, isMarkdownType } from "@/lib/code-language";
+import { formatBytes, uploadKindFor } from "@/lib/uploads";
 import type { ItemDetail, ItemSummary } from "@/types/items";
 
 interface ItemDrawerProps {
@@ -43,12 +45,6 @@ function formatFullDate(date: Date): string {
     month: "long",
     day: "numeric",
   });
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function Section({
@@ -95,6 +91,8 @@ export function ItemDrawer({
   // Only real content goes in the editor; a link's URL fallback stays plain text
   const code = isCodeType(item.type.name) ? detail?.content : null;
   const markdown = isMarkdownType(item.type.name) ? detail?.content : null;
+  const isImage = uploadKindFor(item.type.name) === "image";
+  const fileHref = `/api/items/${encodeURIComponent(item.id)}/file`;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -186,16 +184,35 @@ export function ItemDrawer({
                   )}
 
                   {detail.fileName && (
-                    <Section title="File">
-                      <p className="text-sm">
-                        {detail.fileName}
-                        {detail.fileSize !== null && (
-                          <span className="text-muted-foreground">
-                            {" "}
-                            · {formatFileSize(detail.fileSize)}
-                          </span>
-                        )}
-                      </p>
+                    <Section title={isImage ? "Image" : "File"}>
+                      {isImage && (
+                        // Served by the authenticated proxy; next/image's
+                        // optimiser fetches server-side without the session
+                        // cookie, so it can't load it
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={fileHref}
+                          alt={item.title}
+                          className="max-h-96 w-full rounded-lg border bg-muted/40 object-contain"
+                        />
+                      )}
+                      <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/40 p-3">
+                        <p className="min-w-0 truncate text-sm">
+                          {detail.fileName}
+                          {detail.fileSize !== null && (
+                            <span className="text-muted-foreground">
+                              {" "}
+                              · {formatBytes(detail.fileSize)}
+                            </span>
+                          )}
+                        </p>
+                        <Button variant="outline" size="sm" asChild>
+                          <a href={`${fileHref}?download=1`} download>
+                            <Download className="size-4" />
+                            Download
+                          </a>
+                        </Button>
+                      </div>
                     </Section>
                   )}
 

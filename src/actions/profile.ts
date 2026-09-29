@@ -8,11 +8,13 @@ import { hashPassword } from "@/lib/auth/password";
 import { resetIdentifier } from "@/lib/auth/reset-token";
 import { requireUserId } from "@/lib/db/session-user";
 import { prisma } from "@/lib/prisma";
+import { deleteObjectsWithPrefix } from "@/lib/r2";
 import {
   checkRateLimit,
   clearRateLimit,
   rateLimitMessage,
 } from "@/lib/rate-limit";
+import { userKeyPrefix } from "@/lib/uploads";
 import {
   changePasswordSchema,
   deleteAccountSchema,
@@ -108,6 +110,18 @@ export async function changePassword(
   }
 }
 
+// Every upload lives under its owner's id, so one prefix covers them all. After
+// the database delete and best effort: the account is already gone, and a
+// failure here strands objects nothing can reach rather than a half-deleted
+// account — logged so they can be swept by hand.
+async function deleteUserFiles(userId: string) {
+  try {
+    await deleteObjectsWithPrefix(userKeyPrefix(userId));
+  } catch (error) {
+    console.error("R2 cleanup failed for deleted user %s:", userId, error);
+  }
+}
+
 export async function deleteAccount(
   formData: FormData,
 ): Promise<ProfileActionResult> {
@@ -116,8 +130,9 @@ export async function deleteAccount(
   });
   if (!parsed.success) return toFieldErrors(parsed.error);
 
+  let userId: string;
   try {
-    const userId = await requireUserId();
+    userId = await requireUserId();
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { email: true },
@@ -165,6 +180,8 @@ export async function deleteAccount(
     console.error("Delete account failed:", error);
     return { success: false, error: "Could not delete your account" };
   }
+
+  await deleteUserFiles(userId);
 
   // Outside the try: signOut redirects by throwing NEXT_REDIRECT, which has to
   // bubble up rather than be caught as a failure. Clearing the cookie is not

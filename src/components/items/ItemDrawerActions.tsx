@@ -31,8 +31,9 @@ export function ItemDrawerActions({
   onEdit,
   onDeleted,
 }: ItemDrawerActionsProps) {
-  // Whatever this item actually holds — text content, a link, or a file URL
-  const copyable = detail?.content ?? detail?.url ?? detail?.fileUrl ?? null;
+  // Text content or a link. A file's fileUrl is a private object key, not
+  // something worth putting on a clipboard — files have a Download button.
+  const copyable = detail?.content ?? detail?.url ?? null;
 
   async function handleCopy() {
     if (!copyable) return;

@@ -22,6 +22,10 @@ export const RATE_LIMITS = {
   // Not a public endpoint — this one guesses the *current* password from an
   // already-authenticated session, so it's keyed by user id, not IP.
   changePassword: { limit: 5, window: "15 m" },
+  // Keyed by user id. Each grant is a presigned URL into the bucket, so this
+  // bounds how fast one account can fill it; generous enough for a burst of
+  // honest uploads, retries included.
+  fileUpload: { limit: 20, window: "10 m" },
 } as const satisfies Record<string, { limit: number; window: Duration }>;
 
 export type RateLimitName = keyof typeof RATE_LIMITS;

@@ -6,14 +6,20 @@ const {
   deleteItemQuery,
   getCreatableItemType,
   getItemDetail,
+  isFileKeyInUse,
   updateItemQuery,
+  deleteObject,
+  getObjectSize,
 } = vi.hoisted(() => ({
   auth: vi.fn(),
   createItemQuery: vi.fn(),
   deleteItemQuery: vi.fn(),
   getCreatableItemType: vi.fn(),
   getItemDetail: vi.fn(),
+  isFileKeyInUse: vi.fn(),
   updateItemQuery: vi.fn(),
+  deleteObject: vi.fn(),
+  getObjectSize: vi.fn(),
 }));
 
 vi.mock("@/auth", () => ({ auth }));
@@ -22,8 +28,10 @@ vi.mock("@/lib/db/items", () => ({
   deleteItem: deleteItemQuery,
   getCreatableItemType,
   getItemDetail,
+  isFileKeyInUse,
   updateItem: updateItemQuery,
 }));
+vi.mock("@/lib/r2", () => ({ deleteObject, getObjectSize }));
 
 import { createItem, deleteItem, updateItem } from "@/actions/items";
 import { Prisma } from "@/generated/prisma/client";
@@ -251,10 +259,31 @@ describe("deleteItem", () => {
 
   it("deletes as the session user, not anyone the caller could name", async () => {
     signedIn();
-    deleteItemQuery.mockResolvedValue(undefined);
+    deleteItemQuery.mockResolvedValue({ fileKey: null });
 
     await expect(deleteItem(ITEM_ID)).resolves.toEqual({ success: true });
     expect(deleteItemQuery).toHaveBeenCalledWith(USER_ID, ITEM_ID);
+    expect(deleteObject).not.toHaveBeenCalled();
+  });
+
+  it("removes the item's R2 object once the row is gone", async () => {
+    signedIn();
+    deleteItemQuery.mockResolvedValue({ fileKey: "usr_1/abc/a.png" });
+
+    await expect(deleteItem(ITEM_ID)).resolves.toEqual({ success: true });
+    expect(deleteObject).toHaveBeenCalledWith("usr_1/abc/a.png");
+    expect(deleteObject.mock.invocationCallOrder[0]).toBeGreaterThan(
+      deleteItemQuery.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("still reports success when only the R2 cleanup fails", async () => {
+    signedIn();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    deleteItemQuery.mockResolvedValue({ fileKey: "usr_1/abc/a.png" });
+    deleteObject.mockRejectedValue(new Error("R2 down"));
+
+    await expect(deleteItem(ITEM_ID)).resolves.toEqual({ success: true });
   });
 
   it("rejects a missing or non-string id without querying", async () => {
@@ -280,6 +309,7 @@ describe("deleteItem", () => {
       success: false,
       error: "That item no longer exists.",
     });
+    expect(deleteObject).not.toHaveBeenCalled();
   });
 
   it("returns a generic error for anything else", async () => {
@@ -363,6 +393,9 @@ describe("createItem", () => {
       language: "typescript",
       url: null,
       tags: ["react"],
+      fileUrl: null,
+      fileName: null,
+      fileSize: null,
     });
   });
 
@@ -434,6 +467,124 @@ describe("createItem", () => {
     await expect(createItem(snippet)).resolves.toEqual({
       success: false,
       error: "Could not create this item.",
+    });
+  });
+
+  describe("File and Image items", () => {
+    const imageType = {
+      id: "typ_img",
+      name: "Image",
+      slug: "images",
+      icon: "Image",
+      color: "#ec4899",
+      contentType: "FILE",
+    };
+    const KEY = `${USER_ID}/0f8fad5b-d9cb-469f-a165-70867728950e/diagram.png`;
+    const image = {
+      itemTypeId: "typ_img",
+      title: "Architecture diagram",
+      fileKey: KEY,
+      tags: [],
+    };
+
+    it("stores the key with the size R2 reports, not anything the client sent", async () => {
+      signedIn();
+      getCreatableItemType.mockResolvedValue(imageType);
+      isFileKeyInUse.mockResolvedValue(false);
+      getObjectSize.mockResolvedValue(2048);
+      createItemQuery.mockResolvedValue(detail({ contentType: "FILE" }));
+
+      const result = await createItem({
+        ...image,
+        fileSize: 1,
+        fileName: "x.exe",
+      });
+
+      expect(result.success).toBe(true);
+      expect(createItemQuery.mock.calls[0][1]).toMatchObject({
+        contentType: "FILE",
+        fileUrl: KEY,
+        fileName: "diagram.png",
+        fileSize: 2048,
+        content: null,
+        url: null,
+      });
+    });
+
+    it("requires an upload", async () => {
+      signedIn();
+      getCreatableItemType.mockResolvedValue(imageType);
+
+      const result = await createItem({ ...image, fileKey: null });
+
+      expect(result.fieldErrors).toEqual({ file: "Upload a file first" });
+      expect(createItemQuery).not.toHaveBeenCalled();
+    });
+
+    it("refuses a key outside the caller's own prefix without asking R2", async () => {
+      signedIn();
+      getCreatableItemType.mockResolvedValue(imageType);
+
+      for (const fileKey of [
+        KEY.replace(USER_ID, "usr_other"),
+        `${USER_ID}/../usr_other/0f8fad5b-d9cb-469f-a165-70867728950e/a.png`,
+        `${USER_ID}/not-a-uuid/diagram.png`,
+      ]) {
+        const result = await createItem({ ...image, fileKey });
+        expect(result.fieldErrors).toHaveProperty("file");
+      }
+      expect(getObjectSize).not.toHaveBeenCalled();
+      expect(createItemQuery).not.toHaveBeenCalled();
+    });
+
+    it("refuses a key another item already points at", async () => {
+      signedIn();
+      getCreatableItemType.mockResolvedValue(imageType);
+      isFileKeyInUse.mockResolvedValue(true);
+
+      const result = await createItem(image);
+
+      expect(result.fieldErrors).toHaveProperty("file");
+      expect(createItemQuery).not.toHaveBeenCalled();
+    });
+
+    it("refuses an upload that never landed", async () => {
+      signedIn();
+      getCreatableItemType.mockResolvedValue(imageType);
+      isFileKeyInUse.mockResolvedValue(false);
+      getObjectSize.mockResolvedValue(null);
+
+      const result = await createItem(image);
+
+      expect(result.fieldErrors).toHaveProperty("file");
+      expect(createItemQuery).not.toHaveBeenCalled();
+    });
+
+    it("deletes and refuses an object over the type's limit", async () => {
+      signedIn();
+      getCreatableItemType.mockResolvedValue(imageType);
+      isFileKeyInUse.mockResolvedValue(false);
+      getObjectSize.mockResolvedValue(5 * 1024 * 1024 + 1);
+
+      const result = await createItem(image);
+
+      expect(result.fieldErrors?.file).toMatch(/too large/);
+      expect(deleteObject).toHaveBeenCalledWith(KEY);
+      expect(createItemQuery).not.toHaveBeenCalled();
+    });
+
+    it("refuses a file key on a type that takes no upload", async () => {
+      signedIn();
+      getCreatableItemType.mockResolvedValue(snippetType);
+
+      const result = await createItem({ ...snippet, fileKey: KEY });
+
+      expect(result).toMatchObject({
+        success: false,
+        error: "This item type has no file field.",
+      });
+      expect(getObjectSize).not.toHaveBeenCalled();
+      expect(createItemQuery).not.toHaveBeenCalled();
     });
   });
 });
