@@ -4,9 +4,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { ItemContentType } from "@/generated/prisma/client";
-import { isCodeType } from "@/lib/code-language";
+import { isCodeType, isMarkdownType } from "@/lib/code-language";
 
 import { CodeEditor } from "./CodeEditor";
+import { MarkdownEditor } from "./MarkdownEditor";
 
 export interface ItemFormValues {
   title: string;
@@ -21,6 +22,8 @@ export interface VisibleFields {
   content: boolean;
   /** Content is edited in the code editor rather than a plain textarea. */
   code: boolean;
+  /** Content is edited in the Markdown editor with a preview tab. */
+  markdown: boolean;
   language: boolean;
   url: boolean;
 }
@@ -35,6 +38,7 @@ export function visibleFieldsFor(
   return {
     content,
     code,
+    markdown: content && isMarkdownType(typeName),
     language: code,
     url: contentType === "URL",
   };
@@ -124,7 +128,21 @@ export function ItemFormFields({
         </div>
       )}
 
-      {visible.content && !visible.code && (
+      {visible.content && visible.markdown && (
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="item-content">Content</Label>
+          <MarkdownEditor
+            id="item-content"
+            value={values.content}
+            onChange={(value) => onChange("content", value)}
+            invalid={Boolean(errors.content)}
+            describedBy={errors.content ? "content-error" : undefined}
+          />
+          <FieldError id="content-error" message={errors.content} />
+        </div>
+      )}
+
+      {visible.content && !visible.code && !visible.markdown && (
         <div className="flex flex-col gap-2">
           <Label htmlFor="item-content">Content</Label>
           <Textarea

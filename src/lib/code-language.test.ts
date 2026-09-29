@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isCodeType, toMonacoLanguage } from "./code-language";
+import { isCodeType, isMarkdownType, toMonacoLanguage } from "./code-language";
 
 describe("isCodeType", () => {
   it("is true for the code-carrying system types", () => {
@@ -11,6 +11,19 @@ describe("isCodeType", () => {
   it("is false for prose and non-text types", () => {
     for (const name of ["Note", "Prompt", "Link", "File", "Image"]) {
       expect(isCodeType(name)).toBe(false);
+    }
+  });
+});
+
+describe("isMarkdownType", () => {
+  it("is true for the prose system types", () => {
+    expect(isMarkdownType("Note")).toBe(true);
+    expect(isMarkdownType("Prompt")).toBe(true);
+  });
+
+  it("is false for code and non-text types", () => {
+    for (const name of ["Snippet", "Command", "Link", "File", "Image"]) {
+      expect(isMarkdownType(name)).toBe(false);
     }
   });
 });

@@ -6,6 +6,7 @@ import { CodeEditor } from "@/components/items/CodeEditor";
 import { ItemDrawerActions } from "@/components/items/ItemDrawerActions";
 import { ItemEditForm } from "@/components/items/ItemEditForm";
 import { ItemTypeIcon } from "@/components/items/ItemTypeIcon";
+import { MarkdownEditor } from "@/components/items/MarkdownEditor";
 import { Badge } from "@/components/ui/badge";
 import {
   Sheet,
@@ -14,7 +15,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import { isCodeType } from "@/lib/code-language";
+import { isCodeType, isMarkdownType } from "@/lib/code-language";
 import type { ItemDetail, ItemSummary } from "@/types/items";
 
 interface ItemDrawerProps {
@@ -93,6 +94,7 @@ export function ItemDrawer({
   const content = detail?.content ?? detail?.url ?? null;
   // Only real content goes in the editor; a link's URL fallback stays plain text
   const code = isCodeType(item.type.name) ? detail?.content : null;
+  const markdown = isMarkdownType(item.type.name) ? detail?.content : null;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -163,6 +165,14 @@ export function ItemDrawer({
                         language={detail.language}
                         readOnly
                         ariaLabel={`${item.title} (read-only)`}
+                      />
+                    </Section>
+                  ) : markdown ? (
+                    <Section title="Content">
+                      <MarkdownEditor
+                        value={markdown}
+                        readOnly
+                        ariaLabel={`${item.title} (rendered Markdown)`}
                       />
                     </Section>
                   ) : (

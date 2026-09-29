@@ -7,6 +7,14 @@ export function isCodeType(typeName: string): boolean {
   return CODE_TYPE_NAMES.has(typeName);
 }
 
+// The prose types that get the Markdown editor and a rendered preview. Same
+// name-keyed rule as above, so a custom text type falls back to the textarea.
+const MARKDOWN_TYPE_NAMES = new Set(["Note", "Prompt"]);
+
+export function isMarkdownType(typeName: string): boolean {
+  return MARKDOWN_TYPE_NAMES.has(typeName);
+}
+
 // Monaco language ids this app will ask for. Monaco ships more, but naming
 // them here keeps the mapping explicit and testable; anything else renders as
 // plain text rather than guessing.

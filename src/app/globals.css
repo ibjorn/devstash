@@ -127,3 +127,87 @@
     @apply font-sans;
     }
 }
+/* Rendered Markdown for notes and prompts. Preflight strips heading sizes,
+   list markers and margins, so the preview restores them here. */
+@layer components {
+  .markdown-preview {
+    @apply text-sm leading-relaxed break-words text-foreground;
+  }
+  .markdown-preview > * + * {
+    @apply mt-3;
+  }
+  .markdown-preview :is(h1, h2, h3, h4, h5, h6) {
+    @apply mt-5 font-semibold leading-tight tracking-tight first:mt-0;
+  }
+  .markdown-preview h1 {
+    @apply border-b pb-1.5 text-2xl;
+  }
+  .markdown-preview h2 {
+    @apply border-b pb-1 text-xl;
+  }
+  .markdown-preview h3 {
+    @apply text-lg;
+  }
+  .markdown-preview h4 {
+    @apply text-base;
+  }
+  .markdown-preview h5 {
+    @apply text-sm;
+  }
+  .markdown-preview h6 {
+    @apply text-sm text-muted-foreground;
+  }
+  .markdown-preview a {
+    @apply text-blue-400 underline underline-offset-2 hover:text-blue-300;
+  }
+  .markdown-preview :is(ul, ol) {
+    @apply pl-6;
+  }
+  .markdown-preview ul {
+    @apply list-disc;
+  }
+  .markdown-preview ol {
+    @apply list-decimal;
+  }
+  .markdown-preview li + li,
+  .markdown-preview li > :is(ul, ol) {
+    @apply mt-1;
+  }
+  .markdown-preview li::marker {
+    @apply text-muted-foreground;
+  }
+  /* GFM task lists: the checkbox replaces the bullet */
+  .markdown-preview li:has(> input[type="checkbox"]) {
+    @apply list-none;
+  }
+  .markdown-preview li > input[type="checkbox"] {
+    @apply mr-2 -ml-5 align-middle;
+  }
+  .markdown-preview blockquote {
+    @apply border-l-4 border-blue-500/50 pl-4 text-muted-foreground;
+  }
+  .markdown-preview code {
+    @apply rounded bg-muted px-1.5 py-0.5 font-mono text-[0.85em];
+  }
+  .markdown-preview pre {
+    @apply overflow-x-auto rounded-lg border bg-background p-3 text-xs leading-relaxed;
+  }
+  .markdown-preview pre code {
+    @apply bg-transparent p-0 text-[1em];
+  }
+  .markdown-preview hr {
+    @apply my-5 border-border;
+  }
+  .markdown-preview table {
+    @apply block w-max max-w-full overflow-x-auto border-collapse text-xs;
+  }
+  .markdown-preview :is(th, td) {
+    @apply border px-3 py-1.5 text-left;
+  }
+  .markdown-preview th {
+    @apply bg-muted font-semibold;
+  }
+  .markdown-preview img {
+    @apply max-w-full rounded;
+  }
+}

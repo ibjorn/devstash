@@ -1,18 +1,32 @@
-# Current Feature
-
-<!-- Feature name and short description -->
+# Current Feature: Markdown Editor
 
 ## Status
 
-<!-- Not Started | In Progress | Completed -->
+In Progress
 
 ## Goals
 
-<!-- Goals & requirements -->
+- New `MarkdownEditor` component (src/components/items/MarkdownEditor.tsx) with Write/Preview tabs
+- Replaces the Textarea for **Note and Prompt** content only; Snippet/Command keep CodeEditor unchanged
+- Renders with `react-markdown` + `remark-gfm` (GitHub Flavored Markdown)
+- Header bar in the same style as CodeEditor, including a copy button
+- Readonly mode (drawer view): Preview only, no tabs
+- Edit mode (NewItemDialog, drawer edit): defaults to Write, Preview available
+- Preview styled via a `.markdown-preview` CSS class: distinct h1–h6, dark code blocks, subtle inline code, indented lists, bordered blockquotes, blue links with hover, bordered tables with header background
+- Fluid height capped at 400px, matching CodeEditor
+- Integration: NewItemDialog, ItemDrawer edit mode, ItemDrawer view mode
 
 ## Notes
 
-<!-- Additional context, constraints, details -->
+- Spec: context/features/markdown-editor-spec.md
+- **Colour conflict to resolve at start:** spec says `bg-[#1e1e1e]` container / `bg-[#2d2d2d]` header, but CodeEditor actually uses `bg-card` (#171717) with a `bg-muted/40` header — and the spec also says "match existing dark theme styling". Recommend matching CodeEditor's tokens so the two editors look like siblings; the spec's hexes are VS Code defaults that CodeEditor moved away from.
+- **Tabs:** no shadcn `tabs` installed (it was added and removed while testing `ui:add`). Options: `npm run ui:add -- tabs`, or two plain `aria-pressed`/`role="tab"` buttons in the header. Tabs component is the honest a11y choice.
+- **Type gate:** mirror `isCodeType()` with an `isMarkdownType()` (Note/Prompt) in src/lib/code-language.ts or a sibling, so form, editor and viewer can't drift — `VisibleFields` gets a `markdown` flag like `code`.
+- **Security:** react-markdown does not render raw HTML by default — keep it that way (no `rehype-raw`). Links from user content should get `rel="noopener noreferrer"` + `target="_blank"`, and `javascript:` URLs are already stripped by react-markdown's default `urlTransform`.
+- `.markdown-preview` goes in src/app/globals.css (Tailwind v4, no config file); no typography plugin requested.
+- New dependencies: `react-markdown`, `remark-gfm`. No schema change.
+- Testable logic: `isMarkdownType()` if added; the component itself is out of test scope.
+- Error text / `aria-describedby` should wire to the Write textarea (unlike Monaco, this one can take it).
 
 ## History
 - 2026-05-12: **Initial Setup** - Next.js and Tailwind setup
