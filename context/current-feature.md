@@ -1,10 +1,31 @@
-# Current Feature
+# Current Feature: Image Gallery View
 
 ## Status
 
+In Progress
+
 ## Goals
 
+- `/items/images` renders a new image thumbnail card instead of `ItemCard`
+- Images show in a 3-column grid/gallery
+- Each thumbnail is 16:9 (`aspect-video`) with `object-cover` (edges may crop)
+- Subtle hover zoom: 5% scale (`scale-105`) with a 300ms transition, clipped by the card
+- Clicking a thumbnail card still opens the item drawer (full `object-contain` preview + Download live there)
+
 ## Notes
+
+- Spec: context/features/image-display-spec.md
+- Thumbnails load through the existing owner-checked proxy `GET /api/items/[id]/file` (private bucket, `Cache-Control: private, max-age=300`) with a plain `<img>` — `next/image`'s optimiser fetches server-side without the session cookie, same reason as the drawer (ItemDrawer.tsx:190-197). No new API or R2 change.
+- `ItemSummary` carries no file fields, and doesn't need to: the card can build `src` from the item id alone. Every Image item has a file by construction (createItem requires an upload for FILE types).
+- There are no generated thumbnails — each card downloads the full original (≤5 MB). Use `loading="lazy"` + `decoding="async"`; real thumbnailing is out of scope.
+- SVG renders fine in `<img>` (never runs script); the proxy already refuses to serve it inline for navigation.
+- Hover zoom needs `overflow-hidden` on the image wrapper and should respect `motion-reduce`.
+- **Decisions to confirm at `start` (recommendations first):**
+  1. **Which listing gets the gallery** — key on the resolved type being the system `Image` type (vs. per-item contentType + image extension). Recommend the type check in the page: simple, and File items stay as regular cards.
+  2. **Grid breakpoints** — spec says 3 columns; recommend keeping the responsive steps (`sm:grid-cols-2 lg:grid-cols-3` or match the existing `md:2 xl:3`) rather than a hard 3 on mobile.
+  3. **Card content below the image** — recommend a slim footer with title + favorite/pin icons (tags/date dropped); spec is silent.
+  4. **Dashboard** — spec says "replace the current item card"; recommend `/items/images` only, dashboard `ItemRow` lists stay as-is.
+- Likely no unit tests: a presentational component + a page branch carry no server-action/utility logic — say so at test time unless a helper emerges.
 
 ## History
 - 2026-05-12: **Initial Setup** - Next.js and Tailwind setup
