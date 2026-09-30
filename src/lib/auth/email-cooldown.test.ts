@@ -4,6 +4,7 @@ import {
   EMAIL_COOLDOWN_MS,
   EMAIL_COOLDOWN_SECONDS,
   formatCountdown,
+  isWithinEmailCooldown,
 } from "@/lib/auth/email-cooldown";
 
 describe("email cooldown", () => {
@@ -21,5 +22,22 @@ describe("email cooldown", () => {
 
   it("never renders a negative countdown", () => {
     expect(formatCountdown(-5)).toBe("0:00");
+  });
+});
+
+describe("isWithinEmailCooldown", () => {
+  const issued = new Date("2026-09-30T12:00:00Z");
+
+  it("is true until the full cooldown has passed", () => {
+    expect(isWithinEmailCooldown(issued, issued.getTime())).toBe(true);
+    expect(
+      isWithinEmailCooldown(issued, issued.getTime() + EMAIL_COOLDOWN_MS - 1),
+    ).toBe(true);
+  });
+
+  it("is false from the moment the cooldown ends", () => {
+    expect(
+      isWithinEmailCooldown(issued, issued.getTime() + EMAIL_COOLDOWN_MS),
+    ).toBe(false);
   });
 });

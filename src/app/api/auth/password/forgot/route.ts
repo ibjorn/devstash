@@ -4,9 +4,10 @@ import {
   findOutstandingResetToken,
   resetTokenIssuedAt,
 } from "@/lib/auth/reset-token";
-import { EMAIL_COOLDOWN_MS } from "@/lib/auth/email-cooldown";
+import { isWithinEmailCooldown } from "@/lib/auth/email-cooldown";
 import { issuePasswordResetEmail } from "@/lib/email/send-password-reset";
 import { forgotPasswordSchema } from "@/lib/validation/auth";
+import { parseJsonBody } from "@/lib/parse-json-body";
 import { checkRateLimit, clientIp, tooManyRequests } from "@/lib/rate-limit";
 
 // Identical for every outcome. Whether the address is unknown, OAuth-only or a
@@ -21,26 +22,10 @@ function acknowledge() {
 // POST /api/auth/password/forgot — request a password reset link.
 // Static segments win over the sibling [...nextauth] catch-all.
 export async function POST(request: Request) {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json(
-      { success: false, error: "Request body must be valid JSON" },
-      { status: 400 },
-    );
-  }
-
-  const parsed = forgotPasswordSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: parsed.error.issues[0]?.message ?? "Enter a valid email address",
-      },
-      { status: 400 },
-    );
-  }
+  const parsed = await parseJsonBody(request, forgotPasswordSchema, {
+    invalid: "Enter a valid email address",
+  });
+  if (parsed.response) return parsed.response;
 
   const { email } = parsed.data;
 
@@ -74,8 +59,7 @@ export async function POST(request: Request) {
       const outstanding = await findOutstandingResetToken(email);
       if (
         outstanding &&
-        Date.now() - resetTokenIssuedAt(outstanding.expires).getTime() <
-          EMAIL_COOLDOWN_MS
+        isWithinEmailCooldown(resetTokenIssuedAt(outstanding.expires))
       ) {
         return;
       }

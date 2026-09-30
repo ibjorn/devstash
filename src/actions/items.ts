@@ -2,16 +2,16 @@
 
 import { ZodError } from "zod";
 
-import { auth } from "@/auth";
-import { Prisma } from "@/generated/prisma/client";
 import {
   createItem as createItemQuery,
   deleteItem as deleteItemQuery,
-  getCreatableItemType,
   getItemDetail,
   isFileKeyInUse,
   updateItem as updateItemQuery,
 } from "@/lib/db/items";
+import { getCreatableItemType } from "@/lib/db/item-types";
+import { getSessionUserId } from "@/lib/db/session-user";
+import { isPrismaError } from "@/lib/prisma-errors";
 import { deleteObject, getObjectSize } from "@/lib/r2";
 import {
   fileNameFromKey,
@@ -159,8 +159,7 @@ function isActionResult(value: unknown): value is ItemActionResult {
 }
 
 export async function createItem(input: unknown): Promise<ItemActionResult> {
-  const session = await auth();
-  const userId = session?.user?.id;
+  const userId = await getSessionUserId();
   if (!userId) {
     return {
       success: false,
@@ -220,8 +219,7 @@ export async function updateItem(
   itemId: string,
   input: unknown,
 ): Promise<ItemActionResult> {
-  const session = await auth();
-  const userId = session?.user?.id;
+  const userId = await getSessionUserId();
   if (!userId) {
     return { success: false, error: "You need to be signed in to edit items." };
   }
@@ -263,10 +261,7 @@ export async function updateItem(
   } catch (error) {
     // The row vanished between the read and the write, or was never the
     // caller's to begin with.
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2025"
-    ) {
+    if (isPrismaError(error, "P2025")) {
       return { success: false, error: "That item no longer exists." };
     }
 
@@ -276,8 +271,7 @@ export async function updateItem(
 }
 
 export async function deleteItem(itemId: string): Promise<ItemActionResult> {
-  const session = await auth();
-  const userId = session?.user?.id;
+  const userId = await getSessionUserId();
   if (!userId) {
     return {
       success: false,
@@ -294,10 +288,7 @@ export async function deleteItem(itemId: string): Promise<ItemActionResult> {
     ({ fileKey } = await deleteItemQuery(userId, itemId));
   } catch (error) {
     // Already deleted — perhaps in another tab — or never the caller's.
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2025"
-    ) {
+    if (isPrismaError(error, "P2025")) {
       return { success: false, error: "That item no longer exists." };
     }
 

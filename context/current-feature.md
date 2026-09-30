@@ -1,10 +1,40 @@
-# Current Feature
+# Current Feature: Refactor — Code Extraction
 
 ## Status
 
+In Progress
+
 ## Goals
 
+Full spec: context/fixes/code-extraction-refactor.md. No behaviour change, no schema change, no new dependency.
+
+**Client**
+- `useItemForm` hook shared by NewItemDialog and ItemEditForm (values, field errors, pending, submit with the try wrapping only the action call)
+- ItemDrawer split into `ItemContentSection`, `ItemFileSection`, `ItemDetailsSection`, plus `ItemSheetHeading` shared with ItemEditForm
+- `useCopyToClipboard()` hook for CodeEditor, MarkdownEditor and CopyItemButton (keeping CopyItemButton's Safari `ClipboardItem` path)
+- `EditorWindowHeader` shared by both editors
+- FileUpload split into `UploadedFilePreview` / `UploadProgress` / `DropZone`; `requestGrant` + `putWithProgress` moved to src/lib/upload-client.ts
+- `ItemTypePicker` extracted from NewItemDialog
+- `CollectionNavItem` in AppSidebar for the Favorites and Recent entries
+
+**Server**
+- `parseJsonBody(request, schema, fallback)` for the 5 JSON routes, keeping responses byte-identical
+- Shared email-cooldown check for password/forgot and verify/resend (still inside `after()`)
+- src/lib/db/items.ts split: type queries and constants → src/lib/db/item-types.ts
+- `connectUserTags`, `toCreatableItemType`
+- `pluralTypeName` / `typeSlug` helpers replacing ~6 ad-hoc `${name}s` sites (must be importable client-side)
+- `isPrismaError(error, code)` for the P2025/P2002 checks
+- Non-throwing session-user helper for the three item actions
+
+**Gate**
+- lint + test + build pass; unit tests for every new server helper; existing action/route test assertions unchanged; no new Prettier violations
+
 ## Notes
+
+- Out of scope: splitting `authorize()` (check order is a security property), CodeEditor's options object, an ItemCard/ItemRow shared shell.
+- Watch `react-hooks/static-components`: no top-level `const Icon = …` in components.
+- Large for one commit; the client/server halves are the natural seam if it needs splitting (ask first).
+- Chrome regression pass: New Item (all types, uploads, switching type), drawer view/edit/save/delete, copy in editors and cards, sidebar groups, forgot/resend/register.
 
 ## History
 - 2026-05-12: **Initial Setup** - Next.js and Tailwind setup

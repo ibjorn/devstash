@@ -26,11 +26,11 @@ vi.mock("@/auth", () => ({ auth }));
 vi.mock("@/lib/db/items", () => ({
   createItem: createItemQuery,
   deleteItem: deleteItemQuery,
-  getCreatableItemType,
   getItemDetail,
   isFileKeyInUse,
   updateItem: updateItemQuery,
 }));
+vi.mock("@/lib/db/item-types", () => ({ getCreatableItemType }));
 vi.mock("@/lib/r2", () => ({ deleteObject, getObjectSize }));
 
 import { createItem, deleteItem, updateItem } from "@/actions/items";

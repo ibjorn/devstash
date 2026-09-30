@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Folder, FolderOpen, Layers, Star } from "lucide-react";
 
+import { CollectionNavItem } from "@/components/dashboard/CollectionNavItem";
 import { SidebarUserMenu } from "@/components/dashboard/SidebarUserMenu";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -99,21 +100,14 @@ export function AppSidebar({
             <SidebarGroupContent>
               <SidebarMenu>
                 {favoriteCollections.map((collection) => (
-                  <SidebarMenuItem key={collection.id}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={pathname === `/collections/${collection.id}`}
-                      tooltip={collection.name}
-                    >
-                      <Link href={`/collections/${collection.id}`}>
-                        <Folder />
-                        <span>{collection.name}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                    <SidebarMenuBadge>
+                  <CollectionNavItem
+                    key={collection.id}
+                    collection={collection}
+                    icon={<Folder />}
+                    badge={
                       <Star className="size-3 fill-yellow-400 text-yellow-400" />
-                    </SidebarMenuBadge>
-                  </SidebarMenuItem>
+                    }
+                  />
                 ))}
               </SidebarMenu>
             </SidebarGroupContent>
@@ -130,28 +124,23 @@ export function AppSidebar({
                 </li>
               )}
               {recentCollections.map((collection) => (
-                <SidebarMenuItem key={collection.id}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname === `/collections/${collection.id}`}
-                    tooltip={collection.name}
-                  >
-                    <Link href={`/collections/${collection.id}`}>
-                      <span className="flex size-4 shrink-0 items-center justify-center">
-                        {/* dot tinted by the collection's most-used item type */}
-                        <span
-                          className="size-2.5 rounded-full"
-                          style={{
-                            backgroundColor:
-                              collection.types[0]?.color ?? "#6b7280",
-                          }}
-                        />
-                      </span>
-                      <span>{collection.name}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                  <SidebarMenuBadge>{collection.itemCount}</SidebarMenuBadge>
-                </SidebarMenuItem>
+                <CollectionNavItem
+                  key={collection.id}
+                  collection={collection}
+                  icon={
+                    <span className="flex size-4 shrink-0 items-center justify-center">
+                      {/* dot tinted by the collection's most-used item type */}
+                      <span
+                        className="size-2.5 rounded-full"
+                        style={{
+                          backgroundColor:
+                            collection.types[0]?.color ?? "#6b7280",
+                        }}
+                      />
+                    </span>
+                  }
+                  badge={collection.itemCount}
+                />
               ))}
               <SidebarMenuItem>
                 <SidebarMenuButton

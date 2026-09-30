@@ -1,12 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Check, Copy } from "lucide-react";
+import { useState } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
+import { EditorWindowHeader } from "@/components/items/EditorWindowHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
@@ -74,60 +72,23 @@ export function MarkdownEditor({
   describedBy,
 }: MarkdownEditorProps) {
   const [tab, setTab] = useState("write");
-  const [copied, setCopied] = useState(false);
-  const copiedTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
-
-  useEffect(() => () => clearTimeout(copiedTimer.current), []);
-
-  async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(value);
-    } catch {
-      toast.error("Could not copy — your browser blocked clipboard access");
-      return;
-    }
-    toast.success("Copied to clipboard");
-    setCopied(true);
-    // Restart rather than stack, or an earlier click's timer cuts this one short
-    clearTimeout(copiedTimer.current);
-    copiedTimer.current = setTimeout(() => setCopied(false), 2000);
-  }
-
   const header = (
-    <div className="flex items-center justify-between gap-2 border-b bg-muted/40 px-3 py-1.5">
-      <div className="flex items-center gap-1.5" aria-hidden>
-        <span className="size-3 rounded-full bg-[#ff5f57]" />
-        <span className="size-3 rounded-full bg-[#febc2e]" />
-        <span className="size-3 rounded-full bg-[#28c840]" />
-      </div>
-      <div className="flex min-w-0 items-center gap-1">
-        {readOnly ? (
-          <span className="font-mono text-xs text-muted-foreground">
-            markdown
-          </span>
-        ) : (
-          <TabsList variant="line" className="h-6! p-0">
-            <TabsTrigger value="write" className="px-2 text-xs">
-              Write
-            </TabsTrigger>
-            <TabsTrigger value="preview" className="px-2 text-xs">
-              Preview
-            </TabsTrigger>
-          </TabsList>
-        )}
-        <Button
-          // Sits inside the item forms; without this it would submit them
-          type="button"
-          variant="ghost"
-          size="icon-xs"
-          onClick={handleCopy}
-          disabled={!value}
-          aria-label="Copy markdown"
-        >
-          {copied ? <Check /> : <Copy />}
-        </Button>
-      </div>
-    </div>
+    <EditorWindowHeader value={value} copyLabel="Copy markdown">
+      {readOnly ? (
+        <span className="font-mono text-xs text-muted-foreground">
+          markdown
+        </span>
+      ) : (
+        <TabsList variant="line" className="h-6! p-0">
+          <TabsTrigger value="write" className="px-2 text-xs">
+            Write
+          </TabsTrigger>
+          <TabsTrigger value="preview" className="px-2 text-xs">
+            Preview
+          </TabsTrigger>
+        </TabsList>
+      )}
+    </EditorWindowHeader>
   );
 
   const frame = cn(

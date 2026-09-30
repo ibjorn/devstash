@@ -1,15 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import Editor, {
   loader,
   type Monaco,
   type OnMount,
 } from "@monaco-editor/react";
-import { Check, Copy } from "lucide-react";
-import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
+import { EditorWindowHeader } from "@/components/items/EditorWindowHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toMonacoLanguage } from "@/lib/code-language";
 import { MONACO_CDN_PATH } from "@/lib/monaco";
@@ -83,10 +81,6 @@ export function CodeEditor({
   const [contentHeight, setContentHeight] = useState(() =>
     estimateHeight(value),
   );
-  const [copied, setCopied] = useState(false);
-  const copiedTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
-
-  useEffect(() => () => clearTimeout(copiedTimer.current), []);
 
   const height = Math.min(
     Math.max(contentHeight, readOnly ? 0 : MIN_EDIT_HEIGHT),
@@ -101,20 +95,6 @@ export function CodeEditor({
     );
   };
 
-  async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(value);
-    } catch {
-      toast.error("Could not copy — your browser blocked clipboard access");
-      return;
-    }
-    toast.success("Copied to clipboard");
-    setCopied(true);
-    // Restart rather than stack, or an earlier click's timer cuts this one short
-    clearTimeout(copiedTimer.current);
-    copiedTimer.current = setTimeout(() => setCopied(false), 2000);
-  }
-
   return (
     <div
       className={cn(
@@ -122,31 +102,13 @@ export function CodeEditor({
         invalid && "border-destructive",
       )}
     >
-      <div className="flex items-center justify-between gap-2 border-b bg-muted/40 px-3 py-1.5">
-        <div className="flex items-center gap-1.5" aria-hidden>
-          <span className="size-3 rounded-full bg-[#ff5f57]" />
-          <span className="size-3 rounded-full bg-[#febc2e]" />
-          <span className="size-3 rounded-full bg-[#28c840]" />
-        </div>
-        <div className="flex min-w-0 items-center gap-1">
-          {language && (
-            <span className="truncate font-mono text-xs text-muted-foreground">
-              {language}
-            </span>
-          )}
-          <Button
-            // Sits inside the item forms; without this it would submit them
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            onClick={handleCopy}
-            disabled={!value}
-            aria-label="Copy code"
-          >
-            {copied ? <Check /> : <Copy />}
-          </Button>
-        </div>
-      </div>
+      <EditorWindowHeader value={value} copyLabel="Copy code">
+        {language && (
+          <span className="truncate font-mono text-xs text-muted-foreground">
+            {language}
+          </span>
+        )}
+      </EditorWindowHeader>
 
       <Editor
         height={height}

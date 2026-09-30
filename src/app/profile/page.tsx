@@ -15,7 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getDashboardStats } from "@/lib/db/dashboard";
-import { getItemTypeNavItems } from "@/lib/db/items";
+import { getItemTypeNavItems } from "@/lib/db/item-types";
 import { requireUserId } from "@/lib/db/session-user";
 import { getProfileUser } from "@/lib/db/users";
 

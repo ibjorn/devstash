@@ -1,44 +1,8 @@
 import type { ItemContentType, Prisma } from "@/generated/prisma/client";
 
 import { prisma } from "@/lib/prisma";
-import type {
-  CreatableItemType,
-  ItemDetail,
-  ItemSummary,
-  ItemTypeListing,
-  ItemTypeNavItem,
-} from "@/types/items";
-
-// Display order for system types; the table has no sort column
-const SYSTEM_TYPE_ORDER = [
-  "Snippet",
-  "Prompt",
-  "Command",
-  "Note",
-  "File",
-  "Image",
-  "Link",
-];
-
-// Pro-only system types, keyed by singular name
-const PRO_TYPE_NAMES = new Set(["File", "Image"]);
-
-// ItemType has no contentType column — it lives on each Item — so a new item's
-// is decided by its system type here. Anything not listed stores text.
-const SYSTEM_TYPE_CONTENT: Record<string, ItemContentType> = {
-  Link: "URL",
-  File: "FILE",
-  Image: "FILE",
-};
-
-function contentTypeFor(typeName: string): ItemContentType {
-  return SYSTEM_TYPE_CONTENT[typeName] ?? "TEXT";
-}
-
-function systemTypeOrder(name: string): number {
-  const index = SYSTEM_TYPE_ORDER.indexOf(name);
-  return index === -1 ? SYSTEM_TYPE_ORDER.length : index;
-}
+import { singularFromSlug } from "@/lib/type-names";
+import type { ItemDetail, ItemSummary, ItemTypeListing } from "@/types/items";
 
 const itemSummarySelect = {
   id: true,
@@ -70,39 +34,6 @@ function toItemSummary(item: ItemSummaryRow): ItemSummary {
   };
 }
 
-export async function getItemTypeNavItems(
-  userId: string
-): Promise<ItemTypeNavItem[]> {
-  const types = await prisma.itemType.findMany({
-    where: { isSystem: true },
-    select: {
-      id: true,
-      name: true,
-      icon: true,
-      color: true,
-      _count: {
-        select: { items: { where: { userId } } },
-      },
-    },
-  });
-
-  return types
-    .sort((a, b) => systemTypeOrder(a.name) - systemTypeOrder(b.name))
-    .map((type) => {
-      // All system type names pluralize regularly ("Snippet" -> "Snippets")
-      const plural = `${type.name}s`;
-      return {
-        id: type.id,
-        name: plural,
-        slug: plural.toLowerCase(),
-        icon: type.icon,
-        color: type.color,
-        count: type._count.items,
-        isPro: PRO_TYPE_NAMES.has(type.name),
-      };
-    });
-}
-
 export async function getPinnedItems(
   userId: string,
   limit = 10
@@ -129,15 +60,6 @@ export async function getRecentItems(
   });
 
   return items.map(toItemSummary);
-}
-
-// "snippets" -> "snippet". Mirrors the pluralization getItemTypeNavItems uses
-// to build the slugs the sidebar links to; all system type names are regular.
-// Lowercased first so the trailing "s" is stripped whatever case the URL used
-// — the name match below is case-insensitive, and this has to agree with it.
-function singularFromSlug(slug: string): string {
-  const normalized = slug.toLowerCase();
-  return normalized.endsWith("s") ? normalized.slice(0, -1) : normalized;
 }
 
 /**
@@ -236,6 +158,20 @@ type TransactionClient = Parameters<
 >[0];
 
 /**
+ * Connect an item to the user's tags by name, creating any that don't exist.
+ * Tag rows are per-user, so `userId_name` is the unique one user's vocabulary
+ * is keyed on — a name another user already holds is a different row.
+ */
+function connectUserTags(userId: string, names: string[]) {
+  return {
+    connectOrCreate: names.map((name) => ({
+      where: { userId_name: { userId, name } },
+      create: { name, userId },
+    })),
+  } satisfies Prisma.TagCreateNestedManyWithoutItemsInput;
+}
+
+/**
  * Delete the user's tags that no item references any more. Tags only exist to
  * label items, so an unreferenced one is dead weight — and scoped to one user,
  * it can't race anyone else's save now that tags are per-user.
@@ -253,10 +189,8 @@ async function sweepOrphanTags(tx: TransactionClient, userId: string) {
  * Prisma raises P2025 exactly as it does for an id that never existed.
  *
  * Tags are replaced wholesale — every existing link is dropped and the new set
- * connected or created. Tag rows are per-user, so `userId_name` is the unique
- * one user's vocabulary is keyed on and a name another user already holds is a
- * different row entirely. Tags the edit leaves unused are swept in the same
- * transaction.
+ * connected or created per user. Tags the edit leaves unused are swept in the
+ * same transaction.
  */
 export async function updateItem(
   userId: string,
@@ -272,13 +206,7 @@ export async function updateItem(
         content: data.content,
         url: data.url,
         language: data.language,
-        tags: {
-          set: [],
-          connectOrCreate: data.tags.map((name) => ({
-            where: { userId_name: { userId, name } },
-            create: { name, userId },
-          })),
-        },
+        tags: { set: [], ...connectUserTags(userId, data.tags) },
       },
       select: itemDetailSelect,
     });
@@ -345,52 +273,6 @@ export async function getItemFile(
   return { key: item.fileUrl, fileName: item.fileName };
 }
 
-// Every system type, File and Image included: they're Pro-only, but Pro gating
-// stays bypassed during development (see the project overview), so they're
-// only badged in the sidebar for now. Custom types join this list when they
-// ship.
-const creatableTypeWhere = {
-  isSystem: true,
-} satisfies Prisma.ItemTypeWhereInput;
-
-/** The types the New Item dialog offers, in sidebar order. */
-export async function getCreatableItemTypes(): Promise<CreatableItemType[]> {
-  const types = await prisma.itemType.findMany({
-    where: creatableTypeWhere,
-    select: { id: true, name: true, icon: true, color: true },
-  });
-
-  return types
-    .sort((a, b) => systemTypeOrder(a.name) - systemTypeOrder(b.name))
-    .map((type) => ({
-      ...type,
-      slug: `${type.name}s`.toLowerCase(),
-      contentType: contentTypeFor(type.name),
-    }));
-}
-
-/**
- * Resolve a type id a caller wants to create an item with. Returns null for
- * anything the dialog wouldn't have offered — an unknown id or another user's
- * custom type — so the id is never trusted as sent.
- */
-export async function getCreatableItemType(
-  id: string,
-): Promise<CreatableItemType | null> {
-  const type = await prisma.itemType.findFirst({
-    where: { id, ...creatableTypeWhere },
-    select: { id: true, name: true, icon: true, color: true },
-  });
-
-  if (!type) return null;
-
-  return {
-    ...type,
-    slug: `${type.name}s`.toLowerCase(),
-    contentType: contentTypeFor(type.name),
-  };
-}
-
 export interface CreateItemData extends UpdateItemData {
   itemTypeId: string;
   contentType: ItemContentType;
@@ -424,12 +306,7 @@ export async function createItem(
       fileUrl: data.fileUrl,
       fileName: data.fileName,
       fileSize: data.fileSize,
-      tags: {
-        connectOrCreate: data.tags.map((name) => ({
-          where: { userId_name: { userId, name } },
-          create: { name, userId },
-        })),
-      },
+      tags: connectUserTags(userId, data.tags),
     },
     select: itemDetailSelect,
   });

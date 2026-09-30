@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { auth } from "@/auth";
-import { getCreatableItemType } from "@/lib/db/items";
+import { getCreatableItemType } from "@/lib/db/item-types";
 import { createUploadUrl } from "@/lib/r2";
 import { checkRateLimit, tooManyRequests } from "@/lib/rate-limit";
 import {
@@ -10,6 +10,7 @@ import {
   uploadKindFor,
   validateUpload,
 } from "@/lib/uploads";
+import { parseJsonBody } from "@/lib/parse-json-body";
 import { requestUploadSchema } from "@/lib/validation/items";
 
 function badRequest(error: string) {
@@ -35,17 +36,11 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return badRequest("Invalid request body");
-  }
-
-  const parsed = requestUploadSchema.safeParse(body);
-  if (!parsed.success) {
-    return badRequest(parsed.error.issues[0]?.message ?? "Invalid request");
-  }
+  const parsed = await parseJsonBody(request, requestUploadSchema, {
+    invalid: "Invalid request",
+    invalidJson: "Invalid request body",
+  });
+  if (parsed.response) return parsed.response;
   const { itemTypeId, fileName, fileSize, mimeType } = parsed.data;
 
   const type = await getCreatableItemType(itemTypeId);

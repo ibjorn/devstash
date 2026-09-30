@@ -8,6 +8,7 @@ import { ItemCard } from "@/components/items/ItemCard";
 import { ItemTypeIcon } from "@/components/items/ItemTypeIcon";
 import { getItemsByTypeSlug } from "@/lib/db/items";
 import { requireUserId } from "@/lib/db/session-user";
+import { pluralTypeName } from "@/lib/type-names";
 import { typeIcons } from "@/lib/type-icons";
 import { uploadKindFor } from "@/lib/uploads";
 
@@ -37,9 +38,8 @@ export default async function ItemsPage({ params }: ItemsPageProps) {
   const userId = await requireUserId();
   const { type, items } = await getItemsByTypeSlug(userId, slug);
 
-  // System type names are singular in the database; the sidebar and this
-  // heading both show them pluralized
-  const heading = type ? `${type.name}s` : titleFromSlug(slug);
+  // Singular in the database; the sidebar and this heading both pluralize
+  const heading = type ? pluralTypeName(type.name) : titleFromSlug(slug);
   const Icon = type ? (typeIcons[type.icon] ?? File) : Layers;
   // Images get a thumbnail gallery, Files a Drive-style list; every other
   // type keeps the regular card

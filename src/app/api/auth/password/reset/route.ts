@@ -6,6 +6,7 @@ import {
   lookupPasswordResetToken,
 } from "@/lib/auth/reset-token";
 import { resetPasswordSchema } from "@/lib/validation/auth";
+import { parseJsonBody } from "@/lib/parse-json-body";
 import { checkRateLimit, clientIp, tooManyRequests } from "@/lib/rate-limit";
 
 // One message for every dead token. Distinguishing "never existed" from
@@ -20,19 +21,10 @@ function badRequest(error: string) {
 
 // POST /api/auth/password/reset — spend a reset token and set the password.
 export async function POST(request: Request) {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return badRequest("Request body must be valid JSON");
-  }
-
-  const parsed = resetPasswordSchema.safeParse(body);
-  if (!parsed.success) {
-    return badRequest(
-      parsed.error.issues[0]?.message ?? "Invalid password details",
-    );
-  }
+  const parsed = await parseJsonBody(request, resetPasswordSchema, {
+    invalid: "Invalid password details",
+  });
+  if (parsed.response) return parsed.response;
 
   const { token, password } = parsed.data;
 

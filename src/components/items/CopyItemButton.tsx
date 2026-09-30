@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Check, Copy, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { cn } from "@/lib/utils";
 import type { ItemSummary } from "@/types/items";
 
@@ -54,10 +55,7 @@ async function writeToClipboard(text: Promise<string>) {
  */
 export function CopyItemButton({ item, className }: CopyItemButtonProps) {
   const [pending, setPending] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const copiedTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
-
-  useEffect(() => () => clearTimeout(copiedTimer.current), []);
+  const { copied, markCopied } = useCopyToClipboard();
 
   if (!isCopyable(item)) return null;
 
@@ -83,11 +81,7 @@ export function CopyItemButton({ item, className }: CopyItemButtonProps) {
     } finally {
       setPending(false);
     }
-    toast.success("Copied to clipboard");
-    setCopied(true);
-    // Restart rather than stack, or an earlier click's timer cuts this one short
-    clearTimeout(copiedTimer.current);
-    copiedTimer.current = setTimeout(() => setCopied(false), 2000);
+    markCopied();
   }
 
   const Icon = pending ? Loader2 : copied ? Check : Copy;

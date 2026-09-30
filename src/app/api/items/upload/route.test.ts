@@ -9,7 +9,7 @@ const { auth, getCreatableItemType, createUploadUrl, checkRateLimit } =
   }));
 
 vi.mock("@/auth", () => ({ auth }));
-vi.mock("@/lib/db/items", () => ({ getCreatableItemType }));
+vi.mock("@/lib/db/item-types", () => ({ getCreatableItemType }));
 vi.mock("@/lib/r2", () => ({ createUploadUrl }));
 vi.mock("@/lib/rate-limit", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/rate-limit")>()),

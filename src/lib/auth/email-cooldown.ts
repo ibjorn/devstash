@@ -19,3 +19,14 @@ export function formatCountdown(seconds: number): string {
   const minutes = Math.floor(whole / 60);
   return `${minutes}:${String(whole % 60).padStart(2, "0")}`;
 }
+
+/**
+ * Whether an email issued at `issuedAt` is still inside the cooldown, so a
+ * repeat request should be silently skipped rather than sending again.
+ */
+export function isWithinEmailCooldown(
+  issuedAt: Date,
+  now: number = Date.now(),
+): boolean {
+  return now - issuedAt.getTime() < EMAIL_COOLDOWN_MS;
+}

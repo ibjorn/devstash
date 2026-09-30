@@ -4,9 +4,10 @@ import {
   findOutstandingToken,
   tokenIssuedAt,
 } from "@/lib/auth/verification-token";
-import { EMAIL_COOLDOWN_MS } from "@/lib/auth/email-cooldown";
+import { isWithinEmailCooldown } from "@/lib/auth/email-cooldown";
 import { issueVerificationEmail } from "@/lib/email/send-verification";
 import { resendVerificationSchema } from "@/lib/validation/auth";
+import { parseJsonBody } from "@/lib/parse-json-body";
 import { skipEmailVerification } from "@/lib/auth/verification-flag";
 import {
   checkRateLimit,
@@ -26,27 +27,10 @@ function acknowledge() {
 
 // POST /api/auth/verify/resend — request a fresh verification link.
 export async function POST(request: Request) {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json(
-      { success: false, error: "Request body must be valid JSON" },
-      { status: 400 },
-    );
-  }
-
-  const parsed = resendVerificationSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      {
-        success: false,
-        error:
-          parsed.error.issues[0]?.message ?? "Enter a valid email address",
-      },
-      { status: 400 },
-    );
-  }
+  const parsed = await parseJsonBody(request, resendVerificationSchema, {
+    invalid: "Enter a valid email address",
+  });
+  if (parsed.response) return parsed.response;
 
   const { email } = parsed.data;
 
@@ -86,8 +70,7 @@ export async function POST(request: Request) {
       const outstanding = await findOutstandingToken(email);
       if (
         outstanding &&
-        Date.now() - tokenIssuedAt(outstanding.expires).getTime() <
-          EMAIL_COOLDOWN_MS
+        isWithinEmailCooldown(tokenIssuedAt(outstanding.expires))
       ) {
         return;
       }

@@ -9,7 +9,10 @@ import {
   getFavoriteCollections,
   getRecentNonFavoriteCollections,
 } from "@/lib/db/collections";
-import { getCreatableItemTypes, getItemTypeNavItems } from "@/lib/db/items";
+import {
+  getCreatableItemTypes,
+  getItemTypeNavItems,
+} from "@/lib/db/item-types";
 import { requireUserId } from "@/lib/db/session-user";
 import { getCurrentUser } from "@/lib/db/users";
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+import { isPrismaError } from "@/lib/prisma-errors";
+import { parseJsonBody } from "@/lib/parse-json-body";
 import { hashPassword } from "@/lib/auth/password";
 import { registerSchema } from "@/lib/validation/auth";
 import { issueVerificationEmail } from "@/lib/email/send-verification";
@@ -12,26 +13,10 @@ const EMAIL_TAKEN = "An account with that email already exists";
 // Static segments win over the sibling [...nextauth] catch-all, so this owns
 // POST /api/auth/register.
 export async function POST(request: Request) {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json(
-      { success: false, error: "Request body must be valid JSON" },
-      { status: 400 },
-    );
-  }
-
-  const parsed = registerSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: parsed.error.issues[0]?.message ?? "Invalid registration details",
-      },
-      { status: 400 },
-    );
-  }
+  const parsed = await parseJsonBody(request, registerSchema, {
+    invalid: "Invalid registration details",
+  });
+  if (parsed.response) return parsed.response;
 
   const { name, email, password } = parsed.data;
 
@@ -91,10 +76,7 @@ export async function POST(request: Request) {
   } catch (error) {
     // Two concurrent registrations can slip past the check above; the unique
     // index is the real guard
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
-    ) {
+    if (isPrismaError(error, "P2002")) {
       return NextResponse.json(
         { success: false, error: EMAIL_TAKEN },
         { status: 409 },
