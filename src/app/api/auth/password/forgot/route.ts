@@ -4,15 +4,10 @@ import {
   findOutstandingResetToken,
   resetTokenIssuedAt,
 } from "@/lib/auth/reset-token";
+import { EMAIL_COOLDOWN_MS } from "@/lib/auth/email-cooldown";
 import { issuePasswordResetEmail } from "@/lib/email/send-password-reset";
 import { forgotPasswordSchema } from "@/lib/validation/auth";
 import { checkRateLimit, clientIp, tooManyRequests } from "@/lib/rate-limit";
-
-/**
- * Minimum gap between two reset emails for the same address. Matches the
- * verification resend cooldown so the two public endpoints behave alike.
- */
-const COOLDOWN_MS = 5 * 60 * 1000;
 
 // Identical for every outcome. Whether the address is unknown, OAuth-only or a
 // live password account, the caller learns nothing about which.
@@ -80,7 +75,7 @@ export async function POST(request: Request) {
       if (
         outstanding &&
         Date.now() - resetTokenIssuedAt(outstanding.expires).getTime() <
-          COOLDOWN_MS
+          EMAIL_COOLDOWN_MS
       ) {
         return;
       }

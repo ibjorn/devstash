@@ -4,6 +4,7 @@ import {
   findOutstandingToken,
   tokenIssuedAt,
 } from "@/lib/auth/verification-token";
+import { EMAIL_COOLDOWN_MS } from "@/lib/auth/email-cooldown";
 import { issueVerificationEmail } from "@/lib/email/send-verification";
 import { resendVerificationSchema } from "@/lib/validation/auth";
 import { skipEmailVerification } from "@/lib/auth/verification-flag";
@@ -13,9 +14,6 @@ import {
   ipEmailKey,
   tooManyRequests,
 } from "@/lib/rate-limit";
-
-/** Minimum gap between two verification emails for the same address. */
-const COOLDOWN_MS = 5 * 60 * 1000;
 
 // Identical for every outcome. Whether the address is unknown, already
 // verified, or genuinely pending, the caller learns nothing about which.
@@ -88,7 +86,8 @@ export async function POST(request: Request) {
       const outstanding = await findOutstandingToken(email);
       if (
         outstanding &&
-        Date.now() - tokenIssuedAt(outstanding.expires).getTime() < COOLDOWN_MS
+        Date.now() - tokenIssuedAt(outstanding.expires).getTime() <
+          EMAIL_COOLDOWN_MS
       ) {
         return;
       }

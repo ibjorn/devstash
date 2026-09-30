@@ -65,6 +65,21 @@ describe("updateItemSchema", () => {
     );
   });
 
+  it("accepts only http and https URLs", () => {
+    expect(
+      updateItemSchema.safeParse({ ...base, url: "http://localhost:3000/" })
+        .success,
+    ).toBe(true);
+    for (const url of [
+      "javascript:alert(1)",
+      "data:text/html,<script>alert(1)</script>",
+      "file:///etc/passwd",
+      "ftp://example.com/file",
+    ]) {
+      expect(updateItemSchema.safeParse({ ...base, url }).success).toBe(false);
+    }
+  });
+
   it("treats an emptied URL as clearing the field, not as an invalid URL", () => {
     const result = updateItemSchema.safeParse({ ...base, url: "" });
 

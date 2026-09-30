@@ -7,6 +7,10 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  EMAIL_COOLDOWN_SECONDS,
+  formatCountdown,
+} from "@/lib/auth/email-cooldown";
 import { stripSearchParam } from "@/lib/url-params";
 import { forgotPasswordSchema } from "@/lib/validation/auth";
 
@@ -14,15 +18,6 @@ interface ForgotPasswordFormProps {
   /** Handed over by /reset-password as ?error=... when a link was unusable */
   initialError?: string;
 }
-
-/**
- * How long the button stays disabled after a send. Matches the server's
- * per-address cooldown: a second request inside that window is silently
- * ignored anyway, so offering the button back would only invite a click that
- * does nothing — or, if it lands before the first request's deferred send has
- * finished, a duplicate email.
- */
-const RESEND_LOCKOUT_SECONDS = 60;
 
 export function ForgotPasswordForm({ initialError }: ForgotPasswordFormProps) {
   const [fieldError, setFieldError] = useState<string | undefined>();
@@ -77,7 +72,11 @@ export function ForgotPasswordForm({ initialError }: ForgotPasswordFormProps) {
       // The endpoint answers identically for every address, so this says the
       // same thing whether or not an account exists
       setSent(true);
-      setLockout(RESEND_LOCKOUT_SECONDS);
+      // A second request inside the server's cooldown is silently ignored, so
+      // offering the button back sooner would only invite a click that does
+      // nothing — or, if it lands before the first request's deferred send
+      // has finished, a duplicate email.
+      setLockout(EMAIL_COOLDOWN_SECONDS);
       toast.success("Check your inbox", { description: result?.data?.message });
     } catch {
       toast.error("Could not reach the server. Please try again.");
@@ -109,7 +108,7 @@ export function ForgotPasswordForm({ initialError }: ForgotPasswordFormProps) {
       <Button type="submit" className="w-full" disabled={pending || lockout > 0}>
         {pending && <Loader2 className="size-4 animate-spin" />}
         {lockout > 0
-          ? `Send another link (${lockout}s)`
+          ? `Send another link (${formatCountdown(lockout)})`
           : sent
             ? "Send another link"
             : "Send reset link"}

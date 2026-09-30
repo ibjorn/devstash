@@ -46,8 +46,9 @@ export const UPLOAD_RULES: Record<UploadKind, UploadRule> = {
 };
 
 // What the download proxy serves each extension as. Chosen here rather than
-// read back from R2: the presigned PUT doesn't sign Content-Type, so whatever
-// the object was stored with is caller-controlled.
+// read back from R2: the presigned PUT does sign Content-Type (see r2.ts), but
+// deriving it from the extension keeps the proxy's headers independent of
+// whatever an object in the bucket happens to have been stored with.
 const SERVE_AS: Record<string, string> = {
   png: "image/png",
   jpg: "image/jpeg",

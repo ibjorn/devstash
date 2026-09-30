@@ -1,10 +1,23 @@
-# Current Feature
+# Current Feature: Fix — Audit Quick Wins
 
 ## Status
+In Progress
 
 ## Goals
+- **Open redirect closed:** `safeRedirectPath` (src/lib/auth-redirect.ts) rejects `/\evil.com`, `/\t/evil.com` and any value containing `\` or an ASCII control character; both bypasses added to `auth-redirect.test.ts`, and the existing cases (`//evil.com`, `https://evil.com`, `/dashboard/items`, non-strings) still pass
+- **Resend lockout matches the server cooldown:** one exported cooldown constant used by `/api/auth/password/forgot`, `ForgotPasswordForm` and `SetPasswordButton`, so the buttons stay locked for the full 5 minutes instead of 60s
+- **Link URLs are http(s) only:** the `url` field in src/lib/validation/items.ts rejects `javascript:`, `data:` and `file:` URLs, and the existing error copy ("including http:// or https://") becomes true; tests added
+- **ChangePasswordDialog success path moved out of the `try`:** only `await changePassword(formData)` is wrapped, matching ItemEditForm, DeleteItemDialog and NewItemDialog
+- **Stale comments corrected:** src/lib/uploads.ts:48-50 (Content-Type *is* signed on the presigned PUT, see r2.ts), src/auth.config.ts:75-76 and src/lib/db/session-user.ts:5-6 (proxy matcher now also covers `/items` and `/profile`)
+- `npm run lint`, `npm test` and `npm run build` pass
 
 ## Notes
+- Source: code-scanner audit of 2026-09-30. These are the "Fix first" and "Low" findings judged low-risk; everything here is a small, contained change with no schema change, migration or new dependency.
+- **Open redirect, how it happens:** the guard only checks `startsWith("/")` and `!startsWith("//")`. Browsers treat `\` as `/` in http(s) URLs and strip tab/newline, so `new URL("/\\evil.com", "http://localhost:3000")` resolves to `http://evil.com/` (confirmed in Node). The sink is the signed-in `redirect(target)` in src/app/(auth)/sign-in/page.tsx:87, so a signed-in user clicking `/sign-in?callbackUrl=/%5Cevil.com` lands off-site. Credentials and GitHub sign-in are **not** affected, because Auth.js's redirect callback prefixes `baseUrl`. Preferred fix: parse with `new URL(value, "http://x")` and require `origin === "http://x"`, falling back to the default path, rather than growing a character blacklist. Returning the parsed `pathname + search + hash` also normalises the value.
+- **Cooldown mismatch, why it matters:** both components' comments already claim to "match the server's per-address cooldown" at 60s, while `COOLDOWN_MS` in forgot/route.ts is `5 * 60 * 1000`. Between 60s and 5min, a click toasts "Check your inbox", the server silently skips the send, and one of the IP's 3/hour `passwordForgot` rate-limit tokens is still spent. The constant must live in a module the client components can import without pulling in server code: not the route file, and not anything that imports Prisma.
+- **URL scheme:** not exploitable today, since URLs only render as text (no `href` anywhere), but it becomes live the day Link cards render as `<a href>`. Use `z.url({ protocol: /^https?$/ })` in the refine. All 6 seeded links are `https://`. The only edge is a user's existing item with a non-http URL, which would fail validation on its next edit; none are known to exist.
+- Out of scope, and specced separately in context/fixes/audit-cleanup.md: the `toFieldErrors` extraction and the `ItemTypeIcon` `size` prop reuse.
+- Not taken (bigger than a quick win): deduplicating the system-type queries in AppShell, R2 cleanup in `db:seed` / `delete-non-demo-users.ts`, the ItemCard/ItemRow shell, the auth-route body-parsing helper, the plural/slug helpers, and splitting items.ts / ItemDrawer / NewItemDialog.
 
 ## History
 - 2026-05-12: **Initial Setup** - Next.js and Tailwind setup

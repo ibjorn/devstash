@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { changePassword } from "@/actions/profile";
+import { changePassword, type ProfileActionResult } from "@/actions/profile";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -69,23 +69,27 @@ export function ChangePasswordDialog() {
     }
 
     setPending(true);
+    let result: ProfileActionResult;
+    // Only the call itself is wrapped: a throw after a successful change must
+    // not toast "Could not reach the server" over a password that did update
     try {
-      const result = await changePassword(formData);
-
-      if (!result.success) {
-        if (result.fieldErrors) setFieldErrors(result.fieldErrors);
-        if (result.error) toast.error(result.error);
-        return;
-      }
-
-      form.reset();
-      handleOpenChange(false);
-      toast.success("Password updated");
+      result = await changePassword(formData);
     } catch {
       toast.error("Could not reach the server. Please try again.");
+      return;
     } finally {
       setPending(false);
     }
+
+    if (!result.success) {
+      if (result.fieldErrors) setFieldErrors(result.fieldErrors);
+      if (result.error) toast.error(result.error);
+      return;
+    }
+
+    form.reset();
+    handleOpenChange(false);
+    toast.success("Password updated");
   }
 
   return (

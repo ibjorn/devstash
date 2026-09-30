@@ -5,17 +5,14 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import {
+  EMAIL_COOLDOWN_SECONDS,
+  formatCountdown,
+} from "@/lib/auth/email-cooldown";
 
 interface SetPasswordButtonProps {
   email: string;
 }
-
-/**
- * Matches the per-address cooldown the forgot-password endpoint enforces — a
- * second request inside that window is ignored anyway, so re-enabling the
- * button would only invite a click that does nothing.
- */
-const LOCKOUT_SECONDS = 60;
 
 /**
  * For GitHub-only accounts. Rather than setting a password straight from the
@@ -51,7 +48,9 @@ export function SetPasswordButton({ email }: SetPasswordButtonProps) {
       }
 
       setSent(true);
-      setLockout(LOCKOUT_SECONDS);
+      // The server ignores a second request inside its cooldown, so re-enabling
+      // the button sooner would only invite a click that does nothing
+      setLockout(EMAIL_COOLDOWN_SECONDS);
       toast.success("Check your inbox", { description: result?.data?.message });
     } catch {
       toast.error("Could not reach the server. Please try again.");
@@ -69,7 +68,7 @@ export function SetPasswordButton({ email }: SetPasswordButtonProps) {
       >
         {pending && <Loader2 className="size-4 animate-spin" />}
         {lockout > 0
-          ? `Email me a set-up link (${lockout}s)`
+          ? `Email me a set-up link (${formatCountdown(lockout)})`
           : sent
             ? "Send another link"
             : "Email me a set-up link"}

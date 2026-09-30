@@ -73,7 +73,8 @@ export default {
     // callback in src/auth.ts, which only permits the link when the existing
     // user's emailVerified is set. The proxy builds its own instance from this
     // config without that callback, but it never handles a sign-in — its
-    // matcher is /dashboard/:path* — so the ungated flag is unreachable there.
+    // matcher only covers app pages (/dashboard, /items, /profile), never
+    // /api/auth — so the ungated flag is unreachable there.
     GitHub({
       allowDangerousEmailAccountLinking: true,
       userinfo: {

@@ -50,7 +50,10 @@ export const updateItemSchema = z.object({
     .nullable()
     .default(null)
     .refine(
-      (value) => value === null || z.url().safeParse(value).success,
+      // z.url() alone accepts any scheme, javascript: and data: included
+      (value) =>
+        value === null ||
+        z.url({ protocol: /^https?$/ }).safeParse(value).success,
       "Enter a valid URL, including http:// or https://",
     ),
   // Normalised before the limits are applied, so "react, React" counts once
