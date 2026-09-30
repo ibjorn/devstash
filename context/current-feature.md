@@ -1,10 +1,26 @@
-# Current Feature
+# Current Feature: File List View
 
 ## Status
+In Progress
 
 ## Goals
+- `/items/files` renders a single-column list (Google Drive / Dropbox style) instead of the card grid; every other type keeps its current view (Images keep the gallery)
+- Each row shows: an icon chosen by file extension, the file name, file size, upload date and a Download button
+- Rows highlight on hover
+- Clicking a row opens the item in the ItemDrawer
+- The Download button downloads the file directly and does not open the drawer (stop propagation)
+- On mobile the row's info stacks vertically instead of sitting in columns
 
 ## Notes
+- Spec: context/features/file-display-spec.md
+- **Query change needed.** `ItemSummary` has no file fields (Image Gallery didn't need any, since its `src` is built from the item id). The list needs `fileName` and `fileSize`, so either add them to `itemSummarySelect`/`ItemSummary` (both nullable, same as `ItemDetail`), or add a file-listing variant used only by this page. No schema change: the columns have existed since Database Setup.
+- **Download** goes through the existing owner-checked proxy `GET /api/items/[id]/file?download=1`, which already sets `Content-Disposition: attachment`. No new route.
+- **Nested interactive elements:** ItemCard/ImageCard are whole-card `<button>`s, and a download link or button can't sit inside a `<button>` (invalid HTML, and screen readers flatten it). The row needs a different structure, e.g. a `<div>` row holding a full-row button (or stretched-link overlay) with the Download link as a sibling above it. `stopPropagation` alone doesn't fix the markup.
+- **Extension icons:** only these extensions can be uploaded as File (`UPLOAD_RULES.file` in src/lib/uploads.ts): pdf, txt, md, json, yaml, yml, xml, csv, toml, ini. A small map onto lucide's `FileText` / `FileJson` / `FileCode` / `FileSpreadsheet` etc. with `File` as the fallback covers them. Look up with `Object.hasOwn`, as elsewhere. `fileExtension()` and `formatBytes()` already exist in src/lib/uploads.ts.
+- "Upload date" = `createdAt`. Replacing a file isn't possible (edit mode can't), so the two never differ.
+- `formatDate` is already duplicated in ItemCard and ItemRow; a third copy would be worth avoiding.
+- Pick the view the same way the gallery does: `uploadKindFor(type.name) === "file"` in src/app/items/[type]/page.tsx.
+- Unit-testable: the extension→icon map if it lives in src/lib, plus the query's select if it changes. The row itself is component scope.
 
 ## History
 - 2026-05-12: **Initial Setup** - Next.js and Tailwind setup

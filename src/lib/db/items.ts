@@ -47,6 +47,8 @@ const itemSummarySelect = {
   isFavorite: true,
   isPinned: true,
   createdAt: true,
+  fileName: true,
+  fileSize: true,
   itemType: { select: { id: true, name: true, icon: true, color: true } },
   tags: { select: { name: true }, orderBy: { name: "asc" } },
 } satisfies Prisma.ItemSelect;
@@ -63,6 +65,8 @@ function toItemSummary(item: ItemSummaryRow): ItemSummary {
     createdAt: item.createdAt,
     type: item.itemType,
     tags: item.tags.map((tag) => tag.name),
+    fileName: item.fileName,
+    fileSize: item.fileSize,
   };
 }
 
@@ -176,8 +180,6 @@ const itemDetailSelect = {
   contentType: true,
   url: true,
   fileUrl: true,
-  fileName: true,
-  fileSize: true,
   language: true,
   updatedAt: true,
   collections: {
@@ -214,8 +216,6 @@ function toItemDetail(item: ItemDetailRow): ItemDetail {
     contentType: item.contentType,
     url: item.url,
     fileUrl: item.fileUrl,
-    fileName: item.fileName,
-    fileSize: item.fileSize,
     language: item.language,
     updatedAt: item.updatedAt,
     collections: item.collections.map((link) => link.collection),

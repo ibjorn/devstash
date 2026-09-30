@@ -4,19 +4,13 @@ import { File, Pin, Star } from "lucide-react";
 
 import { useItemDrawer } from "@/components/items/ItemDrawerProvider";
 import { Badge } from "@/components/ui/badge";
+import { formatShortDate } from "@/lib/format-date";
 import { typeColorTint } from "@/lib/type-colors";
 import { typeIcons } from "@/lib/type-icons";
 import type { ItemSummary } from "@/types/items";
 
 interface ItemCardProps {
   item: ItemSummary;
-}
-
-function formatDate(date: Date): string {
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
 }
 
 /**
@@ -78,7 +72,7 @@ export function ItemCard({ item }: ItemCardProps) {
           ))}
         </div>
         <span className="shrink-0 text-xs text-muted-foreground">
-          {formatDate(item.createdAt)}
+          {formatShortDate(item.createdAt)}
         </span>
       </div>
     </button>

@@ -43,6 +43,9 @@ export interface ItemSummary {
   createdAt: Date;
   type: ItemTypeSummary;
   tags: string[];
+  // Set only on File and Image items — the file list shows both on each row
+  fileName: string | null;
+  fileSize: number | null;
 }
 
 /**
@@ -70,8 +73,6 @@ export interface ItemDetail extends ItemSummary {
   contentType: ItemContentType;
   url: string | null;
   fileUrl: string | null;
-  fileName: string | null;
-  fileSize: number | null;
   language: string | null;
   updatedAt: Date;
   collections: ItemCollectionSummary[];

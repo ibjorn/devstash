@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { File, Layers } from "lucide-react";
 
 import { EmptyState } from "@/components/dashboard/EmptyState";
+import { FileRow } from "@/components/items/FileRow";
 import { ImageCard } from "@/components/items/ImageCard";
 import { ItemCard } from "@/components/items/ItemCard";
 import { getItemsByTypeSlug } from "@/lib/db/items";
@@ -40,8 +41,9 @@ export default async function ItemsPage({ params }: ItemsPageProps) {
   // heading both show them pluralized
   const heading = type ? `${type.name}s` : titleFromSlug(slug);
   const Icon = type ? (typeIcons[type.icon] ?? File) : Layers;
-  // Images get a thumbnail gallery; every other type keeps the regular card
-  const isGallery = type ? uploadKindFor(type.name) === "image" : false;
+  // Images get a thumbnail gallery, Files a Drive-style list; every other
+  // type keeps the regular card
+  const uploadKind = type ? uploadKindFor(type.name) : null;
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
@@ -66,10 +68,16 @@ export default async function ItemsPage({ params }: ItemsPageProps) {
         </div>
       </div>
 
-      {items.length > 0 ? (
+      {items.length > 0 && uploadKind === "file" ? (
+        <ul className="divide-y overflow-hidden rounded-xl border bg-card">
+          {items.map((item) => (
+            <FileRow key={item.id} item={item} />
+          ))}
+        </ul>
+      ) : items.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {items.map((item) =>
-            isGallery ? (
+            uploadKind === "image" ? (
               <ImageCard key={item.id} item={item} />
             ) : (
               <ItemCard key={item.id} item={item} />
