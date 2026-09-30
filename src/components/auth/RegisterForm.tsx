@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { registerSchema } from "@/lib/validation/auth";
+import { fieldErrorsFrom } from "@/lib/validation/field-errors";
 
 type FieldName = "name" | "email" | "password" | "confirmPassword";
 type FieldErrors = Partial<Record<FieldName, string>>;
@@ -62,14 +63,7 @@ export function RegisterForm() {
     // problems without a round trip
     const parsed = registerSchema.safeParse(Object.fromEntries(formData));
     if (!parsed.success) {
-      const errors: FieldErrors = {};
-      for (const issue of parsed.error.issues) {
-        const field = issue.path[0];
-        if (typeof field === "string" && !(field in errors)) {
-          errors[field as FieldName] = issue.message;
-        }
-      }
-      setFieldErrors(errors);
+      setFieldErrors(fieldErrorsFrom(parsed.error));
       return;
     }
 

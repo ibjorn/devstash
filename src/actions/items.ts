@@ -24,6 +24,7 @@ import {
   type UpdateItemInput,
   updateItemSchema,
 } from "@/lib/validation/items";
+import { fieldErrorsFrom } from "@/lib/validation/field-errors";
 import type { CreatableItemType, ItemDetail } from "@/types/items";
 
 /**
@@ -39,15 +40,8 @@ export interface ItemActionResult {
   fieldErrors?: Record<string, string>;
 }
 
-// First message per field wins — later issues on the same input would only push
-// the first one out of view
 function toFieldErrors(error: ZodError): ItemActionResult {
-  const fieldErrors: Record<string, string> = {};
-  for (const issue of error.issues) {
-    const field = String(issue.path[0] ?? "");
-    if (field) fieldErrors[field] ??= issue.message;
-  }
-  return { success: false, fieldErrors };
+  return { success: false, fieldErrors: fieldErrorsFrom(error) };
 }
 
 /**

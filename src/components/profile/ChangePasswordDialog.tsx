@@ -18,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { changePasswordSchema } from "@/lib/validation/auth";
+import { fieldErrorsFrom } from "@/lib/validation/field-errors";
 
 type FieldName = "currentPassword" | "password" | "confirmPassword";
 type FieldErrors = Partial<Record<FieldName, string>>;
@@ -59,12 +60,7 @@ export function ChangePasswordDialog() {
       Object.fromEntries(formData),
     );
     if (!parsed.success) {
-      const errors: FieldErrors = {};
-      for (const issue of parsed.error.issues) {
-        const field = issue.path[0] as FieldName | undefined;
-        if (field) errors[field] ??= issue.message;
-      }
-      setFieldErrors(errors);
+      setFieldErrors(fieldErrorsFrom(parsed.error));
       return;
     }
 

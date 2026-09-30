@@ -5,9 +5,9 @@ import { EmptyState } from "@/components/dashboard/EmptyState";
 import { FileRow } from "@/components/items/FileRow";
 import { ImageCard } from "@/components/items/ImageCard";
 import { ItemCard } from "@/components/items/ItemCard";
+import { ItemTypeIcon } from "@/components/items/ItemTypeIcon";
 import { getItemsByTypeSlug } from "@/lib/db/items";
 import { requireUserId } from "@/lib/db/session-user";
-import { typeColorTint } from "@/lib/type-colors";
 import { typeIcons } from "@/lib/type-icons";
 import { uploadKindFor } from "@/lib/uploads";
 
@@ -48,18 +48,7 @@ export default async function ItemsPage({ params }: ItemsPageProps) {
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
       <div className="flex items-center gap-3">
-        {type && (
-          <div
-            className="flex size-10 shrink-0 items-center justify-center rounded-lg"
-            // icon chip tinted with the item type's color
-            style={{
-              backgroundColor: typeColorTint(type.color, 10),
-              color: type.color,
-            }}
-          >
-            <Icon className="size-5" />
-          </div>
-        )}
+        {type && <ItemTypeIcon type={type} />}
         <div>
           <h1 className="text-2xl font-semibold">{heading}</h1>
           <p className="text-sm text-muted-foreground">

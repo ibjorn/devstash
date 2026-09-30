@@ -19,6 +19,7 @@ import {
   changePasswordSchema,
   deleteAccountSchema,
 } from "@/lib/validation/auth";
+import { fieldErrorsFrom } from "@/lib/validation/field-errors";
 
 /**
  * Actions return `{ success, error, fieldErrors }` per the project's error
@@ -32,15 +33,8 @@ export interface ProfileActionResult {
   fieldErrors?: Record<string, string>;
 }
 
-// First message per field wins — later issues on the same input would only
-// push the first one out of view
 function toFieldErrors(error: ZodError): ProfileActionResult {
-  const fieldErrors: Record<string, string> = {};
-  for (const issue of error.issues) {
-    const field = String(issue.path[0] ?? "");
-    if (field) fieldErrors[field] ??= issue.message;
-  }
-  return { success: false, fieldErrors };
+  return { success: false, fieldErrors: fieldErrorsFrom(error) };
 }
 
 export async function changePassword(

@@ -1,10 +1,21 @@
-# Current Feature
+# Current Feature: Fix — Audit Cleanup
 
 ## Status
+In Progress
 
 ## Goals
+- **One field-error mapper:** a shared helper in new `src/lib/validation/field-errors.ts` turns a `ZodError` into `Record<string, string>` (first message per field wins). Both server actions use it: the identical `toFieldErrors` copies in src/actions/items.ts:44-51 and src/actions/profile.ts:37-44 are removed, and each action wraps the result as `{ success: false, fieldErrors }`
+- The three client-side copies (ChangePasswordDialog.tsx:61-66, RegisterForm.tsx:~67, ResetPasswordForm.tsx:~53) use it too, **only where each form's typed error state accepts it without a cast that hides a mistake**; any left as they are get a one-line reason in the history entry
+- **`ItemTypeIcon` reused for the type chip:** it takes a `size` (the 36px/`size-4` card chip and the 40px/`size-5` header chip) and an optional icon override, and replaces the inline chip in `ItemCard.tsx`, `ItemRow.tsx`, `FileRow.tsx` (with its file-extension icon as the override) and `src/app/items/[type]/page.tsx`. Every chip renders at the same size and tint as before
+- No behaviour change; `npm run lint`, `npm test` and `npm run build` pass, and the existing action tests still cover the field-error mapping; unit tests for the new helper
 
 ## Notes
+- Source: context/fixes/audit-cleanup.md, a follow-up to **Fix — Audit Quick Wins** from the 2026-09-30 code-scanner audit. No schema change, no migration, no new dependency.
+- **The helper returns the map, not a result object.** The two actions return different result types (`ItemActionResult`, `ProfileActionResult`), which is why each file had its own copy; a map works for both, and for the client forms.
+- **Five copies exist, not the three the audit counted.** The client forms key their errors by a typed `FieldName` union rather than `string`. A generic signature (`<F extends string>`) would only be an unchecked cast, so where it doesn't fit naturally, the form keeps its loop.
+- **`ItemTypeIcon` is currently `"use client"`** but has no hooks or handlers. The items page is a server component, so drop the directive so it renders on the server there. It still works inside the client drawer and cards.
+- **Lint trap:** `react-hooks/static-components` rejects a component returned by a *function call* assigned to a top-level local (it bit Items List View and File List View). Looking one up from the `typeIcons` table or receiving it as a prop is fine, which is what `ItemTypeIcon` already does. FileRow should pass `fileIconFor(...)` straight into the prop rather than into a local first.
+- This change is visual, so Björn checks it in Windows Chrome: the dashboard Pinned/Recent lists, `/items/snippets`, `/items/files`, and the drawer header in view and edit mode.
 
 ## History
 - 2026-05-12: **Initial Setup** - Next.js and Tailwind setup

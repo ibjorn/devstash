@@ -1,12 +1,11 @@
 "use client";
 
-import { createElement } from "react";
 import { Download, Pin, Star } from "lucide-react";
 
 import { useItemDrawer } from "@/components/items/ItemDrawerProvider";
+import { ItemTypeIcon } from "@/components/items/ItemTypeIcon";
 import { fileIconFor } from "@/lib/file-icons";
 import { formatShortDate } from "@/lib/format-date";
-import { typeColorTint } from "@/lib/type-colors";
 import { formatBytes } from "@/lib/uploads";
 import type { ItemSummary } from "@/types/items";
 
@@ -33,18 +32,11 @@ export function FileRow({ item }: FileRowProps) {
         onClick={() => openItem(item)}
         className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 py-3 pl-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
       >
-        <div
-          className="flex size-9 shrink-0 items-center justify-center rounded-lg"
-          // icon chip tinted with the item type's color
-          style={{
-            backgroundColor: typeColorTint(item.type.color, 10),
-            color: item.type.color,
-          }}
-        >
-          {/* createElement rather than a local <Icon>: the lookup returns a
-              component, which react-hooks/static-components rejects as JSX */}
-          {createElement(fileIconFor(item.fileName), { className: "size-4" })}
-        </div>
+        <ItemTypeIcon
+          type={item.type}
+          size="sm"
+          icon={fileIconFor(item.fileName)}
+        />
 
         {/* Stacked on mobile; name, size and date in columns from sm up */}
         <div className="flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-4">

@@ -1,13 +1,13 @@
 "use client";
 
-import { File, Pin, Star } from "lucide-react";
+import { Pin, Star } from "lucide-react";
 
 import { CopyItemButton, isCopyable } from "@/components/items/CopyItemButton";
 import { useItemDrawer } from "@/components/items/ItemDrawerProvider";
+import { ItemTypeIcon } from "@/components/items/ItemTypeIcon";
 import { Badge } from "@/components/ui/badge";
 import { formatShortDate } from "@/lib/format-date";
 import { typeColorTint } from "@/lib/type-colors";
-import { typeIcons } from "@/lib/type-icons";
 import { cn } from "@/lib/utils";
 import type { ItemSummary } from "@/types/items";
 
@@ -26,7 +26,6 @@ interface ItemCardProps {
  */
 export function ItemCard({ item }: ItemCardProps) {
   const { openItem } = useItemDrawer();
-  const Icon = typeIcons[item.type.icon] ?? File;
 
   return (
     <div className="relative h-full">
@@ -41,16 +40,7 @@ export function ItemCard({ item }: ItemCardProps) {
         }}
       >
         <div className="flex items-start justify-between gap-2">
-          <div
-            className="flex size-9 shrink-0 items-center justify-center rounded-lg"
-            // icon chip tinted with the item type's color
-            style={{
-              backgroundColor: typeColorTint(item.type.color, 10),
-              color: item.type.color,
-            }}
-          >
-            <Icon className="size-4" />
-          </div>
+          <ItemTypeIcon type={item.type} size="sm" />
           {/* Clear of the copy button overlaying this corner */}
           <div
             className={cn(
