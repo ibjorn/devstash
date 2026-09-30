@@ -59,6 +59,7 @@ npm run db:seed      # seed system item types + demo data
 | `npm run db:seed` | Seed the database |
 | `npm run db:studio` | Open Prisma Studio |
 | `npm run db:test` | Run the database smoke test |
+| `npm run ui:add -- <component>` | Add a shadcn component (use instead of `npx shadcn add` — rewrites its `cn` import to `@/lib/utils`) |
 
 ## 🧪 Testing
 

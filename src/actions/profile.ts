@@ -171,10 +171,7 @@ export async function deleteAccount(
         where: { identifier: { in: [email, resetIdentifier(email)] } },
       });
       await tx.user.delete({ where: { id: userId } });
-      // Tags are deliberately left alone. They're global (Tag.name is unique
-      // with no userId), so sweeping the ones this user orphaned would race
-      // another user creating an item with the same tag. An unreferenced Tag
-      // row is inert; scripts/delete-non-demo-users.ts sweeps them offline.
+      // Tags are per-user and go with the User row via onDelete: Cascade.
     });
   } catch (error) {
     console.error("Delete account failed:", error);

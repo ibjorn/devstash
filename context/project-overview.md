@@ -291,9 +291,16 @@ model ItemCollection {
 }
 
 model Tag {
-  id    String @id @default(cuid())
-  name  String @unique
-  items Item[] @relation("ItemTags")
+  id     String @id @default(cuid())
+  name   String
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  items  Item[] @relation("ItemTags")
+
+  @@unique([userId, name])
+  @@index([userId])
 }
 ```
 
