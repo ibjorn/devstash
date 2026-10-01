@@ -1,10 +1,32 @@
-# Current Feature
+# Current Feature: Favorites Sorting
 
 ## Status
 
+In Progress
+
 ## Goals
 
+- `/favorites` gets a sort control with three options: **Name**, **Date** and **Type**
+- Sorting is **client-side**: the page still fetches once on the server; re-sorting never refetches or navigates
+- **Name** sorts A→Z, case-insensitive (`localeCompare` with `sensitivity: "base"`, numeric-aware so "Item 2" precedes "Item 10")
+- **Date** sorts newest `updatedAt` first — the current server order, and the default
+- **Type** groups items by type name A→Z, ties broken by title
+- The sort applies to both sections; collections have no item type, so under **Type** they fall back to name order
+- Ties always fall back to a stable key (name, then id) so the order never jitters between renders
+- Sort logic lives in a pure, unit-tested helper (`src/lib/favorites-sort.ts`)
+- Control is keyboard- and screen-reader-usable (buttons with `aria-pressed`, or an equivalent)
+- The page subtitle stops claiming "most recently updated first" when another sort is active
+
 ## Notes
+
+- Today src/app/favorites/page.tsx is a server component that maps `FavoriteItemRow` / `FavoriteCollectionRow` directly. Sorting needs state, so the two lists move into a new client component (e.g. `src/components/favorites/FavoritesList.tsx`) that receives `items` and `collections` as props. `Date`s survive the RSC boundary as real `Date`s, so no revival is needed. The rows themselves don't change.
+- No query, schema, migration or dependency change. The server keeps returning `[updatedAt, id]` desc, which is exactly the Date sort.
+- Decisions to confirm at `start` (recommendation first):
+  1. **Control style:** a compact segmented row (`sort: name · date · type`) of `aria-pressed` buttons that fits the page's monospace, terminal-style look — *vs* the shadcn `Select` already installed for Editor Preferences.
+  2. **No direction toggle:** each option has one fixed, sensible direction (A→Z, newest first, type A→Z) — *vs* clicking the active option to reverse it. Not requested, so left out unless wanted.
+  3. **Sort isn't persisted:** plain `useState`, resets to Date on reload — *vs* `?sort=` in the URL (shareable, survives reload, but goes through the router) or `localStorage` (per-browser memory).
+  4. **Type order is alphabetical by type name** (what the badge shows) — *vs* the sidebar's system-type order (Snippets, Prompts, Commands, …), which isn't obvious to someone reading the list.
+- Unit tests: the comparator(s) — each key, case-insensitivity, numeric names, tie-breaking, collections under Type, and that the input array isn't mutated. The client wrapper is component scope and untested, per the testing rules.
 
 ## History
 - 2026-05-12: **Initial Setup** - Next.js and Tailwind setup

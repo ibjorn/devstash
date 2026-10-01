@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import { Star } from "lucide-react";
 
 import { EmptyState } from "@/components/dashboard/EmptyState";
-import { FavoriteCollectionRow } from "@/components/favorites/FavoriteCollectionRow";
-import { FavoriteItemRow } from "@/components/favorites/FavoriteItemRow";
+import { FavoritesList } from "@/components/favorites/FavoritesList";
 import { getFavoriteCollectionList } from "@/lib/db/collections";
 import { getFavoriteItems } from "@/lib/db/items";
 import { requireUserId } from "@/lib/db/session-user";
@@ -26,7 +25,7 @@ export default async function FavoritesPage() {
       <div>
         <h1 className="text-2xl font-semibold">Favorites</h1>
         <p className="text-sm text-muted-foreground">
-          Starred items and collections, most recently updated first
+          Starred items and collections
         </p>
       </div>
 
@@ -37,45 +36,8 @@ export default async function FavoritesPage() {
           description="Items and collections you star will show up here."
         />
       ) : (
-        <div className="flex flex-col gap-6 font-mono text-sm">
-          <FavoritesSection title="Items" count={items.length}>
-            {items.map((item) => (
-              <FavoriteItemRow key={item.id} item={item} />
-            ))}
-          </FavoritesSection>
-          <FavoritesSection title="Collections" count={collections.length}>
-            {collections.map((collection) => (
-              <FavoriteCollectionRow
-                key={collection.id}
-                collection={collection}
-              />
-            ))}
-          </FavoritesSection>
-        </div>
+        <FavoritesList items={items} collections={collections} />
       )}
     </div>
-  );
-}
-
-interface FavoritesSectionProps {
-  title: string;
-  count: number;
-  children: React.ReactNode;
-}
-
-function FavoritesSection({ title, count, children }: FavoritesSectionProps) {
-  return (
-    <section aria-label={title}>
-      <h2 className="border-b px-3 pb-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-        {title} <span className="tabular-nums">({count})</span>
-      </h2>
-      {count > 0 ? (
-        <ul className="divide-y divide-border/50">{children}</ul>
-      ) : (
-        <p className="px-3 py-1.5 text-muted-foreground">
-          No favorite {title.toLowerCase()}.
-        </p>
-      )}
-    </section>
   );
 }
