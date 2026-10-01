@@ -29,3 +29,11 @@ export interface CollectionHeader {
   description: string | null;
   isFavorite: boolean;
 }
+
+/** A favorited collection as /favorites lists it. */
+export interface FavoriteCollection {
+  id: string;
+  name: string;
+  itemCount: number;
+  updatedAt: Date;
+}

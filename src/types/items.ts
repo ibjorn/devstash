@@ -48,6 +48,11 @@ export interface ItemSummary {
   fileSize: number | null;
 }
 
+/** A favorited item on /favorites, which sorts and dates rows by updatedAt. */
+export interface FavoriteItem extends ItemSummary {
+  updatedAt: Date;
+}
+
 /**
  * A type-filtered listing for /items/[type]. `type` is null when the slug
  * matches no item type the user can see — the page still renders, with an

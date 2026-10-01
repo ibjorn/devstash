@@ -38,6 +38,7 @@ vi.mock("@/lib/prisma", () => ({ prisma }));
 import {
   createItem,
   deleteItem,
+  getFavoriteItems,
   getItemDetail,
   getItemFile,
   getItemsByTypeSlug,
@@ -686,5 +687,37 @@ describe("isFileKeyInUse", () => {
       userId: USER_ID,
       fileUrl: "usr_1/abc/a.pdf",
     });
+  });
+});
+
+describe("getFavoriteItems", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns only the user's favorites, most recently updated first", async () => {
+    prisma.item.findMany.mockResolvedValue([]);
+
+    await getFavoriteItems(USER_ID);
+
+    const [args] = prisma.item.findMany.mock.calls[0];
+    expect(args.where).toEqual({ userId: USER_ID, isFavorite: true });
+    expect(args.orderBy).toEqual([{ updatedAt: "desc" }, { id: "desc" }]);
+    expect(args).not.toHaveProperty("take");
+  });
+
+  it("maps rows to summaries carrying updatedAt", async () => {
+    prisma.item.findMany.mockResolvedValue([itemRow()]);
+
+    const [item] = await getFavoriteItems(USER_ID);
+
+    expect(item).toMatchObject({
+      id: ITEM_ID,
+      title: "useAuth Hook",
+      type: { name: "Snippet" },
+      tags: ["auth", "react"],
+      updatedAt: new Date("2026-02-01T00:00:00Z"),
+    });
+    expect(item).not.toHaveProperty("content");
   });
 });

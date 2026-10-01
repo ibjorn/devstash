@@ -1,10 +1,31 @@
-# Current Feature
+# Current Feature: Favorites Page
 
 ## Status
 
+In Progress
+
 ## Goals
 
+- Star icon button in the TopBar (beside New Collection / New Item) linking to `/favorites`, with an accessible label
+- `/favorites` route protected: `"/favorites/:path*"` added to the src/proxy.ts matcher, plus its own four-line `AppShell` layout (stale-JWT guard + sidebar)
+- User-scoped queries for favorited items and collections (`userId` as required first parameter, ownership in the where clause), sorted by `updatedAt` desc
+- Compact, dense, terminal-style list — no cards, no heavy borders; `font-mono` (or semi-mono), minimal padding, thin dividers, subtle hover
+- Each row: type icon, title, type badge, date
+- Two sections, **Items** and **Collections**, each with a count in its heading
+- Clicking an item opens the existing ItemDrawer (`useItemDrawer().openItem`); clicking a collection navigates to `/collections/[id]`
+- Empty state when there are no favorites (shared `EmptyState`), and each section hidden or hinted when only one is empty
+- Unit tests for the new queries (user scope, `isFavorite: true` filter, order)
+
 ## Notes
+
+- Spec: context/features/favorites-spec.md
+- **Favoriting is still inert** — the drawer's Favorite button and the collection Favorite actions toast "coming soon", so nothing in the app sets `isFavorite`. The page will only show seeded favorites (demo has 2 items + 2 collections). The spec doesn't ask for toggling; it's a separate feature unless pulled in.
+- **There is no `favoritedAt` column.** The spec's "date added" and "sort by most recently favorited (updatedAt)" both fall back to `updatedAt`, which changes on *any* edit (rename, content, tags), not on favoriting. Options: (a) use `updatedAt` as the spec says and label the column honestly ("Updated"); (b) add a nullable `favoritedAt` via `prisma migrate` — only meaningful once toggling exists to stamp it. Recommend (a) now, (b) alongside the favorite-toggle feature. Note collections' `updatedAt` isn't bumped when items are added (logged at Item Collections).
+- **Type badge for collections:** collections have no type. Options: a fixed "collection" badge with a folder icon, or the most-used item type (as CollectionCard tints). Recommend the fixed badge + item count — a favorites list reads cleaner when the badge says what the row *is*.
+- **Bounded or not:** favorites are a hand-picked subset, so an unbounded list is reasonable; pagination (21/page via src/lib/pagination.ts) is available if wanted.
+- Item rows can't nest buttons/links (pattern from FileRow/CollectionCard): drawer trigger is a full-width `<button>`; collection rows are `<Link>`s.
+- Reuse: `itemSummarySelect`/`toItemSummary`, `ItemTypeIcon` (`xs`/`sm`), `formatShortDate`, `pluralTypeName`. The sidebar already has a Favorites group for collections — unchanged.
+- No schema change expected (unless option (b) is chosen).
 
 ## History
 - 2026-05-12: **Initial Setup** - Next.js and Tailwind setup

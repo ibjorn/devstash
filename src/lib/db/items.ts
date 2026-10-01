@@ -9,7 +9,12 @@ import {
 import { prisma } from "@/lib/prisma";
 import { toSearchPreview } from "@/lib/search-preview";
 import { singularFromSlug } from "@/lib/type-names";
-import type { ItemDetail, ItemSummary, ItemTypeListing } from "@/types/items";
+import type {
+  FavoriteItem,
+  ItemDetail,
+  ItemSummary,
+  ItemTypeListing,
+} from "@/types/items";
 import type { SearchItem } from "@/types/search";
 
 const itemSummarySelect = {
@@ -144,6 +149,27 @@ export async function getItemsInCollection(
     { userId, collections: { some: { collectionId } } },
     page,
   );
+}
+
+/**
+ * Every favorited item for /favorites, most recently updated first. There is
+ * no favoritedAt column, so updatedAt stands in for "most recently favorited".
+ * Unbounded: favorites are a hand-picked subset, and the page promises all of
+ * them.
+ */
+export async function getFavoriteItems(
+  userId: string,
+): Promise<FavoriteItem[]> {
+  const items = await prisma.item.findMany({
+    where: { userId, isFavorite: true },
+    orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+    select: { ...itemSummarySelect, updatedAt: true },
+  });
+
+  return items.map((item) => ({
+    ...toItemSummary(item),
+    updatedAt: item.updatedAt,
+  }));
 }
 
 /**

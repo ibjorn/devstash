@@ -21,6 +21,7 @@ import {
   deleteCollection,
   getCollectionHeader,
   getCollectionsPage,
+  getFavoriteCollectionList,
   getSearchableCollections,
   updateCollection,
 } from "@/lib/db/collections";
@@ -235,6 +236,34 @@ describe("getSearchableCollections", () => {
 
     await expect(getSearchableCollections(USER_ID)).resolves.toEqual([
       { id: "col_1", name: "React Patterns", description: null, itemCount: 4 },
+    ]);
+  });
+});
+
+describe("getFavoriteCollectionList", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns only the user's favorites, most recently updated first", async () => {
+    prisma.collection.findMany.mockResolvedValue([]);
+
+    await getFavoriteCollectionList(USER_ID);
+
+    const [args] = prisma.collection.findMany.mock.calls[0];
+    expect(args.where).toEqual({ userId: USER_ID, isFavorite: true });
+    expect(args.orderBy).toEqual([{ updatedAt: "desc" }, { id: "desc" }]);
+    expect(args).not.toHaveProperty("take");
+  });
+
+  it("flattens the item count", async () => {
+    const updatedAt = new Date("2026-02-01T00:00:00Z");
+    prisma.collection.findMany.mockResolvedValue([
+      { id: "col_1", name: "React Patterns", updatedAt, _count: { items: 4 } },
+    ]);
+
+    await expect(getFavoriteCollectionList(USER_ID)).resolves.toEqual([
+      { id: "col_1", name: "React Patterns", updatedAt, itemCount: 4 },
     ]);
   });
 });

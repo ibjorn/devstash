@@ -12,6 +12,7 @@ import type {
   CollectionOption,
   CollectionSummary,
   CollectionTypeStat,
+  FavoriteCollection,
 } from "@/types/collections";
 import type { SearchCollection } from "@/types/search";
 
@@ -94,6 +95,32 @@ export async function getFavoriteCollections(
   limit = 5
 ): Promise<CollectionSummary[]> {
   return findCollectionSummaries(userId, { isFavorite: true }, { take: limit });
+}
+
+/**
+ * Every favorited collection for /favorites, most recently updated first.
+ * Unbounded: favorites are a hand-picked subset, and the page promises all of
+ * them. A plain count rather than findCollectionSummaries, since the list shows
+ * no type colours.
+ */
+export async function getFavoriteCollectionList(
+  userId: string,
+): Promise<FavoriteCollection[]> {
+  const collections = await prisma.collection.findMany({
+    where: { userId, isFavorite: true },
+    orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+    select: {
+      id: true,
+      name: true,
+      updatedAt: true,
+      _count: { select: { items: true } },
+    },
+  });
+
+  return collections.map(({ _count, ...collection }) => ({
+    ...collection,
+    itemCount: _count.items,
+  }));
 }
 
 // Sidebar "Recent" group; favorites are excluded since they have their own group
