@@ -1,7 +1,8 @@
 "use client";
 
-import { Download, Pin, Star } from "lucide-react";
+import { Download, Pin } from "lucide-react";
 
+import { FavoriteItemButton } from "@/components/items/FavoriteItemButton";
 import { useItemDrawer } from "@/components/items/ItemDrawerProvider";
 import { ItemTypeIcon } from "@/components/items/ItemTypeIcon";
 import { fileIconFor } from "@/lib/file-icons";
@@ -14,10 +15,10 @@ interface FileRowProps {
 }
 
 /**
- * A File item in the /items/files list. The row opens the drawer and the
- * Download link sits beside that button rather than inside it — a link nested
- * in a <button> is invalid HTML and screen readers flatten it — so a download
- * click never reaches the drawer in the first place.
+ * A File item in the /items/files list. The row opens the drawer; the
+ * favorite button and Download link sit beside that button rather than inside
+ * it — a control nested in a <button> is invalid HTML and screen readers
+ * flatten it — so their clicks never reach the drawer in the first place.
  */
 export function FileRow({ item }: FileRowProps) {
   const { openItem } = useItemDrawer();
@@ -42,9 +43,6 @@ export function FileRow({ item }: FileRowProps) {
         <div className="flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-4">
           <div className="flex min-w-0 flex-1 items-center gap-1.5">
             <span className="truncate text-sm font-medium">{name}</span>
-            {item.isFavorite && (
-              <Star className="size-3.5 shrink-0 fill-yellow-400 text-yellow-400" />
-            )}
             {item.isPinned && (
               <Pin className="size-3.5 shrink-0 text-muted-foreground" />
             )}
@@ -61,6 +59,7 @@ export function FileRow({ item }: FileRowProps) {
         </div>
       </button>
 
+      <FavoriteItemButton item={item} />
       <a
         href={`/api/items/${encodeURIComponent(item.id)}/file?download=1`}
         download

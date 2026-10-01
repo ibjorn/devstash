@@ -2,11 +2,12 @@
 
 import { Pencil, Star, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 
+import { setCollectionFavorite } from "@/actions/favorites";
 import { DeleteCollectionDialog } from "@/components/collections/DeleteCollectionDialog";
 import { EditCollectionDialog } from "@/components/collections/EditCollectionDialog";
 import { Button } from "@/components/ui/button";
+import { useFavoriteToggle } from "@/hooks/use-favorite-toggle";
 import { cn } from "@/lib/utils";
 import type { CollectionHeader } from "@/types/collections";
 
@@ -18,20 +19,25 @@ interface CollectionActionsProps {
 export function CollectionActions({ collection }: CollectionActionsProps) {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const { isFavorite, toggle } = useFavoriteToggle({
+    isFavorite: collection.isFavorite,
+    save: (next) => setCollectionFavorite(collection.id, next),
+  });
 
   return (
     <div className="flex shrink-0 items-center gap-1">
       <Button
         variant="ghost"
         size="icon-sm"
-        onClick={() => toast("Favoriting collections is coming soon")}
+        onClick={toggle}
+        aria-pressed={isFavorite}
         aria-label="Favorite"
-        title="Favorite"
+        title={isFavorite ? "Remove from favorites" : "Add to favorites"}
       >
         <Star
           className={cn(
             "size-4",
-            collection.isFavorite && "fill-yellow-400 text-yellow-400",
+            isFavorite && "fill-yellow-400 text-yellow-400",
           )}
         />
       </Button>

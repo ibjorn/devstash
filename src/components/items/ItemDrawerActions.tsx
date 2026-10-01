@@ -3,8 +3,10 @@
 import { Copy, Pencil, Pin, Star } from "lucide-react";
 import { toast } from "sonner";
 
+import { setItemFavorite } from "@/actions/favorites";
 import { DeleteItemDialog } from "@/components/items/DeleteItemDialog";
 import { Button } from "@/components/ui/button";
+import { useFavoriteToggle } from "@/hooks/use-favorite-toggle";
 import { cn } from "@/lib/utils";
 import type { ItemDetail, ItemSummary } from "@/types/items";
 
@@ -13,24 +15,31 @@ interface ItemDrawerActionsProps {
   detail: ItemDetail | null;
   onEdit: () => void;
   onDeleted: () => void;
+  /** Keeps the drawer's copy of the item in step with the star. */
+  onFavoriteChange: (id: string, isFavorite: boolean) => void;
 }
 
 /**
  * The drawer's action bar: Favorite, Pin and Copy on the left, Edit and Delete
  * right-aligned.
  *
- * Copy, Edit and Delete are live; Favorite and Pin are still later phases. The
- * two that aren't wired are deliberately not `disabled`: dimming them would
- * drop the state colours (a favorited item's yellow star, a pinned item's
- * filled pin) that make the bar readable at a glance, and each already has its
- * own handler, so wiring one up later means replacing a single toast call.
+ * Pin is still a later phase. It is deliberately not `disabled`: dimming it
+ * would drop the filled-pin state colour that makes the bar readable at a
+ * glance, and wiring it up later means replacing a single toast call.
  */
 export function ItemDrawerActions({
   item,
   detail,
   onEdit,
   onDeleted,
+  onFavoriteChange,
 }: ItemDrawerActionsProps) {
+  const { isFavorite, toggle } = useFavoriteToggle({
+    isFavorite: item.isFavorite,
+    save: (next) => setItemFavorite(item.id, next),
+    onChange: (value) => onFavoriteChange(item.id, value),
+  });
+
   // Text content or a link. A file's fileUrl is a private object key, not
   // something worth putting on a clipboard — files have a Download button.
   const copyable = detail?.content ?? detail?.url ?? null;
@@ -50,12 +59,13 @@ export function ItemDrawerActions({
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => toast("Favoriting items is coming soon")}
+        onClick={toggle}
+        aria-pressed={isFavorite}
       >
         <Star
           className={cn(
             "size-4",
-            item.isFavorite && "fill-yellow-400 text-yellow-400",
+            isFavorite && "fill-yellow-400 text-yellow-400",
           )}
         />
         Favorite

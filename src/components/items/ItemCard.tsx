@@ -1,8 +1,9 @@
 "use client";
 
-import { Pin, Star } from "lucide-react";
+import { Pin } from "lucide-react";
 
 import { CopyItemButton, isCopyable } from "@/components/items/CopyItemButton";
+import { FavoriteItemButton } from "@/components/items/FavoriteItemButton";
 import { useItemDrawer } from "@/components/items/ItemDrawerProvider";
 import { ItemTypeIcon } from "@/components/items/ItemTypeIcon";
 import { Badge } from "@/components/ui/badge";
@@ -21,8 +22,8 @@ interface ItemCardProps {
  * taller shape a two-column grid wants, sharing its type-colour treatment.
  *
  * A button rather than a link — the item detail view is a drawer, not a page.
- * The copy button overlays the top-right corner as the card's sibling, since
- * it can't nest inside the card's <button>.
+ * The favorite and copy buttons overlay the top-right corner as the card's
+ * siblings, since they can't nest inside the card's <button>.
  */
 export function ItemCard({ item }: ItemCardProps) {
   const { openItem } = useItemDrawer();
@@ -41,16 +42,13 @@ export function ItemCard({ item }: ItemCardProps) {
       >
         <div className="flex items-start justify-between gap-2">
           <ItemTypeIcon type={item.type} size="sm" />
-          {/* Clear of the copy button overlaying this corner */}
+          {/* Clear of the buttons overlaying this corner */}
           <div
             className={cn(
               "flex shrink-0 items-center gap-1.5 pt-1",
-              isCopyable(item) && "pr-9",
+              isCopyable(item) ? "pr-16" : "pr-7",
             )}
           >
-            {item.isFavorite && (
-              <Star className="size-3.5 fill-yellow-400 text-yellow-400" />
-            )}
             {item.isPinned && (
               <Pin className="size-3.5 text-muted-foreground" />
             )}
@@ -79,7 +77,10 @@ export function ItemCard({ item }: ItemCardProps) {
           </span>
         </div>
       </button>
-      <CopyItemButton item={item} className="absolute top-3 right-3" />
+      <div className="absolute top-3 right-3 flex gap-1">
+        <FavoriteItemButton item={item} />
+        <CopyItemButton item={item} />
+      </div>
     </div>
   );
 }

@@ -114,6 +114,18 @@ export function ItemDrawerProvider({
     setItem((current) => (current?.id === updated.id ? updated : current));
   }, []);
 
+  // The star is optimistic; mirroring it here keeps the header and a remounted
+  // action bar (after leaving edit mode) from showing the stale value. Matched
+  // by id, so a revert landing after the user has opened another item is a no-op.
+  const applyFavorite = useCallback((id: string, isFavorite: boolean) => {
+    setItem((current) =>
+      current?.id === id ? { ...current, isFavorite } : current,
+    );
+    setDetail((current) =>
+      current?.id === id ? { ...current, isFavorite } : current,
+    );
+  }, []);
+
   const value = useMemo(() => ({ openItem }), [openItem]);
 
   return (
@@ -129,6 +141,7 @@ export function ItemDrawerProvider({
         error={error}
         onUpdated={applyUpdate}
         onDeleted={() => setOpen(false)}
+        onFavoriteChange={applyFavorite}
         editing={editing}
         onEditingChange={setEditing}
         collectionOptions={collectionOptions}

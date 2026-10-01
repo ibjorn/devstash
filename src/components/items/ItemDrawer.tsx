@@ -28,6 +28,7 @@ interface ItemDrawerProps {
   // detail sections repaint without a second fetch
   onUpdated: (updated: ItemDetail) => void;
   onDeleted: () => void;
+  onFavoriteChange: (id: string, isFavorite: boolean) => void;
   // Edit mode is owned by the provider: it's the only place that knows when a
   // different item is opened, and resetting it from an effect here would mean
   // a setState during render
@@ -51,6 +52,7 @@ export function ItemDrawer({
   error,
   onUpdated,
   onDeleted,
+  onFavoriteChange,
   editing,
   onEditingChange,
   collectionOptions,
@@ -89,11 +91,15 @@ export function ItemDrawer({
                 )}
               </ItemSheetHeading>
 
+              {/* Keyed so a favorite save still in flight for the previous item
+                  can't repaint or block this item's star */}
               <ItemDrawerActions
+                key={item.id}
                 item={item}
                 detail={detail}
                 onEdit={() => onEditingChange(true)}
                 onDeleted={onDeleted}
+                onFavoriteChange={onFavoriteChange}
               />
             </SheetHeader>
 

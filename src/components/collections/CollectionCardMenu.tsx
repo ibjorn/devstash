@@ -2,8 +2,8 @@
 
 import { MoreHorizontal, Pencil, Star, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 
+import { setCollectionFavorite } from "@/actions/favorites";
 import { DeleteCollectionDialog } from "@/components/collections/DeleteCollectionDialog";
 import {
   EditCollectionDialog,
@@ -16,6 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useFavoriteToggle } from "@/hooks/use-favorite-toggle";
 import { cn } from "@/lib/utils";
 
 interface CollectionCardMenuProps {
@@ -35,6 +36,10 @@ export function CollectionCardMenu({
 }: CollectionCardMenuProps) {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const { isFavorite, toggle } = useFavoriteToggle({
+    isFavorite: collection.isFavorite,
+    save: (next) => setCollectionFavorite(collection.id, next),
+  });
 
   return (
     <>
@@ -54,15 +59,11 @@ export function CollectionCardMenu({
             <Pencil />
             Edit
           </DropdownMenuItem>
-          <DropdownMenuItem
-            onSelect={() => toast("Favoriting collections is coming soon")}
-          >
+          <DropdownMenuItem onSelect={toggle}>
             <Star
-              className={cn(
-                collection.isFavorite && "fill-yellow-400 text-yellow-400",
-              )}
+              className={cn(isFavorite && "fill-yellow-400 text-yellow-400")}
             />
-            Favorite
+            {isFavorite ? "Unfavorite" : "Favorite"}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
