@@ -21,3 +21,11 @@ export interface CollectionOption {
   id: string;
   name: string;
 }
+
+/** The fields /collections/[id] shows above the collection's items. */
+export interface CollectionHeader {
+  id: string;
+  name: string;
+  description: string | null;
+  isFavorite: boolean;
+}

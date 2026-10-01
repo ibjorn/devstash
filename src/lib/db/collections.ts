@@ -2,6 +2,7 @@ import type { Prisma } from "@/generated/prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import type {
+  CollectionHeader,
   CollectionOption,
   CollectionSummary,
   CollectionTypeStat,
@@ -10,7 +11,7 @@ import type {
 async function findCollectionSummaries(
   userId: string,
   where: Prisma.CollectionWhereInput,
-  limit: number
+  limit?: number
 ): Promise<CollectionSummary[]> {
   const collections = await prisma.collection.findMany({
     where: { userId, ...where },
@@ -93,6 +94,30 @@ export async function getRecentNonFavoriteCollections(
   limit = 5
 ): Promise<CollectionSummary[]> {
   return findCollectionSummaries(userId, { isFavorite: false }, limit);
+}
+
+/**
+ * Every collection the user owns, newest activity first, for /collections.
+ * Unbounded: a page that promises all collections shouldn't truncate them.
+ */
+export async function getAllCollections(
+  userId: string,
+): Promise<CollectionSummary[]> {
+  return findCollectionSummaries(userId, {});
+}
+
+/**
+ * One collection's header fields for /collections/[id]. Ownership is part of
+ * the where clause, so another user's id and a nonexistent one both give null.
+ */
+export async function getCollectionHeader(
+  userId: string,
+  id: string,
+): Promise<CollectionHeader | null> {
+  return prisma.collection.findFirst({
+    where: { id, userId },
+    select: { id: true, name: true, description: true, isFavorite: true },
+  });
 }
 
 /**

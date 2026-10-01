@@ -96,6 +96,24 @@ export async function getItemsByTypeSlug(
   return { type, items: items.map(toItemSummary) };
 }
 
+/**
+ * Items in one collection for /collections/[id], pinned first then newest —
+ * the same order as /items/[type]. Scoped to the user as well as the
+ * collection, so a foreign collection id can never surface someone's items.
+ */
+export async function getItemsInCollection(
+  userId: string,
+  collectionId: string,
+): Promise<ItemSummary[]> {
+  const items = await prisma.item.findMany({
+    where: { userId, collections: { some: { collectionId } } },
+    orderBy: [{ isPinned: "desc" }, { createdAt: "desc" }],
+    select: itemSummarySelect,
+  });
+
+  return items.map(toItemSummary);
+}
+
 const itemDetailSelect = {
   ...itemSummarySelect,
   content: true,

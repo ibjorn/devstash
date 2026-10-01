@@ -1,10 +1,28 @@
-# Current Feature
+# Current Feature: Collection Pages
 
 ## Status
 
+In Progress
+
 ## Goals
 
+- `/collections` lists every collection the user owns as a grid of the existing `CollectionCard`s (same tint/border/type-icon treatment as the dashboard), with a heading + count and an `EmptyState` when there are none
+- `/collections/[id]` shows the collection's name, description and item count, and its items using the existing item cards (`ItemCard`; `ImageCard` / `FileRow` as appropriate per item), each opening the item drawer as it does elsewhere
+- Both routes scoped to the session user: another user's collection id and a nonexistent one render the same not-found result (ownership in the query's `where`, not fetch-then-check)
+- `src/proxy.ts` matcher gains `/collections/:path*` and the route gets its own four-line `AppShell` layout, so neither page ships unauthenticated (the trap /profile and /items both fell into)
+- Sidebar "View all collections", the sidebar collection links and every `CollectionCard` resolve to these pages (they already point at `/collections` / `/collections/<id>` and currently 404 — no link changes expected beyond confirming active states)
+- Unit tests for the new query functions (ownership filter, not-found path); lint + test + build pass
+
 ## Notes
+
+- Inline request (no spec file): "create the /collections page and show the collections; create the /collections/[id] page to show the items in that collection; use the existing cards; link 'View all collections' to /collections and link all collection cards to that specific collection page."
+- Links already exist: `CollectionCard.tsx` → `/collections/${id}`, `CollectionNavItem.tsx` → same, `AppSidebar.tsx:152` → `/collections` with `isActive` on that pathname. The real work is the two pages, queries and the matcher.
+- `/collections` query: reuse `findCollectionSummaries` with no limit (unbounded, like the picker — a page called "all collections" shouldn't truncate). Needs `limit` to become optional.
+- `/collections/[id]` query: new `getCollectionWithItems(userId, id)` returning collection header fields + `ItemSummary[]` via the existing `itemSummarySelect` / `toItemSummary`; sort pinned first then newest, matching `/items/[type]`.
+- Decision to confirm at `start`: **mixed-type item layout.** A collection holds any type, so `/items/[type]`'s per-page view switch doesn't apply. Recommendation: one `ItemCard` grid for everything (ImageCard/FileRow are type-page layouts; a grid mixing tall image tiles and list rows reads badly). Alternative: ItemCard grid plus a separate image gallery section.
+- Decision to confirm at `start`: **unknown/foreign id → `notFound()` or in-page EmptyState?** `/items/[type]` chose an EmptyState for bad slugs; a collection id isn't human-typed, so `notFound()` is recommended here.
+- Out of scope: edit/delete/favorite collection, removing items from a collection on this page, pagination, sorting controls.
+- Items in a collection aren't bounded by the free tier during development; query unbounded like `getItemsByTypeSlug`.
 
 ## History
 - 2026-05-12: **Initial Setup** - Next.js and Tailwind setup

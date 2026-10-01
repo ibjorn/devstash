@@ -5,6 +5,7 @@ const { prisma } = vi.hoisted(() => ({
     $transaction: vi.fn(),
     item: {
       findFirst: vi.fn(),
+      findMany: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
       delete: vi.fn(),
@@ -37,6 +38,7 @@ import {
   deleteItem,
   getItemDetail,
   getItemFile,
+  getItemsInCollection,
   isFileKeyInUse,
   UnknownCollectionError,
   updateItem,
@@ -76,6 +78,41 @@ function itemRow(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
 }
+
+describe("getItemsInCollection", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("scopes to the user as well as the collection", async () => {
+    prisma.item.findMany.mockResolvedValue([]);
+
+    await getItemsInCollection(USER_ID, "col_1");
+
+    expect(prisma.item.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          userId: USER_ID,
+          collections: { some: { collectionId: "col_1" } },
+        },
+        orderBy: [{ isPinned: "desc" }, { createdAt: "desc" }],
+      }),
+    );
+  });
+
+  it("maps rows to item summaries", async () => {
+    prisma.item.findMany.mockResolvedValue([itemRow()]);
+
+    const [item] = await getItemsInCollection(USER_ID, "col_1");
+
+    expect(item).toMatchObject({
+      id: ITEM_ID,
+      title: "useAuth Hook",
+      type: { name: "Snippet" },
+      tags: ["auth", "react"],
+    });
+  });
+});
 
 describe("getItemDetail", () => {
   beforeEach(() => {
