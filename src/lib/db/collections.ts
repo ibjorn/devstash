@@ -93,3 +93,21 @@ export async function getRecentNonFavoriteCollections(
 ): Promise<CollectionSummary[]> {
   return findCollectionSummaries(userId, { isFavorite: false }, limit);
 }
+
+export interface CreateCollectionData {
+  name: string;
+  description: string | null;
+}
+
+// A brand-new collection has no items, so its summary needs no type stats
+export async function createCollection(
+  userId: string,
+  data: CreateCollectionData,
+): Promise<CollectionSummary> {
+  const collection = await prisma.collection.create({
+    data: { userId, name: data.name, description: data.description },
+    select: { id: true, name: true, description: true, isFavorite: true },
+  });
+
+  return { ...collection, itemCount: 0, types: [] };
+}

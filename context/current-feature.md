@@ -1,10 +1,26 @@
-# Current Feature
+# Current Feature: Collection Create
 
 ## Status
+Complete
 
 ## Goals
+- "New Collection" button in the top bar, beside "New Item", opening a shadcn `Dialog`
+- Fields: name (required, trimmed, bounded) and description (optional, emptied → null); `defaultTypeId` left null (not in scope)
+- Collections stay user-scoped: the new row's `userId` comes from the session, never from the request
+- New `createCollection(userId, data)` in src/lib/db/collections.ts, `userId` as a required first parameter per the User-Scoped Data convention, returning a `CollectionSummary`
+- Zod schema for the input (new src/lib/validation/collections.ts), `{ success, data, error, fieldErrors }` result, per-field errors inline
+- Toast on success (`Created "<name>"`) and on failure; Create disabled while pending with the usual `Loader2` spinner; the `try` wraps only the mutation call
+- On save, `router.refresh()` so the dashboard collections grid, stats card count and sidebar Recent group all show the new collection
+- Unit tests for the schema, the query (userId scoping) and the mutation (auth guard never reaching the DB, runs as the session user, validation, generic failure)
 
 ## Notes
+- **Open decision — server action vs API route.** The request says "api routes for any client-side calls", but it also says "follow the same patterns as items", and item create/edit/delete are all **server actions** (src/actions/items.ts); coding standards reserve API routes for webhooks, uploads with progress, mobile/CLI endpoints etc. Recommendation: a `createCollection` server action in new src/actions/collections.ts, mirroring `createItem`. Alternative: `POST /api/collections` that authenticates itself (the proxy matcher covers pages, not `/api/...` — returns 401 JSON, not a redirect), like `/api/items/[id]`. Confirm at `start`.
+- Reads stay in server components via src/lib/db (AppShell + dashboard page already fetch collections); no new fetch path needed for display.
+- Free-tier 3-collection limit **not** enforced — Pro gating stays bypassed during development.
+- Duplicate names allowed (schema has no unique on `[userId, name]`); flag if that should change — it would need a migration.
+- After create, nothing to open (no collection page yet; sidebar "View all collections" → /collections still 404s). Adding items to a collection is out of scope.
+- Rate limiting: not added; item create isn't limited either.
+- Bounds suggestion: name ≤ 100, description ≤ 1000 (matches item description).
 
 ## History
 - 2026-05-12: **Initial Setup** - Next.js and Tailwind setup
