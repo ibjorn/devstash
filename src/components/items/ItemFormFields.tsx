@@ -1,10 +1,12 @@
 "use client";
 
+import { CollectionPicker } from "@/components/collections/CollectionPicker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { ItemContentType } from "@/generated/prisma/client";
 import { isCodeType, isMarkdownType } from "@/lib/code-language";
+import type { CollectionOption } from "@/types/collections";
 
 import { CodeEditor } from "./CodeEditor";
 import { MarkdownEditor } from "./MarkdownEditor";
@@ -16,7 +18,13 @@ export interface ItemFormValues {
   language: string;
   url: string;
   tags: string;
+  collectionIds: string[];
 }
+
+export type ItemFormChange = <K extends keyof ItemFormValues>(
+  field: K,
+  value: ItemFormValues[K],
+) => void;
 
 export interface VisibleFields {
   content: boolean;
@@ -46,10 +54,12 @@ export function visibleFieldsFor(
 
 interface ItemFormFieldsProps {
   values: ItemFormValues;
-  onChange: (field: keyof ItemFormValues, value: string) => void;
+  onChange: ItemFormChange;
   errors: Record<string, string>;
   visible: VisibleFields;
   tagsHint: string;
+  /** Every collection the user owns, for the collections picker. */
+  collections: CollectionOption[];
 }
 
 function FieldError({ id, message }: { id: string; message?: string }) {
@@ -81,6 +91,7 @@ export function ItemFormFields({
   errors,
   visible,
   tagsHint,
+  collections,
 }: ItemFormFieldsProps) {
   return (
     <>
@@ -199,6 +210,19 @@ export function ItemFormFields({
         />
         <p className="text-xs text-muted-foreground">{tagsHint}</p>
         <FieldError id="tags-error" message={errors.tags} />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="item-collections">Collections</Label>
+        <CollectionPicker
+          id="item-collections"
+          options={collections}
+          value={values.collectionIds}
+          onChange={(value) => onChange("collectionIds", value)}
+          invalid={Boolean(errors.collectionIds)}
+          describedBy={errors.collectionIds ? "collectionIds-error" : undefined}
+        />
+        <FieldError id="collectionIds-error" message={errors.collectionIds} />
       </div>
     </>
   );

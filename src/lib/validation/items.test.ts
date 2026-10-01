@@ -133,7 +133,38 @@ describe("updateItemSchema", () => {
       url: null,
       language: null,
       tags: [],
+      collectionIds: [],
     });
+  });
+
+  it("de-duplicates collection ids so each one counts once", () => {
+    const result = updateItemSchema.safeParse({
+      ...base,
+      collectionIds: ["col_1", " col_1 ", "col_2"],
+    });
+
+    expect(result.success && result.data.collectionIds).toEqual([
+      "col_1",
+      "col_2",
+    ]);
+  });
+
+  it("bounds collection ids in shape and number", () => {
+    const ids = (n: number) => Array.from({ length: n }, (_, i) => `col_${i}`);
+
+    expect(
+      updateItemSchema.safeParse({ ...base, collectionIds: [""] }).success,
+    ).toBe(false);
+    expect(
+      updateItemSchema.safeParse({ ...base, collectionIds: ["x".repeat(65)] })
+        .success,
+    ).toBe(false);
+    expect(
+      updateItemSchema.safeParse({ ...base, collectionIds: ids(100) }).success,
+    ).toBe(true);
+    expect(
+      updateItemSchema.safeParse({ ...base, collectionIds: ids(101) }).success,
+    ).toBe(false);
   });
 });
 

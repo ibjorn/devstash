@@ -1,10 +1,31 @@
-# Current Feature
+# Current Feature: Item Collections
 
 ## Status
 
+In Progress
+
 ## Goals
 
+- The New Item dialog and the drawer's edit mode gain a **Collections** input listing the signed-in user's collections, allowing none, one or several to be selected
+- Creating an item links it to every selected collection; saving an edit makes the item's collections match the selection exactly (added, removed, or cleared)
+- Edit mode opens with the item's current collections preselected
+- Every collection id is checked **server-side** to belong to the session user — another user's collection id, or one that doesn't exist, is refused rather than linked
+- Links that survive an edit keep their original `ItemCollection.addedAt` (only additions and removals are written)
+- After save, `router.refresh()` keeps the dashboard collection cards (item counts, type tint/icons) and sidebar in step, and the drawer's existing Collections section shows the new set
+- Unit tests for the schema, query and action changes: ownership filter, replace semantics, unknown/foreign ids refused, auth guard
+
 ## Notes
+
+- **Out of scope:** collection pages (`/collections/<id>` still 404s), adding/removing items from the collection side, creating a collection from inside the item form
+- **No schema change expected** — `ItemCollection` (`itemId`, `collectionId`, `addedAt`, composite PK, cascade on both sides) has existed since Database Setup; the drawer already reads `collections` in `itemDetailSelect` (src/lib/db/items.ts)
+- Collections list for the picker: fetch once in AppShell's existing `Promise.all` (like `getCreatableItemTypes`) and hand it down to TopBar → NewItemDialog and to the drawer provider for edit mode; needs a lightweight `{ id, name }` query scoped by `userId`
+- `ItemFormValues` is all strings today; collections are `string[]`, so `useItemForm` / `ItemFormFields` need a non-string field (or a separate piece of state)
+- Server: `createItemSchema` extends `updateItemSchema`, so a `collectionIds: string[]` added to the update schema covers both; validate ownership with one `collection.count({ where: { id: { in }, userId } })` (or findMany) before writing, and write the links inside the same transaction as `updateItem` (`deleteMany` the removed, `createMany` the added) / nested `create` in `createItem`
+- De-duplicate ids before the ownership count, or a repeated id makes the count disagree
+- **Open decisions for `start`:**
+  1. **Picker UI** — (a) a scrollable checkbox list in the form (no new component; fine at free-tier 3 collections, gets long later), or (b) a multi-select combobox (shadcn `popover` + `command` via `npm run ui:add`, chips for selections; scales, but popovers inside a Dialog/Sheet need care). **Decided at `start`: (b)**
+  2. **Preselect on create** — none, or nothing for now and leave "create from a collection page" to that feature. **Decided: none**
+- Neon cold-start retry doesn't cover interactive transactions (logged at Delete Item); `updateItem` already runs one and is fine because the action reads first
 
 ## History
 - 2026-05-12: **Initial Setup** - Next.js and Tailwind setup

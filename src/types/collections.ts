@@ -15,3 +15,9 @@ export interface CollectionSummary {
   // ordered by count desc; first entry is the collection's most-used type
   types: CollectionTypeStat[];
 }
+
+/** A collection as the item forms' picker lists it. */
+export interface CollectionOption {
+  id: string;
+  name: string;
+}

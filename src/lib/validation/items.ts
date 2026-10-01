@@ -10,6 +10,8 @@ const URL_MAX = 2048;
 const LANGUAGE_MAX = 50;
 const TAG_MAX = 50;
 const TAGS_MAX = 20;
+const COLLECTIONS_MAX = 100;
+const ID_MAX = 64;
 
 // Empty strings coming out of a cleared input mean "no value", not "". Trim
 // first so a field holding only whitespace collapses to null too.
@@ -69,6 +71,17 @@ export const updateItemSchema = z.object({
       (tags) => tags.every((tag) => tag.length <= TAG_MAX),
       `Each tag must be at most ${TAG_MAX} characters`,
     )
+    .default([]),
+  // The full set the item should belong to — editing replaces it. Only the
+  // shape is checked here; that every id is one of the caller's own
+  // collections is decided in the query, which is the only place that knows.
+  collectionIds: z
+    .array(z.string().trim().min(1).max(ID_MAX))
+    .max(
+      COLLECTIONS_MAX,
+      `An item can be in at most ${COLLECTIONS_MAX} collections`,
+    )
+    .transform((ids) => [...new Set(ids)])
     .default([]),
 });
 

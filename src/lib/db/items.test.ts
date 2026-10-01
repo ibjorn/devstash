@@ -10,8 +10,17 @@ const { prisma } = vi.hoisted(() => ({
       delete: vi.fn(),
     },
     tag: { deleteMany: vi.fn() },
+    collection: { count: vi.fn() },
   },
 }));
+
+// Every id counts as the caller's unless a test says otherwise
+function allCollectionsOwned() {
+  prisma.collection.count.mockImplementation(
+    ({ where }: { where: { id: { in: string[] } } }) =>
+      Promise.resolve(where.id.in.length),
+  );
+}
 
 // Runs an interactive transaction's callback against the same mocks, so the
 // writes inside it can be asserted on as if they'd been made directly
@@ -29,6 +38,7 @@ import {
   getItemDetail,
   getItemFile,
   isFileKeyInUse,
+  UnknownCollectionError,
   updateItem,
 } from "@/lib/db/items";
 
@@ -152,6 +162,7 @@ describe("updateItem", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     passThroughTransactions();
+    allCollectionsOwned();
   });
 
   const data = {
@@ -161,6 +172,7 @@ describe("updateItem", () => {
     url: null,
     language: "typescript",
     tags: ["auth", "react"],
+    collectionIds: ["col_1", "col_2"],
   };
 
   it("puts the ownership filter in the update's own where clause", async () => {
@@ -240,13 +252,14 @@ describe("updateItem", () => {
     ]);
   });
 
-  it("writes only the item's own columns — never the type or the collections", async () => {
+  it("writes only the item's own columns and links — never the type", async () => {
     prisma.item.update.mockResolvedValue(itemRow());
 
     await updateItem(USER_ID, ITEM_ID, data);
 
     const written = prisma.item.update.mock.calls[0][0].data;
     expect(Object.keys(written).sort()).toEqual([
+      "collections",
       "content",
       "description",
       "language",
@@ -254,6 +267,58 @@ describe("updateItem", () => {
       "title",
       "url",
     ]);
+  });
+
+  it("checks every collection is the caller's own before writing", async () => {
+    prisma.item.update.mockResolvedValue(itemRow());
+
+    await updateItem(USER_ID, ITEM_ID, data);
+
+    expect(prisma.collection.count).toHaveBeenCalledWith({
+      where: { id: { in: ["col_1", "col_2"] }, userId: USER_ID },
+    });
+    expect(prisma.collection.count.mock.invocationCallOrder[0]).toBeLessThan(
+      prisma.item.update.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("refuses a collection that isn't the caller's, writing nothing", async () => {
+    // One of the two ids belongs to someone else, so only one counts
+    prisma.collection.count.mockResolvedValue(1);
+
+    await expect(updateItem(USER_ID, ITEM_ID, data)).rejects.toBeInstanceOf(
+      UnknownCollectionError,
+    );
+    expect(prisma.item.update).not.toHaveBeenCalled();
+  });
+
+  it("syncs links so the ones that survive keep their addedAt", async () => {
+    prisma.item.update.mockResolvedValue(itemRow());
+
+    await updateItem(USER_ID, ITEM_ID, data);
+
+    // Only links outside the new set are removed; existing ones are skipped
+    // rather than recreated
+    expect(prisma.item.update.mock.calls[0][0].data.collections).toEqual({
+      deleteMany: { collectionId: { notIn: ["col_1", "col_2"] } },
+      createMany: {
+        data: [{ collectionId: "col_1" }, { collectionId: "col_2" }],
+        skipDuplicates: true,
+      },
+    });
+  });
+
+  it("removes the item from every collection when given an empty list", async () => {
+    prisma.item.update.mockResolvedValue(itemRow({ collections: [] }));
+
+    await updateItem(USER_ID, ITEM_ID, { ...data, collectionIds: [] });
+
+    // Nothing to check ownership of
+    expect(prisma.collection.count).not.toHaveBeenCalled();
+    expect(prisma.item.update.mock.calls[0][0].data.collections).toEqual({
+      deleteMany: { collectionId: { notIn: [] } },
+      createMany: { data: [], skipDuplicates: true },
+    });
   });
 });
 
@@ -317,6 +382,8 @@ describe("deleteItem", () => {
 describe("createItem", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    passThroughTransactions();
+    allCollectionsOwned();
   });
 
   const data = {
@@ -328,10 +395,35 @@ describe("createItem", () => {
     url: null,
     language: "typescript",
     tags: ["react", "auth"],
+    collectionIds: [] as string[],
     fileUrl: null,
     fileName: null,
     fileSize: null,
   };
+
+  it("links the item to the caller's chosen collections", async () => {
+    prisma.item.create.mockResolvedValue(itemRow());
+
+    await createItem(USER_ID, { ...data, collectionIds: ["col_1", "col_2"] });
+
+    expect(prisma.collection.count).toHaveBeenCalledWith({
+      where: { id: { in: ["col_1", "col_2"] }, userId: USER_ID },
+    });
+    expect(prisma.item.create.mock.calls[0][0].data.collections).toEqual({
+      createMany: {
+        data: [{ collectionId: "col_1" }, { collectionId: "col_2" }],
+      },
+    });
+  });
+
+  it("refuses a collection that isn't the caller's, creating nothing", async () => {
+    prisma.collection.count.mockResolvedValue(0);
+
+    await expect(
+      createItem(USER_ID, { ...data, collectionIds: ["col_other"] }),
+    ).rejects.toBeInstanceOf(UnknownCollectionError);
+    expect(prisma.item.create).not.toHaveBeenCalled();
+  });
 
   it("writes the file columns for an uploaded item", async () => {
     prisma.item.create.mockResolvedValue(itemRow());

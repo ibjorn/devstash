@@ -151,6 +151,8 @@ export interface UpdateItemData {
   url: string | null;
   language: string | null;
   tags: string[];
+  /** The complete set of the user's collections the item should be in. */
+  collectionIds: string[];
 }
 
 type TransactionClient = Parameters<
@@ -169,6 +171,34 @@ function connectUserTags(userId: string, names: string[]) {
       create: { name, userId },
     })),
   } satisfies Prisma.TagCreateNestedManyWithoutItemsInput;
+}
+
+/**
+ * Thrown when an item is pointed at a collection the user doesn't own — or one
+ * that doesn't exist, which from the caller's side is the same thing.
+ */
+export class UnknownCollectionError extends Error {
+  constructor() {
+    super("One or more collections could not be found");
+    this.name = "UnknownCollectionError";
+  }
+}
+
+/**
+ * Refuse unless every id is one of the user's own collections. Runs inside the
+ * write's transaction so the check and the link land together. `ids` arrive
+ * de-duplicated from the schema, so a count is enough.
+ */
+async function assertOwnCollections(
+  tx: TransactionClient,
+  userId: string,
+  ids: string[],
+) {
+  if (ids.length === 0) return;
+  const owned = await tx.collection.count({
+    where: { id: { in: ids }, userId },
+  });
+  if (owned !== ids.length) throw new UnknownCollectionError();
 }
 
 /**
@@ -191,6 +221,9 @@ async function sweepOrphanTags(tx: TransactionClient, userId: string) {
  * Tags are replaced wholesale — every existing link is dropped and the new set
  * connected or created per user. Tags the edit leaves unused are swept in the
  * same transaction.
+ *
+ * Collections are synced rather than replaced: links outside the new set are
+ * deleted and missing ones added, so a link that survives keeps its addedAt.
  */
 export async function updateItem(
   userId: string,
@@ -198,6 +231,7 @@ export async function updateItem(
   data: UpdateItemData,
 ): Promise<ItemDetail> {
   const item = await prisma.$transaction(async (tx) => {
+    await assertOwnCollections(tx, userId, data.collectionIds);
     const updated = await tx.item.update({
       where: { id, userId },
       data: {
@@ -207,6 +241,13 @@ export async function updateItem(
         url: data.url,
         language: data.language,
         tags: { set: [], ...connectUserTags(userId, data.tags) },
+        collections: {
+          deleteMany: { collectionId: { notIn: data.collectionIds } },
+          createMany: {
+            data: data.collectionIds.map((collectionId) => ({ collectionId })),
+            skipDuplicates: true,
+          },
+        },
       },
       select: itemDetailSelect,
     });
@@ -288,27 +329,36 @@ export interface CreateItemData extends UpdateItemData {
  * Create an item for the user and return it in full, so the drawer can open on
  * it without a fetch. Tags are connected or created per user on `userId_name`,
  * exactly as `updateItem` does — a name another user holds is a different row.
+ * Every collection must be the user's own, checked in the same transaction.
  */
 export async function createItem(
   userId: string,
   data: CreateItemData,
 ): Promise<ItemDetail> {
-  const item = await prisma.item.create({
-    data: {
-      userId,
-      itemTypeId: data.itemTypeId,
-      contentType: data.contentType,
-      title: data.title,
-      description: data.description,
-      content: data.content,
-      url: data.url,
-      language: data.language,
-      fileUrl: data.fileUrl,
-      fileName: data.fileName,
-      fileSize: data.fileSize,
-      tags: connectUserTags(userId, data.tags),
-    },
-    select: itemDetailSelect,
+  const item = await prisma.$transaction(async (tx) => {
+    await assertOwnCollections(tx, userId, data.collectionIds);
+    return tx.item.create({
+      data: {
+        userId,
+        itemTypeId: data.itemTypeId,
+        contentType: data.contentType,
+        title: data.title,
+        description: data.description,
+        content: data.content,
+        url: data.url,
+        language: data.language,
+        fileUrl: data.fileUrl,
+        fileName: data.fileName,
+        fileSize: data.fileSize,
+        tags: connectUserTags(userId, data.tags),
+        collections: {
+          createMany: {
+            data: data.collectionIds.map((collectionId) => ({ collectionId })),
+          },
+        },
+      },
+      select: itemDetailSelect,
+    });
   });
 
   return toItemDetail(item);

@@ -4,13 +4,15 @@ import { NewCollectionDialog } from "@/components/collections/NewCollectionDialo
 import { NewItemDialog } from "@/components/items/NewItemDialog";
 import { Input } from "@/components/ui/input";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import type { CollectionOption } from "@/types/collections";
 import type { CreatableItemType } from "@/types/items";
 
 interface TopBarProps {
   newItemTypes: CreatableItemType[];
+  collectionOptions: CollectionOption[];
 }
 
-export function TopBar({ newItemTypes }: TopBarProps) {
+export function TopBar({ newItemTypes, collectionOptions }: TopBarProps) {
   return (
     <header className="flex h-14 shrink-0 items-center gap-4 border-b border-border px-4">
       <SidebarTrigger />
@@ -25,7 +27,7 @@ export function TopBar({ newItemTypes }: TopBarProps) {
       </div>
       <div className="ml-auto flex items-center gap-2">
         <NewCollectionDialog />
-        <NewItemDialog types={newItemTypes} />
+        <NewItemDialog types={newItemTypes} collections={collectionOptions} />
       </div>
     </header>
   );

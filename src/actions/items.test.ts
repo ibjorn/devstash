@@ -10,6 +10,7 @@ const {
   updateItemQuery,
   deleteObject,
   getObjectSize,
+  UnknownCollectionError,
 } = vi.hoisted(() => ({
   auth: vi.fn(),
   createItemQuery: vi.fn(),
@@ -20,6 +21,8 @@ const {
   updateItemQuery: vi.fn(),
   deleteObject: vi.fn(),
   getObjectSize: vi.fn(),
+  // A stand-in for the query module's error; the action only checks instanceof
+  UnknownCollectionError: class UnknownCollectionError extends Error {},
 }));
 
 vi.mock("@/auth", () => ({ auth }));
@@ -29,6 +32,7 @@ vi.mock("@/lib/db/items", () => ({
   getItemDetail,
   isFileKeyInUse,
   updateItem: updateItemQuery,
+  UnknownCollectionError,
 }));
 vi.mock("@/lib/db/item-types", () => ({ getCreatableItemType }));
 vi.mock("@/lib/r2", () => ({ deleteObject, getObjectSize }));
@@ -69,6 +73,15 @@ const valid = {
   language: "typescript",
   url: null,
   tags: ["react"],
+  collectionIds: ["col_1"],
+};
+
+const UNKNOWN_COLLECTION = {
+  success: false,
+  fieldErrors: {
+    collectionIds:
+      "One of those collections no longer exists. Refresh and try again.",
+  },
 };
 
 function signedIn() {
@@ -223,6 +236,29 @@ describe("updateItem", () => {
       success: false,
       error: "That item no longer exists.",
     });
+  });
+
+  it("passes the chosen collections through to the query", async () => {
+    signedIn();
+    getItemDetail.mockResolvedValue(detail());
+    updateItemQuery.mockResolvedValue(detail());
+
+    await updateItem(ITEM_ID, { ...valid, collectionIds: ["col_1", "col_2"] });
+
+    expect(updateItemQuery.mock.calls[0][2].collectionIds).toEqual([
+      "col_1",
+      "col_2",
+    ]);
+  });
+
+  it("reports a collection that isn't the caller's against the field", async () => {
+    signedIn();
+    getItemDetail.mockResolvedValue(detail());
+    updateItemQuery.mockRejectedValue(new UnknownCollectionError());
+
+    await expect(updateItem(ITEM_ID, valid)).resolves.toEqual(
+      UNKNOWN_COLLECTION,
+    );
   });
 
   it("does not leak an unexpected failure to the caller", async () => {
@@ -393,10 +429,31 @@ describe("createItem", () => {
       language: "typescript",
       url: null,
       tags: ["react"],
+      collectionIds: [],
       fileUrl: null,
       fileName: null,
       fileSize: null,
     });
+  });
+
+  it("links the new item to the chosen collections", async () => {
+    signedIn();
+    getCreatableItemType.mockResolvedValue(snippetType);
+    createItemQuery.mockResolvedValue(detail());
+
+    await createItem({ ...snippet, collectionIds: ["col_1", "col_1"] });
+
+    expect(createItemQuery.mock.calls[0][1].collectionIds).toEqual(["col_1"]);
+  });
+
+  it("reports a collection that isn't the caller's against the field", async () => {
+    signedIn();
+    getCreatableItemType.mockResolvedValue(snippetType);
+    createItemQuery.mockRejectedValue(new UnknownCollectionError());
+
+    await expect(
+      createItem({ ...snippet, collectionIds: ["col_other"] }),
+    ).resolves.toEqual(UNKNOWN_COLLECTION);
   });
 
   it("takes the content type from the resolved type, not the request", async () => {

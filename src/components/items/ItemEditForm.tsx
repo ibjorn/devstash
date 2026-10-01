@@ -14,10 +14,12 @@ import { Button } from "@/components/ui/button";
 import { SheetHeader } from "@/components/ui/sheet";
 import { useItemForm } from "@/hooks/use-item-form";
 import { parseTagInput } from "@/lib/validation/items";
+import type { CollectionOption } from "@/types/collections";
 import type { ItemDetail } from "@/types/items";
 
 interface ItemEditFormProps {
   detail: ItemDetail;
+  collections: CollectionOption[];
   onCancel: () => void;
   onSaved: (updated: ItemDetail) => void;
 }
@@ -30,7 +32,12 @@ interface ItemEditFormProps {
  * Fields the form doesn't render send back the value the item already had, so
  * editing a Note can never blank a column the form never showed.
  */
-export function ItemEditForm({ detail, onCancel, onSaved }: ItemEditFormProps) {
+export function ItemEditForm({
+  detail,
+  collections,
+  onCancel,
+  onSaved,
+}: ItemEditFormProps) {
   const router = useRouter();
 
   const { values, handleChange, fieldErrors, pending, submit } = useItemForm({
@@ -40,6 +47,7 @@ export function ItemEditForm({ detail, onCancel, onSaved }: ItemEditFormProps) {
     language: detail.language ?? "",
     url: detail.url ?? "",
     tags: detail.tags.join(", "),
+    collectionIds: detail.collections.map((collection) => collection.id),
   });
 
   const visible = visibleFieldsFor(detail.contentType, detail.type.name);
@@ -59,6 +67,7 @@ export function ItemEditForm({ detail, onCancel, onSaved }: ItemEditFormProps) {
           language: visible.language ? values.language : detail.language,
           url: visible.url ? values.url : detail.url,
           tags: parseTagInput(values.tags),
+          collectionIds: values.collectionIds,
         }),
       {
         unreachable:
@@ -106,6 +115,7 @@ export function ItemEditForm({ detail, onCancel, onSaved }: ItemEditFormProps) {
           errors={fieldErrors}
           visible={visible}
           tagsHint="Separate tags with commas. Clearing this removes every tag."
+          collections={collections}
         />
       </div>
     </form>

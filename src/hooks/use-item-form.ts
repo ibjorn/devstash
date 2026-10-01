@@ -4,7 +4,10 @@ import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
 import type { ItemActionResult } from "@/actions/items";
-import type { ItemFormValues } from "@/components/items/ItemFormFields";
+import type {
+  ItemFormChange,
+  ItemFormValues,
+} from "@/components/items/ItemFormFields";
 import type { ItemDetail } from "@/types/items";
 
 interface SubmitMessages {
@@ -28,12 +31,9 @@ export function useItemForm(initial: ItemFormValues) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [pending, setPending] = useState(false);
 
-  const handleChange = useCallback(
-    (field: keyof ItemFormValues, value: string) => {
-      setValues((current) => ({ ...current, [field]: value }));
-    },
-    [],
-  );
+  const handleChange = useCallback<ItemFormChange>((field, value) => {
+    setValues((current) => ({ ...current, [field]: value }));
+  }, []);
 
   const reset = useCallback((next: ItemFormValues) => {
     setValues(next);

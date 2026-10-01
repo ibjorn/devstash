@@ -6,6 +6,7 @@ import { ItemDrawerProvider } from "@/components/items/ItemDrawerProvider";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import {
+  getCollectionOptions,
   getFavoriteCollections,
   getRecentNonFavoriteCollections,
 } from "@/lib/db/collections";
@@ -33,12 +34,14 @@ export async function AppShell({
     recentCollections,
     user,
     newItemTypes,
+    collectionOptions,
   ] = await Promise.all([
     getItemTypeNavItems(userId),
     getFavoriteCollections(userId),
     getRecentNonFavoriteCollections(userId),
     getCurrentUser(userId),
     getCreatableItemTypes(),
+    getCollectionOptions(userId),
   ]);
 
   // Signed in against a User row that no longer exists — clear the stale
@@ -55,8 +58,11 @@ export async function AppShell({
           user={user}
         />
         <SidebarInset className="h-svh overflow-hidden">
-          <ItemDrawerProvider>
-            <TopBar newItemTypes={newItemTypes} />
+          <ItemDrawerProvider collectionOptions={collectionOptions}>
+            <TopBar
+              newItemTypes={newItemTypes}
+              collectionOptions={collectionOptions}
+            />
             <div className="flex-1 overflow-y-auto p-6">{children}</div>
           </ItemDrawerProvider>
         </SidebarInset>

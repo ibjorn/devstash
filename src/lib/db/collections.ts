@@ -2,6 +2,7 @@ import type { Prisma } from "@/generated/prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import type {
+  CollectionOption,
   CollectionSummary,
   CollectionTypeStat,
 } from "@/types/collections";
@@ -92,6 +93,21 @@ export async function getRecentNonFavoriteCollections(
   limit = 5
 ): Promise<CollectionSummary[]> {
   return findCollectionSummaries(userId, { isFavorite: false }, limit);
+}
+
+/**
+ * Every collection the user owns, for the item forms' picker. Unbounded on
+ * purpose: a picker that silently hides some collections can't be used to
+ * add an item to them. Alphabetical, so a name is easy to find by eye.
+ */
+export async function getCollectionOptions(
+  userId: string,
+): Promise<CollectionOption[]> {
+  return prisma.collection.findMany({
+    where: { userId },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
 }
 
 export interface CreateCollectionData {

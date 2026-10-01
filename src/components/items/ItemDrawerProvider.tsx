@@ -10,6 +10,7 @@ import {
 } from "react";
 
 import { ItemDrawer } from "@/components/items/ItemDrawer";
+import type { CollectionOption } from "@/types/collections";
 import type {
   ItemDetail,
   ItemDetailResponse,
@@ -56,8 +57,11 @@ function toItemDetail(data: ItemDetailResponse): ItemDetail {
  */
 export function ItemDrawerProvider({
   children,
+  collectionOptions,
 }: {
   children: React.ReactNode;
+  /** Every collection the user owns, for edit mode's collections picker. */
+  collectionOptions: CollectionOption[];
 }) {
   const [open, setOpen] = useState(false);
   const [item, setItem] = useState<ItemSummary | null>(null);
@@ -127,6 +131,7 @@ export function ItemDrawerProvider({
         onDeleted={() => setOpen(false)}
         editing={editing}
         onEditingChange={setEditing}
+        collectionOptions={collectionOptions}
       />
     </ItemDrawerContext.Provider>
   );

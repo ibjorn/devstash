@@ -7,6 +7,7 @@ import {
   deleteItem as deleteItemQuery,
   getItemDetail,
   isFileKeyInUse,
+  UnknownCollectionError,
   updateItem as updateItemQuery,
 } from "@/lib/db/items";
 import { getCreatableItemType } from "@/lib/db/item-types";
@@ -154,6 +155,16 @@ async function fileFieldsFor(
   return resolved;
 }
 
+// A collection id that isn't the caller's — deleted in another tab, or never
+// theirs. The picker only offers their own, so a refresh is the likely fix.
+const UNKNOWN_COLLECTION: ItemActionResult = {
+  success: false,
+  fieldErrors: {
+    collectionIds:
+      "One of those collections no longer exists. Refresh and try again.",
+  },
+};
+
 function isActionResult(value: unknown): value is ItemActionResult {
   return typeof value === "object" && value !== null && "success" in value;
 }
@@ -203,6 +214,7 @@ export async function createItem(input: unknown): Promise<ItemActionResult> {
       language: data.language,
       url: data.url,
       tags: data.tags,
+      collectionIds: data.collectionIds,
       fileUrl: file?.fileUrl ?? null,
       fileName: file?.fileName ?? null,
       fileSize: file?.fileSize ?? null,
@@ -210,6 +222,8 @@ export async function createItem(input: unknown): Promise<ItemActionResult> {
 
     return { success: true, data: created };
   } catch (error) {
+    if (error instanceof UnknownCollectionError) return UNKNOWN_COLLECTION;
+
     console.error("createItem failed", error);
     return { success: false, error: "Could not create this item." };
   }
@@ -255,10 +269,13 @@ export async function updateItem(
       language: allowed.language ? data.language : existing.language,
       url: allowed.url ? data.url : existing.url,
       tags: data.tags,
+      collectionIds: data.collectionIds,
     });
 
     return { success: true, data: updated };
   } catch (error) {
+    if (error instanceof UnknownCollectionError) return UNKNOWN_COLLECTION;
+
     // The row vanished between the read and the write, or was never the
     // caller's to begin with.
     if (isPrismaError(error, "P2025")) {

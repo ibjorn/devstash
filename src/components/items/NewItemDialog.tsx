@@ -28,10 +28,12 @@ import { Label } from "@/components/ui/label";
 import { useItemForm } from "@/hooks/use-item-form";
 import { uploadKindFor } from "@/lib/uploads";
 import { parseTagInput } from "@/lib/validation/items";
+import type { CollectionOption } from "@/types/collections";
 import type { CreatableItemType } from "@/types/items";
 
 interface NewItemDialogProps {
   types: CreatableItemType[];
+  collections: CollectionOption[];
 }
 
 const EMPTY_VALUES: ItemFormValues = {
@@ -41,6 +43,7 @@ const EMPTY_VALUES: ItemFormValues = {
   language: "",
   url: "",
   tags: "",
+  collectionIds: [],
 };
 
 // On /items/[slug], start on that page's type; anywhere else, the first one
@@ -62,7 +65,7 @@ function initialTypeId(
  * item opens in the drawer, which is why this has to sit inside the
  * ItemDrawerProvider AppShell renders.
  */
-export function NewItemDialog({ types }: NewItemDialogProps) {
+export function NewItemDialog({ types, collections }: NewItemDialogProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { openItem } = useItemDrawer();
@@ -130,6 +133,7 @@ export function NewItemDialog({ types }: NewItemDialogProps) {
           language: visible.language ? values.language : null,
           url: visible.url ? values.url : null,
           tags: parseTagInput(values.tags),
+          collectionIds: values.collectionIds,
           fileKey: uploadKind ? (file?.key ?? null) : null,
         }),
       {
@@ -194,6 +198,7 @@ export function NewItemDialog({ types }: NewItemDialogProps) {
             errors={fieldErrors}
             visible={visible}
             tagsHint="Separate tags with commas."
+            collections={collections}
           />
 
           <DialogFooter>

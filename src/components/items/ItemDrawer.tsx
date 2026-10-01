@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { isCodeType } from "@/lib/code-language";
+import type { CollectionOption } from "@/types/collections";
 import type { ItemDetail, ItemSummary } from "@/types/items";
 
 interface ItemDrawerProps {
@@ -32,6 +33,7 @@ interface ItemDrawerProps {
   // a setState during render
   editing: boolean;
   onEditingChange: (editing: boolean) => void;
+  collectionOptions: CollectionOption[];
 }
 
 /**
@@ -51,6 +53,7 @@ export function ItemDrawer({
   onDeleted,
   editing,
   onEditingChange,
+  collectionOptions,
 }: ItemDrawerProps) {
   if (!item) return null;
 
@@ -70,6 +73,7 @@ export function ItemDrawer({
         {editing && detail ? (
           <ItemEditForm
             detail={detail}
+            collections={collectionOptions}
             onCancel={() => onEditingChange(false)}
             onSaved={(updated) => {
               onEditingChange(false);
