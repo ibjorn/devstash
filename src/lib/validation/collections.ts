@@ -25,3 +25,8 @@ export const createCollectionSchema = z.object({
 });
 
 export type CreateCollectionInput = z.infer<typeof createCollectionSchema>;
+
+// Editing changes the same metadata creating sets, under the same limits
+export const updateCollectionSchema = createCollectionSchema;
+
+export type UpdateCollectionInput = z.infer<typeof updateCollectionSchema>;

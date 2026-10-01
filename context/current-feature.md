@@ -1,10 +1,31 @@
-# Current Feature
+# Current Feature: Collection Actions (Edit, Delete, Favorite)
 
 ## Status
 
+In Progress
+
 ## Goals
 
+- `/collections/[id]` header gets three action buttons: **Edit**, **Delete** and **Favorite**
+- **Edit** opens a modal (shadcn `Dialog`) to edit the collection's metadata — name and description — prefilled, with the same validation limits as create
+- **Delete** opens a confirmation (shadcn `AlertDialog`) naming the collection; on confirm the collection is deleted and **its items are kept** — they only stop belonging to that collection
+- **Favorite** renders as an icon button only (star, filled when `isFavorite`) — **not implemented yet**, clicking it toasts "coming soon", like the drawer's Favorite/Pin
+- Collection cards on `/collections` and the dashboard get a **3-dots (`MoreHorizontal`) icon** that opens a dropdown with Edit, Delete and Favorite, reusing the same dialogs
+- Clicking anywhere else on the card still navigates to `/collections/[id]`; opening the menu or choosing an action never navigates
+- After a save or delete: toast, `router.refresh()` so the grid, sidebar (Favorites/Recent), stats and page header update; deleting from the collection's own page navigates to `/collections`
+- Server actions `updateCollection` / `deleteCollection` with ownership in the query's own where clause (foreign and missing ids look the same), Zod-validated, `{ success, data, error, fieldErrors }`
+- Unit tests for the new schema, queries and actions
+
 ## Notes
+
+- **Items survive deletion by schema already:** `ItemCollection.collection` is `onDelete: Cascade`, so deleting a `Collection` removes only its join rows; `Item` rows are untouched. No schema change or migration expected — worth a unit/live check that item count is unchanged after delete.
+- **Card structure:** `CollectionCard` is currently one `<Link>` wrapping the whole `Card`. The menu trigger can't live inside the `<a>` (interactive content inside a link is invalid HTML and clicks would navigate), so it should be an absolutely positioned **sibling** of the link, the pattern `CopyItemButton` uses on item cards. The card is a server component today; the menu + dialogs will be a client component dropped beside it.
+- **Dialog from a dropdown item:** opening a Dialog/AlertDialog straight from a Radix `DropdownMenuItem` has a known focus/pointer-events trap; hold dialog open state outside the menu (controlled dialogs rendered as siblings of the menu, opened on `onSelect`).
+- Reuse rather than fork: `createCollectionSchema` can back an `updateCollectionSchema`; the edit dialog can share fields with `NewCollectionDialog` (which currently copies `FieldError`/`errorProps` from ItemFormFields — flagged at Collection Create).
+- `CollectionSummary` already carries `isFavorite`; the page uses `CollectionHeader`. Both need `description` available to prefill the edit form (the card summary has it).
+- Same success-path shape every review has asked for: the `try` wraps only the action call; dialogs can't be dismissed mid-request.
+- Favorite stays inert per the request — `isFavorite` is not written anywhere.
+- Out of scope: removing individual items from a collection, favourite toggling, `defaultTypeId` editing, the free-tier collection cap.
 
 ## History
 - 2026-05-12: **Initial Setup** - Next.js and Tailwind setup

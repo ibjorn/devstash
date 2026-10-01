@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { FolderOpen, Star } from "lucide-react";
 
+import { CollectionActions } from "@/components/collections/CollectionActions";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { FileRow } from "@/components/items/FileRow";
 import { ImageCard } from "@/components/items/ImageCard";
@@ -70,19 +71,22 @@ export default async function CollectionPage({ params }: CollectionPageProps) {
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
-      <div className="flex flex-col gap-1">
-        <h1 className="flex items-center gap-2 text-2xl font-semibold">
-          <span className="truncate">{collection.name}</span>
-          {collection.isFavorite && (
-            <Star className="size-4 shrink-0 fill-yellow-400 text-yellow-400" />
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex min-w-0 flex-col gap-1">
+          <h1 className="flex items-center gap-2 text-2xl font-semibold">
+            <span className="truncate">{collection.name}</span>
+            {collection.isFavorite && (
+              <Star className="size-4 shrink-0 fill-yellow-400 text-yellow-400" />
+            )}
+          </h1>
+          {collection.description && (
+            <p className="text-muted-foreground">{collection.description}</p>
           )}
-        </h1>
-        {collection.description && (
-          <p className="text-muted-foreground">{collection.description}</p>
-        )}
-        <p className="text-sm text-muted-foreground">
-          {items.length} {items.length === 1 ? "item" : "items"}
-        </p>
+          <p className="text-sm text-muted-foreground">
+            {items.length} {items.length === 1 ? "item" : "items"}
+          </p>
+        </div>
+        <CollectionActions collection={collection} />
       </div>
 
       {items.length > 0 ? (

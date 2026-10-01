@@ -2,7 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { prisma } = vi.hoisted(() => ({
   prisma: {
-    collection: { create: vi.fn(), findFirst: vi.fn(), findMany: vi.fn() },
+    collection: {
+      create: vi.fn(),
+      delete: vi.fn(),
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      update: vi.fn(),
+    },
     itemType: { findMany: vi.fn() },
   },
 }));
@@ -11,8 +17,10 @@ vi.mock("@/lib/prisma", () => ({ prisma }));
 
 import {
   createCollection,
+  deleteCollection,
   getAllCollections,
   getCollectionHeader,
+  updateCollection,
 } from "@/lib/db/collections";
 
 const USER_ID = "usr_1";
@@ -139,5 +147,50 @@ describe("getAllCollections", () => {
       ["typ_s", 2],
       ["typ_n", 1],
     ]);
+  });
+});
+
+describe("updateCollection", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("scopes the update to the owner and writes only name and description", async () => {
+    const header = {
+      id: "col_1",
+      name: "Renamed",
+      description: null,
+      isFavorite: false,
+    };
+    prisma.collection.update.mockResolvedValue(header);
+
+    await expect(
+      updateCollection(USER_ID, "col_1", {
+        name: "Renamed",
+        description: null,
+      }),
+    ).resolves.toEqual(header);
+    expect(prisma.collection.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "col_1", userId: USER_ID },
+        data: { name: "Renamed", description: null },
+      }),
+    );
+  });
+});
+
+describe("deleteCollection", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("scopes the delete to the owner", async () => {
+    prisma.collection.delete.mockResolvedValue({ id: "col_1" });
+
+    await deleteCollection(USER_ID, "col_1");
+
+    expect(prisma.collection.delete).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "col_1", userId: USER_ID } }),
+    );
   });
 });

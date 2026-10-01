@@ -152,3 +152,34 @@ export async function createCollection(
 
   return { ...collection, itemCount: 0, types: [] };
 }
+
+/**
+ * Edits a collection's metadata. Ownership is part of the update's where
+ * clause, so another user's id raises P2025 exactly as a missing one does.
+ */
+export async function updateCollection(
+  userId: string,
+  id: string,
+  data: CreateCollectionData,
+): Promise<CollectionHeader> {
+  return prisma.collection.update({
+    where: { id, userId },
+    data: { name: data.name, description: data.description },
+    select: { id: true, name: true, description: true, isFavorite: true },
+  });
+}
+
+/**
+ * Deletes a collection, scoped to its owner like `updateCollection`. Its items
+ * are kept: ItemCollection cascades on the collection side only, so just the
+ * membership rows go.
+ */
+export async function deleteCollection(
+  userId: string,
+  id: string,
+): Promise<void> {
+  await prisma.collection.delete({
+    where: { id, userId },
+    select: { id: true },
+  });
+}
