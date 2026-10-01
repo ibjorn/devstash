@@ -55,7 +55,9 @@ export interface ItemSummary {
  */
 export interface ItemTypeListing {
   type: ItemTypeSummary | null;
+  // One page of the type's items; `total` counts all of them
   items: ItemSummary[];
+  total: number;
 }
 
 export interface ItemCollectionSummary {

@@ -6,10 +6,12 @@ const { prisma } = vi.hoisted(() => ({
     item: {
       findFirst: vi.fn(),
       findMany: vi.fn(),
+      count: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
       delete: vi.fn(),
     },
+    itemType: { findFirst: vi.fn() },
     tag: { deleteMany: vi.fn() },
     collection: { count: vi.fn() },
   },
@@ -38,6 +40,7 @@ import {
   deleteItem,
   getItemDetail,
   getItemFile,
+  getItemsByTypeSlug,
   getItemsInCollection,
   getSearchableItems,
   isFileKeyInUse,
@@ -85,33 +88,94 @@ describe("getItemsInCollection", () => {
     vi.resetAllMocks();
   });
 
-  it("scopes to the user as well as the collection", async () => {
+  it("fetches one page, scoped to the user as well as the collection", async () => {
     prisma.item.findMany.mockResolvedValue([]);
+    prisma.item.count.mockResolvedValue(50);
+
+    await getItemsInCollection(USER_ID, "col_1", 3);
+
+    const where = {
+      userId: USER_ID,
+      collections: { some: { collectionId: "col_1" } },
+    };
+    expect(prisma.item.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where,
+        orderBy: [{ isPinned: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+        skip: 42,
+        take: 21,
+      }),
+    );
+    // The total counts the same rows the page is cut from
+    expect(prisma.item.count).toHaveBeenCalledWith({ where });
+  });
+
+  it("defaults to the first page", async () => {
+    prisma.item.findMany.mockResolvedValue([]);
+    prisma.item.count.mockResolvedValue(0);
 
     await getItemsInCollection(USER_ID, "col_1");
 
     expect(prisma.item.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          userId: USER_ID,
-          collections: { some: { collectionId: "col_1" } },
-        },
-        orderBy: [{ isPinned: "desc" }, { createdAt: "desc" }],
-      }),
+      expect.objectContaining({ skip: 0, take: 21 }),
     );
   });
 
-  it("maps rows to item summaries", async () => {
+  it("returns the page's summaries and the full total", async () => {
     prisma.item.findMany.mockResolvedValue([itemRow()]);
+    prisma.item.count.mockResolvedValue(30);
 
-    const [item] = await getItemsInCollection(USER_ID, "col_1");
+    const { rows, total } = await getItemsInCollection(USER_ID, "col_1");
 
-    expect(item).toMatchObject({
+    expect(total).toBe(30);
+    expect(rows[0]).toMatchObject({
       id: ITEM_ID,
       title: "useAuth Hook",
       type: { name: "Snippet" },
       tags: ["auth", "react"],
     });
+  });
+});
+
+describe("getItemsByTypeSlug", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  const snippetType = {
+    id: "typ_1",
+    name: "Snippet",
+    icon: "Code",
+    color: "#3b82f6",
+  };
+
+  it("pages the user's items of the resolved type", async () => {
+    prisma.itemType.findFirst.mockResolvedValue(snippetType);
+    prisma.item.findMany.mockResolvedValue([itemRow()]);
+    prisma.item.count.mockResolvedValue(22);
+
+    const listing = await getItemsByTypeSlug(USER_ID, "snippets", 2);
+
+    const where = { userId: USER_ID, itemTypeId: "typ_1" };
+    expect(prisma.item.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where, skip: 21, take: 21 }),
+    );
+    expect(prisma.item.count).toHaveBeenCalledWith({ where });
+    expect(listing.type).toEqual(snippetType);
+    expect(listing.total).toBe(22);
+    expect(listing.items).toHaveLength(1);
+  });
+
+  it("returns an empty listing for an unknown slug without querying items", async () => {
+    prisma.itemType.findFirst.mockResolvedValue(null);
+
+    await expect(getItemsByTypeSlug(USER_ID, "bananas", 2)).resolves.toEqual({
+      type: null,
+      items: [],
+      total: 0,
+    });
+    expect(prisma.item.findMany).not.toHaveBeenCalled();
+    expect(prisma.item.count).not.toHaveBeenCalled();
   });
 });
 

@@ -1,5 +1,11 @@
 import type { Prisma } from "@/generated/prisma/client";
 
+import {
+  COLLECTIONS_PER_PAGE,
+  DASHBOARD_COLLECTIONS_LIMIT,
+  type Page,
+  pageRange,
+} from "@/lib/pagination";
 import { prisma } from "@/lib/prisma";
 import type {
   CollectionHeader,
@@ -12,12 +18,13 @@ import type { SearchCollection } from "@/types/search";
 async function findCollectionSummaries(
   userId: string,
   where: Prisma.CollectionWhereInput,
-  limit?: number
+  range: { skip?: number; take: number }
 ): Promise<CollectionSummary[]> {
   const collections = await prisma.collection.findMany({
     where: { userId, ...where },
-    orderBy: { updatedAt: "desc" },
-    take: limit,
+    // The id breaks updatedAt ties so /collections pages can't overlap
+    orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+    ...range,
     include: {
       items: {
         select: {
@@ -77,16 +84,16 @@ async function findCollectionSummaries(
 
 export async function getRecentCollections(
   userId: string,
-  limit = 6
+  limit = DASHBOARD_COLLECTIONS_LIMIT
 ): Promise<CollectionSummary[]> {
-  return findCollectionSummaries(userId, {}, limit);
+  return findCollectionSummaries(userId, {}, { take: limit });
 }
 
 export async function getFavoriteCollections(
   userId: string,
   limit = 5
 ): Promise<CollectionSummary[]> {
-  return findCollectionSummaries(userId, { isFavorite: true }, limit);
+  return findCollectionSummaries(userId, { isFavorite: true }, { take: limit });
 }
 
 // Sidebar "Recent" group; favorites are excluded since they have their own group
@@ -94,17 +101,26 @@ export async function getRecentNonFavoriteCollections(
   userId: string,
   limit = 5
 ): Promise<CollectionSummary[]> {
-  return findCollectionSummaries(userId, { isFavorite: false }, limit);
+  return findCollectionSummaries(
+    userId,
+    { isFavorite: false },
+    { take: limit },
+  );
 }
 
 /**
- * Every collection the user owns, newest activity first, for /collections.
- * Unbounded: a page that promises all collections shouldn't truncate them.
+ * One page of the user's collections, newest activity first, for
+ * /collections, plus how many they have in all.
  */
-export async function getAllCollections(
+export async function getCollectionsPage(
   userId: string,
-): Promise<CollectionSummary[]> {
-  return findCollectionSummaries(userId, {});
+  page = 1,
+): Promise<Page<CollectionSummary>> {
+  const [rows, total] = await Promise.all([
+    findCollectionSummaries(userId, {}, pageRange(page, COLLECTIONS_PER_PAGE)),
+    prisma.collection.count({ where: { userId } }),
+  ]);
+  return { rows, total };
 }
 
 /**

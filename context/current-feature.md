@@ -1,10 +1,37 @@
-# Current Feature
+# Current Feature: Pagination
 
 ## Status
 
+In Progress
+
 ## Goals
 
+- `/items/[type]` and `/collections/[id]` paginate at `ITEMS_PER_PAGE = 21` via a `?page=N` search param
+- Only the current page is fetched (`skip`/`take`), plus a `count()` so the heading still shows the true total
+- Pagination controls at the bottom: numbered page links with prev/next, prev/next greyed out and non-interactive at the ends, hidden entirely when there is only one page
+- Shared constants `ITEMS_PER_PAGE`, `COLLECTIONS_PER_PAGE` (21), `DASHBOARD_COLLECTIONS_LIMIT` (6) and `DASHBOARD_RECENT_ITEMS_LIMIT` (10) in one module, replacing the bare `limit = 6` / `limit = 10` defaults the dashboard relies on today (values unchanged)
+- Queries keep `userId` as a required first parameter and ownership in the where clause
+- Unit tests for the page-number parsing/clamping and page-link helpers, and for the paginated queries' `skip`/`take`/user scope
+
 ## Notes
+
+Spec: context/features/pagination-spec.md.
+
+**Open decisions (recommendations marked):**
+
+1. **`/collections` too?** The spec lists only `/items/[type]` and `/collections/[id]`, but defines `COLLECTIONS_PER_PAGE`, which only makes sense on the `/collections` grid — currently `getAllCollections`, deliberately unbounded. *Recommend including it*; otherwise the constant has no consumer and the spec's "don't fetch everything" rule is broken there.
+2. **Grouped layout on `/collections/[id]`.** The page splits items into cards → Images section → Files section in JS (`groupCollectionItems`, keyed on type name, so not orderable in SQL). *Recommend paginating the existing pinned-then-newest order and grouping within each page* — so a page may show a few cards plus an Images section, and page 2 may have its own. Alternatives (three separately paginated sections, or a SQL ordering by type) add a lot for little.
+3. **Out-of-range / junk `?page=`.** *Recommend:* non-integer or < 1 → page 1; beyond the last page → `redirect` to the last page (empty listing → page 1, existing empty states unchanged). Alternative is `notFound()`, which punishes a stale link after deleting items.
+4. **Controls component.** *Recommend* shadcn `pagination` via `npm run ui:add -- pagination`, rendering Next `<Link>`s; disabled prev/next become `aria-disabled` spans rather than links. Long ranges collapse with ellipses (1 … 4 5 6 … 12).
+
+**Implementation notes:**
+
+- Offset pagination needs a stable order: add `id` as a final tiebreaker to the `[isPinned desc, createdAt desc]` sorts (and `updatedAt desc` for collections), or rows sharing a timestamp can repeat/skip across pages.
+- The headings currently print `items.length` / `collections.length`; with paging these must come from the count query.
+- Count and page queries run in one `Promise.all` (or `$transaction`) — both user-scoped.
+- `router.refresh()` after create/delete keeps the `?page=` param, so the drawer flows need no change; deleting the last item on the last page lands on the redirect from decision 3.
+- 21 = 3 columns × 7 rows at `xl`; the Files list is single-column so it just shows 21 rows.
+- Unchanged: the dashboard (already limited), the sidebar, search (`getSearchableItems` stays unbounded by design — it's the client-side index), `getCollectionOptions` (the picker must list every collection).
 
 ## History
 - 2026-05-12: **Initial Setup** - Next.js and Tailwind setup

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { prisma } = vi.hoisted(() => ({
   prisma: {
     collection: {
+      count: vi.fn(),
       create: vi.fn(),
       delete: vi.fn(),
       findFirst: vi.fn(),
@@ -18,8 +19,8 @@ vi.mock("@/lib/prisma", () => ({ prisma }));
 import {
   createCollection,
   deleteCollection,
-  getAllCollections,
   getCollectionHeader,
+  getCollectionsPage,
   getSearchableCollections,
   updateCollection,
 } from "@/lib/db/collections";
@@ -98,19 +99,26 @@ describe("getCollectionHeader", () => {
   });
 });
 
-describe("getAllCollections", () => {
+describe("getCollectionsPage", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
-  it("lists only the user's collections, without a limit", async () => {
+  it("fetches one page of the user's collections and counts them all", async () => {
     prisma.collection.findMany.mockResolvedValue([]);
+    prisma.collection.count.mockResolvedValue(25);
 
-    await getAllCollections(USER_ID);
+    const { total } = await getCollectionsPage(USER_ID, 2);
 
     const [args] = prisma.collection.findMany.mock.calls[0];
     expect(args.where).toEqual({ userId: USER_ID });
-    expect(args.take).toBeUndefined();
+    expect(args.skip).toBe(21);
+    expect(args.take).toBe(21);
+    expect(args.orderBy).toEqual([{ updatedAt: "desc" }, { id: "desc" }]);
+    expect(prisma.collection.count).toHaveBeenCalledWith({
+      where: { userId: USER_ID },
+    });
+    expect(total).toBe(25);
   });
 
   it("summarises item counts and orders types by usage", async () => {
@@ -141,7 +149,11 @@ describe("getAllCollections", () => {
       },
     ]);
 
-    const [summary] = await getAllCollections(USER_ID);
+    prisma.collection.count.mockResolvedValue(1);
+
+    const {
+      rows: [summary],
+    } = await getCollectionsPage(USER_ID);
 
     expect(summary.itemCount).toBe(3);
     expect(summary.types.map((type) => [type.id, type.count])).toEqual([

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 import { FolderOpen, Star } from "lucide-react";
 
@@ -9,15 +9,23 @@ import { FileRow } from "@/components/items/FileRow";
 import { ImageCard } from "@/components/items/ImageCard";
 import { ItemCard } from "@/components/items/ItemCard";
 import { ItemTypeIcon } from "@/components/items/ItemTypeIcon";
+import { PaginationControls } from "@/components/pagination/PaginationControls";
 import { groupCollectionItems } from "@/lib/collection-items";
 import { getCollectionHeader } from "@/lib/db/collections";
 import { getItemsInCollection } from "@/lib/db/items";
 import { requireUserId } from "@/lib/db/session-user";
+import {
+  ITEMS_PER_PAGE,
+  pageCount,
+  pageHref,
+  parsePageParam,
+} from "@/lib/pagination";
 import { pluralTypeName } from "@/lib/type-names";
 import type { ItemSummary } from "@/types/items";
 
 interface CollectionPageProps {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ page?: string | string[] }>;
 }
 
 // Render per request — the collection and its items come from the database
@@ -54,19 +62,29 @@ function UploadSection({ items, children }: UploadSectionProps) {
   );
 }
 
-export default async function CollectionPage({ params }: CollectionPageProps) {
+export default async function CollectionPage({
+  params,
+  searchParams,
+}: CollectionPageProps) {
   const { id } = await params;
+  const page = parsePageParam((await searchParams).page);
   const userId = await requireUserId();
   // Both queries are scoped to the user, so running them together can't leak
   // items from a collection that turns out not to be theirs
-  const [collection, items] = await Promise.all([
+  const [collection, { rows: items, total }] = await Promise.all([
     loadCollectionHeader(userId, id),
-    getItemsInCollection(userId, id),
+    getItemsInCollection(userId, id, page),
   ]);
 
   // Another user's collection and a nonexistent one look the same
   if (!collection) notFound();
 
+  // Past the end — a stale link after deleting items — goes to the last page
+  const basePath = `/collections/${collection.id}`;
+  const totalPages = pageCount(total, ITEMS_PER_PAGE);
+  if (page > totalPages) redirect(pageHref(basePath, totalPages));
+
+  // Grouped within the page: each page shows its own Images and Files sections
   const { cards, images, files } = groupCollectionItems(items);
 
   return (
@@ -83,7 +101,7 @@ export default async function CollectionPage({ params }: CollectionPageProps) {
             <p className="text-muted-foreground">{collection.description}</p>
           )}
           <p className="text-sm text-muted-foreground">
-            {items.length} {items.length === 1 ? "item" : "items"}
+            {total} {total === 1 ? "item" : "items"}
           </p>
         </div>
         <CollectionActions collection={collection} />
@@ -125,6 +143,12 @@ export default async function CollectionPage({ params }: CollectionPageProps) {
           description="Add an item to it from the item's Collections field when creating or editing it."
         />
       )}
+
+      <PaginationControls
+        basePath={basePath}
+        page={page}
+        totalPages={totalPages}
+      />
     </div>
   );
 }

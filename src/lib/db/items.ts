@@ -1,5 +1,11 @@
 import type { ItemContentType, Prisma } from "@/generated/prisma/client";
 
+import {
+  DASHBOARD_RECENT_ITEMS_LIMIT,
+  ITEMS_PER_PAGE,
+  type Page,
+  pageRange,
+} from "@/lib/pagination";
 import { prisma } from "@/lib/prisma";
 import { toSearchPreview } from "@/lib/search-preview";
 import { singularFromSlug } from "@/lib/type-names";
@@ -52,7 +58,7 @@ export async function getPinnedItems(
 
 export async function getRecentItems(
   userId: string,
-  limit = 10
+  limit = DASHBOARD_RECENT_ITEMS_LIMIT
 ): Promise<ItemSummary[]> {
   const items = await prisma.item.findMany({
     where: { userId },
@@ -64,16 +70,44 @@ export async function getRecentItems(
   return items.map(toItemSummary);
 }
 
+// Pinned first, then newest. The id breaks ties between rows sharing a
+// timestamp, which offset pagination needs or a row can repeat or vanish
+// between pages.
+const listingOrder = [
+  { isPinned: "desc" },
+  { createdAt: "desc" },
+  { id: "desc" },
+] satisfies Prisma.ItemOrderByWithRelationInput[];
+
+async function findItemsPage(
+  where: Prisma.ItemWhereInput,
+  page: number,
+): Promise<Page<ItemSummary>> {
+  const [items, total] = await Promise.all([
+    prisma.item.findMany({
+      where,
+      orderBy: listingOrder,
+      ...pageRange(page, ITEMS_PER_PAGE),
+      select: itemSummarySelect,
+    }),
+    prisma.item.count({ where }),
+  ]);
+
+  return { rows: items.map(toItemSummary), total };
+}
+
 /**
- * Items of one type for /items/[type], newest first with pinned items on top.
+ * One page of items of one type for /items/[type], newest first with pinned
+ * items on top, plus the type's total item count.
  *
  * Resolves the slug against the system types and the user's own custom types.
- * An unrecognized slug returns `{ type: null, items: [] }` rather than throwing
- * — the page renders an empty state for it.
+ * An unrecognized slug returns `{ type: null, items: [], total: 0 }` rather
+ * than throwing — the page renders an empty state for it.
  */
 export async function getItemsByTypeSlug(
   userId: string,
-  slug: string
+  slug: string,
+  page = 1,
 ): Promise<ItemTypeListing> {
   const type = await prisma.itemType.findFirst({
     where: {
@@ -87,33 +121,29 @@ export async function getItemsByTypeSlug(
     select: { id: true, name: true, icon: true, color: true },
   });
 
-  if (!type) return { type: null, items: [] };
+  if (!type) return { type: null, items: [], total: 0 };
 
-  const items = await prisma.item.findMany({
-    where: { userId, itemTypeId: type.id },
-    orderBy: [{ isPinned: "desc" }, { createdAt: "desc" }],
-    select: itemSummarySelect,
-  });
-
-  return { type, items: items.map(toItemSummary) };
+  const { rows, total } = await findItemsPage(
+    { userId, itemTypeId: type.id },
+    page,
+  );
+  return { type, items: rows, total };
 }
 
 /**
- * Items in one collection for /collections/[id], pinned first then newest —
- * the same order as /items/[type]. Scoped to the user as well as the
- * collection, so a foreign collection id can never surface someone's items.
+ * One page of the items in a collection for /collections/[id], in the same
+ * order as /items/[type]. Scoped to the user as well as the collection, so a
+ * foreign collection id can never surface someone's items.
  */
 export async function getItemsInCollection(
   userId: string,
   collectionId: string,
-): Promise<ItemSummary[]> {
-  const items = await prisma.item.findMany({
-    where: { userId, collections: { some: { collectionId } } },
-    orderBy: [{ isPinned: "desc" }, { createdAt: "desc" }],
-    select: itemSummarySelect,
-  });
-
-  return items.map(toItemSummary);
+  page = 1,
+): Promise<Page<ItemSummary>> {
+  return findItemsPage(
+    { userId, collections: { some: { collectionId } } },
+    page,
+  );
 }
 
 /**
