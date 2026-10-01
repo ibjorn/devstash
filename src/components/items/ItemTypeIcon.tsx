@@ -4,8 +4,10 @@ import { typeColorTint } from "@/lib/type-colors";
 import { typeIcons } from "@/lib/type-icons";
 import type { ItemTypeSummary } from "@/types/items";
 
-// Chip and glyph classes per size: "sm" for cards and rows, "md" for headers
+// Chip and glyph classes per size: "xs" for the command palette's rows, "sm"
+// for cards and rows, "md" for headers
 const SIZES = {
+  xs: { chip: "size-7", icon: "size-3.5" },
   sm: { chip: "size-9", icon: "size-4" },
   md: { chip: "size-10", icon: "size-5" },
 } as const;

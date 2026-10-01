@@ -1,10 +1,35 @@
-# Current Feature
+# Current Feature: Global Search / Command Palette
 
 ## Status
+In Progress
 
 ## Goals
+- Cmd+K (Mac) / Ctrl+K (Windows) opens a command palette from anywhere inside AppShell (/dashboard, /items, /collections, /profile)
+- Clicking the TopBar search input opens the palette; the input shows a ⌘K hint in its placeholder/adornment
+- Client-side fuzzy search over all of the user's items and collections — no server round-trip per keystroke
+- Results grouped into an **Items** section and a **Collections** section
+- Items show their type icon (tinted chip); collections show their item count
+- Arrow keys move through results, Enter selects, Esc closes
+- Selecting an item opens it in the existing item drawer; selecting a collection navigates to `/collections/<id>`
+- Search data is user-scoped (ownership in the query, per the User-Scoped Data convention) and pre-fetched on app load
+- Unit tests for the new query (user scope, content-preview truncation, shape)
 
 ## Notes
+- **Decisions at `start` (Björn):** (1) neutral shortcut label "Ctrl K / ⌘K"; (2) empty query shows only prompt text, no results; (3) shortcut toggles, and is ignored while another dialog/sheet is open; (4) **fetch on first open** via `GET /api/search` instead of pre-fetching in AppShell, so the index doesn't ride in every page's RSC payload. Refinement: later opens show the cached copy instantly and refetch behind it, so items created after the first open still appear.
+- Spec: context/features/global-search-spec.md
+- **Already installed:** `src/components/ui/command.tsx` (incl. `CommandDialog`) and `cmdk@^1.1.1`, added in Item Collections — no new shadcn component or dependency expected.
+- **Fuzzy matching:** cmdk ships its own fuzzy scorer (`command-score`), matching against each item's `value` + `keywords`. Recommend using it (title as value, type name / tags / content preview as keywords) over adding Fuse.js. Items are keyed by **id** with a custom `filter`, as CollectionPicker already does, because titles and collection names aren't unique.
+- **Data:** no existing query returns *all* items — the list queries are per-type, per-collection or capped. New `getSearchableItems(userId)` in src/lib/db/items.ts reusing `itemSummarySelect` / `toItemSummary` (so a result can be handed straight to `openItem(item: ItemSummary)`) plus a short content preview. Collections can reuse `getAllCollections(userId)` (already carries `itemCount`) or a slimmer `{ id, name, itemCount }` select — decide at start.
+- **Content preview:** content runs to 100k chars. Prisma can't `substring` in a select, so either fetch `content` and slice in JS (full text crosses DB→server but only ~N chars reach the client) or use `$queryRaw` with `left(content, N)`. Recommend slicing in JS — simpler, stays in the typed client, fine at current scale.
+- **Where it's fetched:** add to AppShell's existing `Promise.all`, pass down to TopBar. The palette must render inside `ItemDrawerProvider` (TopBar already does) so `useItemDrawer().openItem` works. Freshness comes for free: every mutation already calls `router.refresh()`, which re-renders AppShell.
+- **Trade-off to flag:** pre-fetching on app load means the whole search index rides in the RSC payload of every signed-in page render. Fine at the 50-item free tier; for unbounded Pro accounts, the alternative is a `GET /api/search` fetched on first open. Spec says pre-fetch, so default to that.
+- **Shortcut:** global `keydown` listener for `(metaKey || ctrlKey) && key === "k"` with `preventDefault()` (Chrome otherwise focuses the omnibox search). Should it toggle, and should it fire while typing in another input/Monaco editor? Recommend: toggles, and fires everywhere except when another dialog/sheet is open.
+- **⌘K vs Ctrl K label:** Björn is on Windows, where ⌘ is meaningless. Detecting the platform needs `navigator`, which isn't available in the server render — showing ⌘K on the server and swapping after mount causes a flash/hydration mismatch. Options: spec-literal "⌘K" always, a neutral "Ctrl K / ⌘K", or platform-aware after mount via `useSyncExternalStore`. Decide at start.
+- The TopBar `Input` is currently `readOnly` and inert — becomes a button-styled trigger (or keeps the input look with `onClick`/`onFocus` opening the palette). A real `<button>` is better for a11y.
+- Selecting a collection: close palette, then `router.push`. Selecting an item: close palette, then `openItem(item)` — the drawer fetches detail as it already does.
+- Empty query: show something useful (recent items / all collections) or just the empty prompt — decide at start; cmdk shows all items by default.
+- Proxy matcher already covers every AppShell route; no auth change unless an API route is added.
+- No schema change, no migration expected.
 
 ## History
 - 2026-05-12: **Initial Setup** - Next.js and Tailwind setup

@@ -7,6 +7,7 @@ import type {
   CollectionSummary,
   CollectionTypeStat,
 } from "@/types/collections";
+import type { SearchCollection } from "@/types/search";
 
 async function findCollectionSummaries(
   userId: string,
@@ -133,6 +134,31 @@ export async function getCollectionOptions(
     orderBy: { name: "asc" },
     select: { id: true, name: true },
   });
+}
+
+/**
+ * Every collection the user owns with its item count, for the command palette.
+ * A plain count rather than findCollectionSummaries, which loads every item's
+ * type to work out card colours the palette doesn't show.
+ */
+export async function getSearchableCollections(
+  userId: string,
+): Promise<SearchCollection[]> {
+  const collections = await prisma.collection.findMany({
+    where: { userId },
+    orderBy: { updatedAt: "desc" },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      _count: { select: { items: true } },
+    },
+  });
+
+  return collections.map(({ _count, ...collection }) => ({
+    ...collection,
+    itemCount: _count.items,
+  }));
 }
 
 export interface CreateCollectionData {

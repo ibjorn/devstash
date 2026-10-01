@@ -1,8 +1,10 @@
 import type { ItemContentType, Prisma } from "@/generated/prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import { toSearchPreview } from "@/lib/search-preview";
 import { singularFromSlug } from "@/lib/type-names";
 import type { ItemDetail, ItemSummary, ItemTypeListing } from "@/types/items";
+import type { SearchItem } from "@/types/search";
 
 const itemSummarySelect = {
   id: true,
@@ -112,6 +114,26 @@ export async function getItemsInCollection(
   });
 
   return items.map(toItemSummary);
+}
+
+/**
+ * Every item the user owns, newest first, for the command palette. Unbounded on
+ * purpose — search that silently skips older items can't be trusted. Content is
+ * cut to a short preview here so the full text never reaches the client.
+ */
+export async function getSearchableItems(
+  userId: string,
+): Promise<SearchItem[]> {
+  const items = await prisma.item.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    select: { ...itemSummarySelect, content: true, url: true },
+  });
+
+  return items.map(({ content, url, ...item }) => ({
+    ...toItemSummary(item),
+    preview: toSearchPreview(content ?? url),
+  }));
 }
 
 const itemDetailSelect = {

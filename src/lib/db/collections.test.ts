@@ -20,6 +20,7 @@ import {
   deleteCollection,
   getAllCollections,
   getCollectionHeader,
+  getSearchableCollections,
   updateCollection,
 } from "@/lib/db/collections";
 
@@ -192,5 +193,36 @@ describe("deleteCollection", () => {
     expect(prisma.collection.delete).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: "col_1", userId: USER_ID } }),
     );
+  });
+});
+
+describe("getSearchableCollections", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("is scoped to the user and unbounded", async () => {
+    prisma.collection.findMany.mockResolvedValue([]);
+
+    await getSearchableCollections(USER_ID);
+
+    const [args] = prisma.collection.findMany.mock.calls[0];
+    expect(args.where).toEqual({ userId: USER_ID });
+    expect(args).not.toHaveProperty("take");
+  });
+
+  it("flattens the item count", async () => {
+    prisma.collection.findMany.mockResolvedValue([
+      {
+        id: "col_1",
+        name: "React Patterns",
+        description: null,
+        _count: { items: 4 },
+      },
+    ]);
+
+    await expect(getSearchableCollections(USER_ID)).resolves.toEqual([
+      { id: "col_1", name: "React Patterns", description: null, itemCount: 4 },
+    ]);
   });
 });

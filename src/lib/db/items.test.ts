@@ -39,6 +39,7 @@ import {
   getItemDetail,
   getItemFile,
   getItemsInCollection,
+  getSearchableItems,
   isFileKeyInUse,
   UnknownCollectionError,
   updateItem,
@@ -111,6 +112,54 @@ describe("getItemsInCollection", () => {
       type: { name: "Snippet" },
       tags: ["auth", "react"],
     });
+  });
+});
+
+describe("getSearchableItems", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("is scoped to the user, unbounded and newest first", async () => {
+    prisma.item.findMany.mockResolvedValue([]);
+
+    await getSearchableItems(USER_ID);
+
+    const [args] = prisma.item.findMany.mock.calls[0];
+    expect(args.where).toEqual({ userId: USER_ID });
+    expect(args.orderBy).toEqual({ createdAt: "desc" });
+    expect(args).not.toHaveProperty("take");
+  });
+
+  it("returns a short preview instead of the full content", async () => {
+    const content = "x".repeat(5000);
+    prisma.item.findMany.mockResolvedValue([itemRow({ content, url: null })]);
+
+    const [item] = await getSearchableItems(USER_ID);
+
+    expect(item).toMatchObject({ id: ITEM_ID, type: { name: "Snippet" } });
+    expect(item.preview?.length).toBeLessThan(300);
+    expect(item).not.toHaveProperty("content");
+    expect(item).not.toHaveProperty("url");
+  });
+
+  it("falls back to the URL for a link with no content", async () => {
+    prisma.item.findMany.mockResolvedValue([
+      itemRow({ content: null, url: "https://nextjs.org/docs" }),
+    ]);
+
+    const [item] = await getSearchableItems(USER_ID);
+
+    expect(item.preview).toBe("https://nextjs.org/docs");
+  });
+
+  it("never selects the private file key", async () => {
+    prisma.item.findMany.mockResolvedValue([]);
+
+    await getSearchableItems(USER_ID);
+
+    const [args] = prisma.item.findMany.mock.calls[0];
+    expect(args.select).not.toHaveProperty("fileUrl");
   });
 });
 
