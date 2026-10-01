@@ -1,10 +1,34 @@
-# Current Feature
+# Current Feature: Editor Preferences
 
 ## Status
 
+In Progress
+
 ## Goals
 
+- New **Editor** section on `/settings` with: font size dropdown, tab size dropdown, word wrap toggle (default on), minimap toggle (default off), theme dropdown — `vs-dark` (default), `monokai`, `github-dark`
+- Preferences stored in a new nullable JSON column `editorPreferences` on `User`, added via `npm run db:migrate` (`prisma migrate dev`) on the development branch — never `db push`
+- Server action `updateEditorPreferences` in `src/actions/` — session-scoped, Zod-validated, `{ success, data, error }` result
+- **Auto-save on change**, no save button; success toast on each save, error toast (and revert) on failure
+- `EditorPreferencesContext` (provider + hook) supplying the preferences to client components
+- `CodeEditor` (Monaco) applies font size, tab size, word wrap, minimap and theme — in the drawer viewer, drawer edit mode and the New Item dialog
+- Unit tests for the schema/parsing helper, the query and the action (auth guard, runs as session user, invalid input never reaches the DB)
+
 ## Notes
+
+- Spec: `context/features/editor-settings-spec.md`
+- **Decisions to confirm at `start` (recommendation first):**
+  1. **What "vs-dark" means.** CodeEditor today uses a custom `devstash-dark` theme (vs-dark base, `#171717` background so the editor sits flush with `bg-card`, themed scrollbars). Plain Monaco `vs-dark` is `#1e1e1e` and would visibly change every editor for every user on the default. Recommend: the `vs-dark` option keeps today's `devstash-dark` look; label it "VS Dark" in the dropdown.
+  2. **Monokai and GitHub Dark aren't built into Monaco** — they must be registered with `defineTheme`. Recommend hand-writing both (a few token rules + colours each, keeping our scrollbar/focus-border tweaks) over adding the `monaco-themes` package, consistent with not adding dependencies for small things.
+  3. **Option values.** Recommend font size 12 / 13 / 14 / 16 / 18 (default 12 = today), tab size 2 / 4 / 8 (default 2 = today). `LINE_HEIGHT` is a hard 20px today and the height maths depends on it — it should scale with font size (≈ 1.6×) or 18px text will be cramped.
+  4. **Where the provider lives.** Editors render in the drawer and New Item dialog, both under `AppShell`, so fetch preferences in AppShell's existing `Promise.all` and wrap there — the settings page then reads/writes the same context so a change applies to open editors without a reload.
+  5. **Save behaviour.** Optimistic: update context immediately, save, revert + error toast on failure. Rapid toggles each save (discrete controls, so no debounce needed); a stale response must not overwrite a newer choice (request counter, as the drawer does).
+- **Reading the column:** JSON from the DB is untrusted shape — parse with a Zod schema and merge over defaults, so a null/partial/garbage value yields defaults rather than a crash. Unknown keys stripped on write.
+- **New shadcn components needed:** `select` and `switch` (via `npm run ui:add -- select switch`, not `npx shadcn add`).
+- Migration: adding a nullable `Json` column produces no data-loss warning, so `prisma migrate dev` should run non-interactively (Item Drawer Edit Mode had to hand-write one because of a prompt). Run `npm run db:status` before committing.
+- `MarkdownEditor` (Note/Prompt) is not Monaco — out of scope; settings apply to Snippet/Command editors only. Mention this in the section description so it doesn't read as a bug.
+- Minimap in a ≤400px editor is cramped; it's the user's choice and off by default.
+- Pro gating not applicable.
 
 ## History
 - 2026-05-12: **Initial Setup** - Next.js and Tailwind setup

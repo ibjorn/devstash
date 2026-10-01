@@ -7,42 +7,24 @@ import Editor, {
   type OnMount,
 } from "@monaco-editor/react";
 
+import { useEditorPreferences } from "@/components/editor/EditorPreferencesProvider";
 import { EditorWindowHeader } from "@/components/items/EditorWindowHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toMonacoLanguage } from "@/lib/code-language";
+import { editorLineHeight } from "@/lib/editor-preferences";
 import { MONACO_CDN_PATH } from "@/lib/monaco";
+import { defineEditorThemes, MONACO_THEME_IDS } from "@/lib/monaco-themes";
 import { cn } from "@/lib/utils";
 
 loader.config({ paths: { vs: MONACO_CDN_PATH } });
 
-const THEME = "devstash-dark";
-const LINE_HEIGHT = 20;
 const PADDING = 12;
 const MAX_HEIGHT = 400;
 // An empty editor is one line tall, which is too small a target to type into
 const MIN_EDIT_HEIGHT = 160;
 
-// Monaco needs hex, so these restate the dark-theme tokens in globals.css:
-// --card is oklch(0.205 0 0) = #171717, so the editor sits flush with bg-card
 function beforeMount(monaco: Monaco) {
-  monaco.editor.defineTheme(THEME, {
-    base: "vs-dark",
-    inherit: true,
-    rules: [],
-    colors: {
-      "editor.background": "#171717",
-      "editorGutter.background": "#171717",
-      "editor.lineHighlightBackground": "#ffffff08",
-      "editor.lineHighlightBorder": "#00000000",
-      "editorLineNumber.foreground": "#525252",
-      "editorLineNumber.activeForeground": "#a3a3a3",
-      "scrollbarSlider.background": "#ffffff1a",
-      "scrollbarSlider.hoverBackground": "#ffffff33",
-      "scrollbarSlider.activeBackground": "#ffffff4d",
-      "scrollbar.shadow": "#00000000",
-      focusBorder: "#00000000",
-    },
-  });
+  defineEditorThemes(monaco);
 
   // A stash holds fragments — a snippet importing a module it can't resolve,
   // a half-finished function — so type-checking them is all red noise
@@ -51,8 +33,8 @@ function beforeMount(monaco: Monaco) {
   monaco.typescript.javascriptDefaults.setDiagnosticsOptions(diagnostics);
 }
 
-function estimateHeight(value: string) {
-  return value.split("\n").length * LINE_HEIGHT + PADDING * 2;
+function estimateHeight(value: string, lineHeight: number) {
+  return value.split("\n").length * lineHeight + PADDING * 2;
 }
 
 interface CodeEditorProps {
@@ -68,7 +50,8 @@ interface CodeEditorProps {
 /**
  * Monaco in a macOS-style window: traffic-light dots, the language and a quick
  * copy in the header. Read-only in the drawer, editable in the item forms.
- * Grows with its content up to MAX_HEIGHT, then scrolls.
+ * Grows with its content up to MAX_HEIGHT, then scrolls. Font size, tab size,
+ * wrapping, minimap and theme come from the user's editor preferences.
  */
 export function CodeEditor({
   value,
@@ -78,8 +61,10 @@ export function CodeEditor({
   ariaLabel,
   invalid = false,
 }: CodeEditorProps) {
+  const { preferences } = useEditorPreferences();
+  const lineHeight = editorLineHeight(preferences.fontSize);
   const [contentHeight, setContentHeight] = useState(() =>
-    estimateHeight(value),
+    estimateHeight(value, lineHeight),
   );
 
   const height = Math.min(
@@ -114,7 +99,7 @@ export function CodeEditor({
         height={height}
         language={toMonacoLanguage(language)}
         value={value}
-        theme={THEME}
+        theme={MONACO_THEME_IDS[preferences.theme]}
         beforeMount={beforeMount}
         onMount={handleMount}
         onChange={(next) => onChange?.(next ?? "")}
@@ -124,12 +109,15 @@ export function CodeEditor({
           domReadOnly: readOnly,
           ariaLabel,
           fontFamily: "var(--font-mono), ui-monospace, monospace",
-          fontSize: 12,
-          lineHeight: LINE_HEIGHT,
+          fontSize: preferences.fontSize,
+          lineHeight,
           padding: { top: PADDING, bottom: PADDING },
-          wordWrap: "on",
-          tabSize: 2,
-          minimap: { enabled: false },
+          wordWrap: preferences.wordWrap ? "on" : "off",
+          tabSize: preferences.tabSize,
+          // Otherwise Monaco guesses the tab size from the content and the
+          // preference only applies to an empty editor
+          detectIndentation: false,
+          minimap: { enabled: preferences.minimap },
           scrollBeyondLastLine: false,
           automaticLayout: true,
           lineNumbersMinChars: 3,

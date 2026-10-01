@@ -1,3 +1,7 @@
+import {
+  parseEditorPreferences,
+  type EditorPreferences,
+} from "@/lib/editor-preferences";
 import { prisma } from "@/lib/prisma";
 import type { CurrentUser, ProfileUser } from "@/types/users";
 
@@ -38,4 +42,30 @@ export async function getProfileUser(
     createdAt: user.createdAt,
     hasPassword: user.password !== null,
   };
+}
+
+// Always a complete set: a user who has never changed anything (or whose row
+// is gone) gets the defaults rather than null
+export async function getEditorPreferences(
+  userId: string
+): Promise<EditorPreferences> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { editorPreferences: true },
+  });
+  return parseEditorPreferences(user?.editorPreferences);
+}
+
+// Replaces the whole object. `preferences` must already be validated — the
+// column is JSON, so nothing below this line would refuse an unknown key.
+export async function updateEditorPreferences(
+  userId: string,
+  preferences: EditorPreferences
+): Promise<EditorPreferences> {
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data: { editorPreferences: preferences },
+    select: { editorPreferences: true },
+  });
+  return parseEditorPreferences(user.editorPreferences);
 }

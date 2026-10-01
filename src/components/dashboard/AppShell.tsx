@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { AppSidebar } from "@/components/dashboard/AppSidebar";
 import { TopBar } from "@/components/dashboard/TopBar";
+import { EditorPreferencesProvider } from "@/components/editor/EditorPreferencesProvider";
 import { ItemDrawerProvider } from "@/components/items/ItemDrawerProvider";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -15,7 +16,7 @@ import {
   getItemTypeNavItems,
 } from "@/lib/db/item-types";
 import { requireUserId } from "@/lib/db/session-user";
-import { getCurrentUser } from "@/lib/db/users";
+import { getCurrentUser, getEditorPreferences } from "@/lib/db/users";
 
 /**
  * The signed-in chrome: sidebar, top bar, and the queries that feed them.
@@ -35,6 +36,7 @@ export async function AppShell({
     user,
     newItemTypes,
     collectionOptions,
+    editorPreferences,
   ] = await Promise.all([
     getItemTypeNavItems(userId),
     getFavoriteCollections(userId),
@@ -42,6 +44,7 @@ export async function AppShell({
     getCurrentUser(userId),
     getCreatableItemTypes(),
     getCollectionOptions(userId),
+    getEditorPreferences(userId),
   ]);
 
   // Signed in against a User row that no longer exists — clear the stale
@@ -50,23 +53,25 @@ export async function AppShell({
 
   return (
     <TooltipProvider>
-      <SidebarProvider>
-        <AppSidebar
-          itemTypes={itemTypes}
-          favoriteCollections={favoriteCollections}
-          recentCollections={recentCollections}
-          user={user}
-        />
-        <SidebarInset className="h-svh overflow-hidden">
-          <ItemDrawerProvider collectionOptions={collectionOptions}>
-            <TopBar
-              newItemTypes={newItemTypes}
-              collectionOptions={collectionOptions}
-            />
-            <div className="flex-1 overflow-y-auto p-6">{children}</div>
-          </ItemDrawerProvider>
-        </SidebarInset>
-      </SidebarProvider>
+      <EditorPreferencesProvider initialPreferences={editorPreferences}>
+        <SidebarProvider>
+          <AppSidebar
+            itemTypes={itemTypes}
+            favoriteCollections={favoriteCollections}
+            recentCollections={recentCollections}
+            user={user}
+          />
+          <SidebarInset className="h-svh overflow-hidden">
+            <ItemDrawerProvider collectionOptions={collectionOptions}>
+              <TopBar
+                newItemTypes={newItemTypes}
+                collectionOptions={collectionOptions}
+              />
+              <div className="flex-1 overflow-y-auto p-6">{children}</div>
+            </ItemDrawerProvider>
+          </SidebarInset>
+        </SidebarProvider>
+      </EditorPreferencesProvider>
     </TooltipProvider>
   );
 }

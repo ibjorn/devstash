@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { ChangePasswordDialog } from "@/components/profile/ChangePasswordDialog";
 import { DeleteAccountDialog } from "@/components/profile/DeleteAccountDialog";
 import { SetPasswordButton } from "@/components/profile/SetPasswordButton";
+import { EditorPreferencesForm } from "@/components/settings/EditorPreferencesForm";
 import {
   Card,
   CardContent,
@@ -38,9 +39,26 @@ export default async function SettingsPage() {
       <div>
         <h1 className="text-2xl font-semibold">Settings</h1>
         <p className="text-sm text-muted-foreground">
-          Manage how you sign in and your account
+          Manage your editor, how you sign in and your account
         </p>
       </div>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="text-lg font-semibold">Editor</h2>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Code editor</CardTitle>
+            <CardDescription>
+              Applies to snippets and commands. Notes and prompts use the
+              Markdown editor. Changes save automatically.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <EditorPreferencesForm />
+          </CardContent>
+        </Card>
+      </section>
 
       <section className="flex flex-col gap-4">
         <h2 className="text-lg font-semibold">Account</h2>
