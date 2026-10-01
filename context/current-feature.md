@@ -1,10 +1,29 @@
-# Current Feature
+# Current Feature: Homepage Mockup
 
 ## Status
+In Progress
 
 ## Goals
+- Static marketing homepage prototype in `prototypes/homepage/` — `index.html`, `styles.css`, `script.js` (plain HTML/CSS/JS, not part of the Next.js app)
+- Fixed top nav: logo, Features/Pricing anchor links, Sign In / Get Started buttons; becomes more opaque on scroll
+- Hero text: "Stop Losing Your Developer Knowledge" with gradient text, subheadline about scattered knowledge, CTA buttons
+- Hero visual, "chaos to order": left box "Your knowledge today..." with 8 floating icons (Notion, GitHub, Slack, VS Code, browser tabs, terminal, text file, bookmark) animated via requestAnimationFrame — drift, bounce off walls, subtle rotation + scale pulse, repel from the mouse cursor; centre pulsing CSS arrow; right box "...with DevStash" showing a simplified dashboard (sidebar nav + grid of item cards with type-coloured top borders)
+- Features: 6 cards (Code Snippets, AI Prompts, Instant Search, Commands, Files & Docs, Collections), each in its item type accent colour
+- AI section: "Pro Feature" badge + checklist of AI capabilities on the left, code editor mockup with an "AI Generated Tags" demo on the right
+- Pricing: Free ($0, 50 items, 3 collections) vs Pro ($8/mo, unlimited, AI features), Pro highlighted with "Most Popular", monthly/yearly toggle switching Pro to $72/yr
+- CTA "Ready to Organize Your Knowledge?" with button; footer with logo, link columns and a current-year copyright
+- Scroll fade-in for sections
+- Responsive: chaos/arrow/dashboard stack vertically on mobile with the arrow rotated 90° to point down; single-column grids
 
 ## Notes
+- Spec: context/features/homepage-mockup-spec.md
+- **Colour conflict to decide at `start`:** the spec's palette differs from the app's system type colours for four of seven types — Prompt amber `#f59e0b` (app: purple `#8b5cf6`), Command cyan `#06b6d4` (app: orange `#f97316`), Note green `#22c55e` (app: yellow `#fde047`), Link/URL indigo `#6366f1` (app: emerald `#10b981`), File slate `#64748b` (app: gray `#6b7280`). Snippet blue and Image pink match. Recommendation: use the app's colours (src/lib seed / project overview) so the marketing page shows the same colour language users meet in the dashboard.
+- Brand marks (Notion, GitHub, Slack, VS Code) as inline SVG — lucide v1 dropped brand icons; GitHub mark already exists in src/components/auth/GitHubIcon.tsx. Simplified monochrome-ish marks are fine for a mockup.
+- Coding standards' Tailwind/shadcn/no-inline-styles rules target the Next.js app; this is a standalone prototype with its own `styles.css`. It is outside `src/`, so lint/test/build are unaffected (confirm eslint doesn't pick up `prototypes/` JS).
+- Respect `prefers-reduced-motion`: freeze the chaos icons and the arrow pulse.
+- Pricing figures from the project overview: Free 50 items / 3 collections; Pro $8/mo or $72/yr (= $6/mo, "save 25%").
+- No schema, query or dependency change; no unit tests (no server-side logic). Verification: Björn opens `prototypes/homepage/index.html` in Windows Chrome.
+- Out of scope: wiring it into the Next.js `/` route (src/app/page.tsx is still a placeholder `<h1>`) — a follow-up if the mockup is approved.
 
 ## History
 - 2026-05-12: **Initial Setup** - Next.js and Tailwind setup
