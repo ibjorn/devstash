@@ -1,19 +1,9 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
-import { ChangePasswordDialog } from "@/components/profile/ChangePasswordDialog";
-import { DeleteAccountDialog } from "@/components/profile/DeleteAccountDialog";
 import { ItemTypeBreakdown } from "@/components/profile/ItemTypeBreakdown";
 import { ProfileHeader } from "@/components/profile/ProfileHeader";
-import { SetPasswordButton } from "@/components/profile/SetPasswordButton";
 import { StatsCards } from "@/components/dashboard/StatsCards";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { getDashboardStats } from "@/lib/db/dashboard";
 import { getItemTypeNavItems } from "@/lib/db/item-types";
 import { requireUserId } from "@/lib/db/session-user";
@@ -53,45 +43,6 @@ export default async function ProfilePage() {
         <h2 className="text-lg font-semibold">Usage</h2>
         <StatsCards stats={stats} />
         <ItemTypeBreakdown itemTypes={itemTypes} />
-      </section>
-
-      <section className="flex flex-col gap-4">
-        <h2 className="text-lg font-semibold">Account</h2>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Password</CardTitle>
-            <CardDescription>
-              {user.hasPassword
-                ? "Change the password you use to sign in with your email address."
-                : "You sign in with GitHub. Add a password to also sign in with your email address."}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {user.hasPassword ? (
-              <ChangePasswordDialog />
-            ) : (
-              <SetPasswordButton email={user.email} />
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="border-destructive/40">
-          <CardHeader>
-            <CardTitle className="text-base">Delete account</CardTitle>
-            <CardDescription>
-              Permanently removes your account and everything in it. This cannot
-              be undone.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <DeleteAccountDialog
-              email={user.email}
-              itemCount={stats.items}
-              collectionCount={stats.collections}
-            />
-          </CardContent>
-        </Card>
       </section>
     </div>
   );

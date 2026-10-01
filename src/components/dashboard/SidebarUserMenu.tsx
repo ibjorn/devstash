@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useId } from "react";
-import { ChevronsUpDown, LogOut, User } from "lucide-react";
+import { ChevronsUpDown, LogOut, Settings, User } from "lucide-react";
 
 import { signOutAction } from "@/actions/auth";
 import { UserAvatar } from "@/components/user/UserAvatar";
@@ -70,6 +70,12 @@ export function SidebarUserMenu({ user }: SidebarUserMenuProps) {
               <Link href="/profile">
                 <User />
                 Profile
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/settings">
+                <Settings />
+                Settings
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
