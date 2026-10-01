@@ -1,10 +1,33 @@
-# Current Feature
+# Current Feature: Pinned Items
 
 ## Status
 
+In Progress
+
 ## Goals
 
+- The drawer's Pin button (currently a "Pinning items is coming soon" toast in `src/components/items/ItemDrawerActions.tsx`) saves `Item.isPinned`
+- New server action for pinning (spec name `toggleItemPin`), following the Favorite Toggles pattern: takes the desired value, `{ success, error }`, signed-out caller refused before the DB, bad id/value rejected unqueried, foreign or missing item → "That item no longer exists."
+- Optimistic UI: the pin fills at once, reverts with an error toast on failure, `router.refresh()` on success so the dashboard Pinned section and listings re-sort
+- Toast on success and on error (spec asks for both)
+- Pinned items sort to the top of listings — already true for `/items/[type]` and `/collections/[id]` (`listingOrder` in src/lib/db/items.ts); a newly pinned item appears in the dashboard's Pinned section
+- Items only, not collections
+- Pin icon on ItemCard (and ItemRow/ImageCard/FileRow) stays a static indicator — no card-level toggle
+- Unit tests for the action and query; mutation-check the auth guard and ownership clause
+
 ## Notes
+
+- Spec: context/features/pinned-spec.md
+- Reuse, don't duplicate: `useFavoriteToggle` (src/hooks/use-favorite-toggle.ts) and the `setFavorite` helper in src/actions/favorites.ts are boolean-flag toggles that differ only in column, noun and messages. Plan is to generalise rather than copy (e.g. a `useFlagToggle` hook / shared action helper), and mirror the drawer's `applyFavorite` with an equivalent so the drawer's copy of the item stays in step after leaving edit mode; ItemDrawerActions is already keyed by `item.id`, so the Favorite Toggles stale-item fix covers pin too
+- Query: same as `setItemFavorite` in src/lib/db/favorites.ts — parameterised `$executeRaw` with `userId` in the WHERE so pinning doesn't bump `@updatedAt` — pinning isn't an edit, and a bump would change the drawer's "Updated" date and move the item in `/favorites`' date sort
+
+### Decisions (all five taken as recommended at `start`)
+
+1. **Success toast.** The spec says "toast on success/error", but the Favorite pattern it says to follow deliberately has no success toast (the star is the feedback). Recommendation: follow the spec — a short "Pinned" / "Unpinned" success toast — since pinning moves the item somewhere else on the page and the toast explains the jump.
+2. **Dashboard Pinned order.** `getPinnedItems` sorts by `updatedAt desc`. If pinning doesn't bump `updatedAt` (decision 3), a newly pinned old item lands at the bottom of the Pinned section, and the section takes only 10. Recommendation: keep `updatedAt` order and accept it; a true "most recently pinned first" needs a `pinnedAt` column + migration (same deferral as `favoritedAt`).
+3. **Don't bump `updatedAt`.** Recommendation: raw SQL like favorites, for the same reason. Alternative: plain `prisma.item.update`, which bumps it and puts newly pinned items first on the dashboard for free, at the cost of pinning counting as an edit (the "Updated" date in the drawer and `/favorites`, and `/favorites` date sort).
+4. **Action name.** Spec says `toggleItemPin`; the favorite actions are `setItemFavorite(id, value)` because a flip from a stale tab inverts intent. Recommendation: `setItemPinned(id, value)`.
+5. **Shared code vs a copy.** Recommendation: new src/actions/pins.ts and src/lib/db/pins.ts beside the favorites files, but generalise the hook into `useFlagToggle` (with `useFavoriteToggle` kept as a thin wrapper so the five favorite call sites don't change) and lift the action's id/value/auth checks into a shared helper. Alternative: copy the ~70-line hook, which is less churn but two copies of the optimistic/revert logic to keep in sync.
 
 ## History
 - 2026-05-12: **Initial Setup** - Next.js and Tailwind setup

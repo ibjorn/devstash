@@ -48,6 +48,9 @@ export interface ItemSummary {
   fileSize: number | null;
 }
 
+/** The toggles an item card or the drawer can flip without opening edit mode. */
+export type ItemFlags = Partial<Pick<ItemSummary, "isFavorite" | "isPinned">>;
+
 /** A favorited item on /favorites, which sorts and dates rows by updatedAt. */
 export interface FavoriteItem extends ItemSummary {
   updatedAt: Date;
