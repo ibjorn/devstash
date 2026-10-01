@@ -55,6 +55,7 @@ Example v4 configuration:
 - Server Actions: `src/actions/[feature].ts`
 - Types: `src/types/[feature].ts`
 - Lib/Utils: `src/lib/[utility].ts`
+- Hooks: `src/hooks/use-[name].ts`
 - Tests: colocated next to the file under test — `src/lib/[utility].test.ts`
 
 ## Naming
