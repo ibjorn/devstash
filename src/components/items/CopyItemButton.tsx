@@ -94,7 +94,7 @@ export function CopyItemButton({ item, className }: CopyItemButtonProps) {
       aria-label={`Copy ${item.title}`}
       title="Copy"
       className={cn(
-        "flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default",
+        "flex size-8 shrink-0 cursor-pointer pointer-coarse:size-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default",
         className,
       )}
     >

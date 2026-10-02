@@ -39,8 +39,9 @@ export function CollectionCard({ collection }: CollectionCardProps) {
           }
         >
           <CardHeader>
-            {/* pr-8 keeps the title clear of the menu button */}
-            <CardTitle className="flex items-center gap-2 pr-8">
+            {/* min-w-0 lets the title shrink inside CardHeader's grid so it
+              truncates; the padding keeps it and its star clear of the menu */}
+            <CardTitle className="flex min-w-0 items-center gap-2 pr-10 pointer-coarse:pr-12">
               <span className="truncate">{collection.name}</span>
               {collection.isFavorite && (
                 <Star className="size-3.5 shrink-0 fill-yellow-400 text-yellow-400" />

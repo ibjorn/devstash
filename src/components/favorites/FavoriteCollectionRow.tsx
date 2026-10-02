@@ -18,7 +18,7 @@ export function FavoriteCollectionRow({
     <li>
       <Link
         href={`/collections/${encodeURIComponent(collection.id)}`}
-        className="flex w-full items-center gap-3 px-3 py-1.5 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+        className="flex w-full items-center gap-3 px-3 py-1.5 transition-colors pointer-coarse:py-2.5 hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
       >
         <Folder className="size-4 shrink-0 text-muted-foreground" />
         <span className="min-w-0 flex-1 truncate">{collection.name}</span>

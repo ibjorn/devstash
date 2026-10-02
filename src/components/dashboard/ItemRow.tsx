@@ -61,7 +61,9 @@ export function ItemRow({ item }: ItemRowProps) {
           className={cn(
             "shrink-0 text-xs text-muted-foreground",
             // clear of the buttons overlaying this corner
-            isCopyable(item) ? "mr-16" : "mr-7",
+            isCopyable(item)
+              ? "mr-16 pointer-coarse:mr-20"
+              : "mr-7 pointer-coarse:mr-9",
           )}
         >
           {formatShortDate(item.createdAt)}

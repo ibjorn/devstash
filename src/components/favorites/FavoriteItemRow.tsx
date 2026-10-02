@@ -24,7 +24,7 @@ export function FavoriteItemRow({ item }: FavoriteItemRowProps) {
       <button
         type="button"
         onClick={() => openItem(item)}
-        className="flex w-full cursor-pointer items-center gap-3 px-3 py-1.5 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+        className="flex w-full cursor-pointer items-center gap-3 px-3 py-1.5 text-left pointer-coarse:py-2.5 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
       >
         <Icon className="size-4 shrink-0" style={{ color: item.type.color }} />
         <span className="min-w-0 flex-1 truncate">{item.title}</span>
@@ -43,13 +43,16 @@ export function FavoriteItemRow({ item }: FavoriteItemRowProps) {
   );
 }
 
-/** The right-hand date column, shared with the collection rows. */
+/**
+ * The right-hand date column, shared with the collection rows. Hidden below sm,
+ * where it left too little room for the title.
+ */
 export function FavoriteDate({ date }: { date: Date }) {
   return (
     <time
       dateTime={date.toISOString()}
       title={`Updated ${date.toLocaleString("en-US")}`}
-      className="w-14 shrink-0 text-right text-xs text-muted-foreground tabular-nums"
+      className="hidden w-14 shrink-0 text-right sm:block text-xs text-muted-foreground tabular-nums"
     >
       {formatShortDate(date)}
     </time>

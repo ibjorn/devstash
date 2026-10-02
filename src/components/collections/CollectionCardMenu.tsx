@@ -48,7 +48,7 @@ export function CollectionCardMenu({
           aria-label={`Actions for ${collection.name}`}
           title="Actions"
           className={cn(
-            "flex size-8 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-accent data-[state=open]:text-foreground",
+            "flex size-8 cursor-pointer pointer-coarse:size-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-accent data-[state=open]:text-foreground",
             className,
           )}
         >

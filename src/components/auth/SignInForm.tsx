@@ -85,7 +85,7 @@ export function SignInForm({
             <Label htmlFor="password">Password</Label>
             <Link
               href="/forgot-password"
-              className="text-sm text-muted-foreground underline hover:text-foreground"
+              className="-my-1.5 py-1.5 text-sm text-muted-foreground underline hover:text-foreground"
             >
               Forgot password?
             </Link>

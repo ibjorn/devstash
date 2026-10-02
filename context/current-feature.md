@@ -2,9 +2,27 @@
 
 ## Status
 
+In Progress — **Fix — UI Review Findings** (branch `fix/ui-review-findings`)
+
 ## Goals
 
+Fix the findings from the 2026-10-02 ui-reviewer Playwright pass (homepage + dashboard pages):
+
+- Top bar clipped at 768px: New Item / New Collection labels show from `lg` instead of `sm`
+- Homepage AI-section code mockup overflowing below `lg`: `grid-cols-1` on the grid
+- Homepage hero cramped at 768px: panels stack until `lg` (max-w-xl when stacked)
+- Homepage nav has no Sign In on mobile: always shown, tighter padding below `sm`
+- No social proof: an honest trust line under the hero CTAs (free plan, no card, GitHub sign-in) — no invented testimonials or counts
+- Tap targets on touch screens: `pointer-coarse:` sizes in shadcn button (default/sm/icon/icon-sm) and input, plus the card favorite/copy/⋯/download overlays with their reserved padding; sign-in and homepage footer links get vertical padding
+- Collection card title star colliding with the ⋯ menu: more title clearance
+- /favorites on mobile: date column hidden below `sm`, taller rows and sort buttons on touch
+- Monaco minimap ignored when the editor is narrower than 480px
+- Thin, theme-coloured scrollbars app-wide (`scrollbar-width`/`scrollbar-color` in the globals.css base layer) instead of the Windows arrowed default — Björn's request after the Chrome pass
+
 ## Notes
+
+- Not changed: Pinned/Recent showing the same item (by design), drawer skeleton time (dev-server latency), pricing buttons/toggle at 37–38px (above the 24px WCAG 2.2 AA minimum)
+- To confirm in Windows Chrome: Playwright mouse clicks didn't fire React handlers on AppShell pages (keyboard and DOM clicks did) — likely a harness/HMR artifact
 
 ## History
 - 2026-05-12: **Initial Setup** - Next.js and Tailwind setup

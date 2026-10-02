@@ -46,7 +46,9 @@ export function ItemCard({ item }: ItemCardProps) {
           <div
             className={cn(
               "flex shrink-0 items-center gap-1.5 pt-1",
-              isCopyable(item) ? "pr-16" : "pr-7",
+              isCopyable(item)
+                ? "pr-16 pointer-coarse:pr-20"
+                : "pr-7 pointer-coarse:pr-9",
             )}
           >
             {item.isPinned && (

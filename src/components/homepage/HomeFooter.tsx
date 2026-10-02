@@ -27,8 +27,10 @@ const COLUMNS: { title: string; links: FooterLink[] }[] = [
   },
 ];
 
+// py-1 gives the footer links a 28px tap target; self-start keeps the hit
+// area to the text rather than the whole column
 const LINK_CLASS =
-  "text-muted-foreground transition-colors hover:text-foreground";
+  "self-start py-1 text-muted-foreground transition-colors hover:text-foreground";
 
 // In-page anchors stay plain <a>; routes go through next/link
 function FooterLinkItem({ label, href }: FooterLink) {
@@ -58,9 +60,9 @@ export function HomeFooter() {
           <nav
             key={title}
             aria-label={title}
-            className="flex flex-col gap-2.5 text-[0.92rem]"
+            className="flex flex-col gap-1 text-[0.92rem]"
           >
-            <h4 className="mb-1 text-sm font-bold">{title}</h4>
+            <h4 className="mb-2 text-sm font-bold">{title}</h4>
             {links.map((link) => (
               <FooterLinkItem key={link.label} {...link} />
             ))}

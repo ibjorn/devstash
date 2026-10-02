@@ -90,8 +90,9 @@ export function NewCollectionDialog() {
       <DialogTrigger asChild>
         <Button variant="outline">
           <FolderPlus className="size-4" />
-          {/* Icon-only on narrow screens, where the top bar is crowded */}
-          <span className="sr-only sm:not-sr-only">New Collection</span>
+          {/* Icon-only until lg: from md the docked sidebar takes 256px of the
+            top bar, so the labels don't fit at tablet widths either */}
+          <span className="sr-only lg:not-sr-only">New Collection</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">

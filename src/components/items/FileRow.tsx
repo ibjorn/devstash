@@ -65,7 +65,7 @@ export function FileRow({ item }: FileRowProps) {
         download
         aria-label={`Download ${name}`}
         title="Download"
-        className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex size-8 shrink-0 items-center pointer-coarse:size-10 justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Download className="size-4" />
       </a>

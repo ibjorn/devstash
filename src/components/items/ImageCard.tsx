@@ -48,7 +48,7 @@ export function ImageCard({ item }: ImageCardProps) {
         </div>
 
         {/* pr-12 keeps the title and pin clear of the favorite button */}
-        <div className="flex items-center justify-between gap-2 py-2.5 pr-12 pl-3">
+        <div className="flex items-center justify-between gap-2 py-2.5 pr-12 pl-3 pointer-coarse:pr-14">
           <h3 className="truncate text-sm font-medium">{item.title}</h3>
           <div className="flex shrink-0 items-center gap-1.5">
             {item.isPinned && (
@@ -57,7 +57,10 @@ export function ImageCard({ item }: ImageCardProps) {
           </div>
         </div>
       </button>
-      <FavoriteItemButton item={item} className="absolute right-2 bottom-1" />
+      <FavoriteItemButton
+        item={item}
+        className="absolute right-2 bottom-1 pointer-coarse:bottom-0"
+      />
     </div>
   );
 }

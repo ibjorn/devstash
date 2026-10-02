@@ -22,6 +22,9 @@ const PADDING = 12;
 const MAX_HEIGHT = 400;
 // An empty editor is one line tall, which is too small a target to type into
 const MIN_EDIT_HEIGHT = 160;
+// Below this the minimap eats too much of the text area, so the preference is
+// ignored (on a phone-width drawer the editor is ~320px)
+const MINIMAP_MIN_WIDTH = 480;
 
 function beforeMount(monaco: Monaco) {
   defineEditorThemes(monaco);
@@ -66,6 +69,7 @@ export function CodeEditor({
   const [contentHeight, setContentHeight] = useState(() =>
     estimateHeight(value, lineHeight),
   );
+  const [editorWidth, setEditorWidth] = useState<number | null>(null);
 
   const height = Math.min(
     Math.max(contentHeight, readOnly ? 0 : MIN_EDIT_HEIGHT),
@@ -78,6 +82,8 @@ export function CodeEditor({
     editor.onDidContentSizeChange((event) =>
       setContentHeight(event.contentHeight),
     );
+    setEditorWidth(editor.getLayoutInfo().width);
+    editor.onDidLayoutChange((info) => setEditorWidth(info.width));
   };
 
   return (
@@ -117,7 +123,12 @@ export function CodeEditor({
           // Otherwise Monaco guesses the tab size from the content and the
           // preference only applies to an empty editor
           detectIndentation: false,
-          minimap: { enabled: preferences.minimap },
+          minimap: {
+            enabled:
+              preferences.minimap &&
+              editorWidth !== null &&
+              editorWidth >= MINIMAP_MIN_WIDTH,
+          },
           scrollBeyondLastLine: false,
           automaticLayout: true,
           lineNumbersMinChars: 3,

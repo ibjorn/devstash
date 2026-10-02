@@ -25,7 +25,7 @@ const NAV_LINKS = [
   { label: "Pricing", href: "#pricing" },
 ];
 
-const NAV_BUTTON = "h-9.5 rounded-[10px] px-4 font-semibold";
+const NAV_BUTTON = "h-9.5 rounded-[10px] px-3 font-semibold sm:px-4";
 
 function NavActions({ signedIn }: { signedIn: boolean }) {
   if (signedIn) {
@@ -42,7 +42,7 @@ function NavActions({ signedIn }: { signedIn: boolean }) {
         className={cn(
           buttonVariants({ variant: "ghost" }),
           NAV_BUTTON,
-          "hidden text-muted-foreground md:inline-flex",
+          "text-muted-foreground",
         )}
       >
         Sign In

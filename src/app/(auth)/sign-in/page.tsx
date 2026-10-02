@@ -112,7 +112,10 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
         />
         <p className="text-center text-sm text-muted-foreground">
           Don&apos;t have an account?{" "}
-          <Link href="/register" className="text-foreground underline">
+          <Link
+            href="/register"
+            className="-my-1.5 inline-block py-1.5 text-foreground underline"
+          >
             Register
           </Link>
         </p>

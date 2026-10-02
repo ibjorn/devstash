@@ -119,6 +119,11 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    /* Thin, quiet scrollbars instead of the chunky arrowed Windows default,
+       closer to the overlay ones mobile browsers draw */
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklch, var(--foreground) 20%, transparent)
+      transparent;
     }
   body {
     @apply bg-background text-foreground;

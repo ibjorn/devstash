@@ -27,7 +27,7 @@ function Panel({
   return (
     <div
       className={cn(
-        "w-full rounded-[14px] border bg-card p-4 shadow-[0_30px_60px_-30px_rgb(0_0_0/0.8)]",
+        "w-full max-w-xl rounded-[14px] border bg-card p-4 lg:max-w-none shadow-[0_30px_60px_-30px_rgb(0_0_0/0.8)]",
         className,
       )}
     >
@@ -76,15 +76,18 @@ export function Hero({ primaryHref, primaryLabel }: HeroProps) {
               See how it works
             </a>
           </div>
+          <p className="mt-5 text-sm text-muted-foreground">
+            Free plan · No credit card required · Sign in with GitHub
+          </p>
         </Reveal>
 
-        <Reveal className="grid items-center justify-items-center gap-6 md:grid-cols-[1fr_auto_1fr]">
+        <Reveal className="grid items-center justify-items-center gap-6 lg:grid-cols-[1fr_auto_1fr]">
           <Panel label="Your knowledge today...">
             <ChaosAnimation />
           </Panel>
           <div
             aria-hidden
-            className="grid size-14 rotate-90 place-items-center rounded-full bg-linear-135 from-blue-500 to-violet-500 text-white animate-arrow-pulse motion-reduce:animate-none md:rotate-0"
+            className="grid size-14 rotate-90 place-items-center rounded-full bg-linear-135 from-blue-500 to-violet-500 text-white animate-arrow-pulse motion-reduce:animate-none lg:rotate-0"
           >
             <ArrowRight className="size-6.5" strokeWidth={2.5} />
           </div>

@@ -69,7 +69,7 @@ function SortControl({ value, onChange }: SortControlProps) {
           aria-pressed={value === key}
           onClick={() => onChange(key)}
           className={cn(
-            "cursor-pointer rounded px-1.5 py-0.5 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            "cursor-pointer rounded px-1.5 py-0.5 transition-colors pointer-coarse:px-2.5 pointer-coarse:py-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
             value === key && "bg-muted text-foreground",
           )}
         >

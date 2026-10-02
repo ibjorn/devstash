@@ -155,8 +155,9 @@ export function NewItemDialog({ types, collections }: NewItemDialogProps) {
       <DialogTrigger asChild>
         <Button>
           <Plus className="size-4" />
-          {/* Icon-only on narrow screens, where the top bar is crowded */}
-          <span className="sr-only sm:not-sr-only">New Item</span>
+          {/* Icon-only until lg: from md the docked sidebar takes 256px of the
+            top bar, so the labels don't fit at tablet widths either */}
+          <span className="sr-only lg:not-sr-only">New Item</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-xl">

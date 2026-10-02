@@ -87,7 +87,7 @@ function EditorMockup() {
 export function AiSection() {
   return (
     <section className="border-y bg-[#0f0f10] py-20 md:py-28">
-      <Container className="grid items-center gap-12 lg:grid-cols-[1fr_1.15fr] lg:gap-16">
+      <Container className="grid grid-cols-1 items-center gap-12 lg:grid-cols-[1fr_1.15fr] lg:gap-16">
         <Reveal>
           <Badge className="h-auto border-violet-500/40 bg-violet-500/12 px-2.5 py-1 text-[0.72rem] font-semibold tracking-[0.06em] text-violet-300 uppercase">
             Pro Feature
