@@ -155,7 +155,8 @@ export function NewItemDialog({ types, collections }: NewItemDialogProps) {
       <DialogTrigger asChild>
         <Button>
           <Plus className="size-4" />
-          New Item
+          {/* Icon-only on narrow screens, where the top bar is crowded */}
+          <span className="sr-only sm:not-sr-only">New Item</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-xl">

@@ -1,10 +1,21 @@
-# Current Feature
+# Current Feature: Fix — Top Bar Overflow on Mobile
 
 ## Status
+In Progress
 
 ## Goals
+- On a phone-width viewport (down to 320px), every top bar control is fully visible — the New Item button is no longer clipped at the right edge
+- New Item collapses to its `Plus` icon below `sm`, with an `sr-only` "New Item" label, the same pattern New Collection already uses (`sr-only sm:not-sr-only`)
+- Desktop (`sm` and up) is unchanged: the full "New Item" / "New Collection" labels and the search box with its Ctrl K / ⌘K hint
+- The search trigger keeps shrinking first, so it absorbs the squeeze rather than pushing buttons off-screen
+- Fix lives in the shared top bar, so it applies on every AppShell page (dashboard, items, collections, favorites, profile, settings), not just /dashboard
 
 ## Notes
+- **Where:** src/components/dashboard/TopBar.tsx (header: `gap-4 px-4`; left `SidebarTrigger` + `SearchPalette`; right group `ml-auto gap-2` holding the Favorites star link, `NewCollectionDialog`, `NewItemDialog`). The New Item trigger is in src/components/items/NewItemDialog.tsx:155-160 — a plain `<Button>` with icon + "New Item" text and no narrow-screen variant. `SidebarInset` in AppShell is `overflow-hidden`, so anything past the edge is clipped rather than scrolled — that's why it reads as "cut off".
+- **Why only New Item:** Collection Create already made New Collection icon-only below `sm` for exactly this reason ("so the top bar doesn't overflow"); Favorites (Favorites Page) is already an icon. New Item is the one remaining text button, and buttonVariants carries `shrink-0`, so it can't give way.
+- **Likely secondary tweaks** (decide at `start`): tighten the header gap below `sm` (`gap-2 sm:gap-4`) and make sure the search trigger can shrink to its icon (`min-w-0` on it). By rough arithmetic the bar should only just overflow around 320–360px, so if Björn sees it at a wider width (e.g. 390px) something else is contributing and should be measured before guessing further.
+- Keep New Item visually primary on mobile (default variant, icon-only, `size="icon"`-equivalent) so it still reads as the main action.
+- No schema, query, server-action or dependency change; no unit tests (presentational only — say so rather than writing one). Verify with lint + test + build (check port 3000 first; build in an isolated copy if the dev server is up), then Björn checks in Windows Chrome devtools at phone widths.
 
 ## History
 - 2026-05-12: **Initial Setup** - Next.js and Tailwind setup
