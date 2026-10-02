@@ -211,3 +211,41 @@
     @apply max-w-full rounded;
   }
 }
+
+/* Marketing homepage (src/components/homepage). Used as `animate-arrow-pulse`
+   and `animate-tag-in`; both are switched off under motion-reduce. */
+@theme {
+  --animate-arrow-pulse: arrow-pulse 2s ease-in-out infinite;
+  --animate-tag-in: tag-in 0.4s ease both;
+
+  @keyframes arrow-pulse {
+    0%,
+    100% {
+      transform: scale(1);
+      box-shadow: 0 0 0 0 rgb(139 92 246 / 0.5);
+    }
+    50% {
+      transform: scale(1.08);
+      box-shadow: 0 0 0 14px rgb(139 92 246 / 0);
+    }
+  }
+
+  @keyframes tag-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px) scale(0.9);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+/* Smooth in-page anchor scrolling on the homepage only; scoped with :has so
+   the app's own navigations keep instant scroll restoration. */
+@media (prefers-reduced-motion: no-preference) {
+  html:has([data-homepage]) {
+    scroll-behavior: smooth;
+  }
+}

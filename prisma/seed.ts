@@ -4,6 +4,7 @@ import { PrismaClient } from "../src/generated/prisma/client";
 import type { ItemContentType } from "../src/generated/prisma/client";
 import { DEMO_USER_EMAIL } from "../src/lib/db/demo-user";
 import { hashPassword } from "../src/lib/auth/password";
+import { SYSTEM_TYPES } from "../src/lib/system-types";
 
 const adapter = new PrismaNeon({
   connectionString: process.env.DIRECT_URL ?? process.env.DATABASE_URL,
@@ -12,15 +13,10 @@ const prisma = new PrismaClient({ adapter });
 
 const DEMO_PASSWORD = "12345678";
 
-const SYSTEM_TYPES = [
-  { name: "Snippet", icon: "Code", color: "#3b82f6" },
-  { name: "Prompt", icon: "Sparkles", color: "#8b5cf6" },
-  { name: "Command", icon: "Terminal", color: "#f97316" },
-  { name: "Note", icon: "StickyNote", color: "#fde047" },
-  { name: "Link", icon: "Link", color: "#10b981" },
-  { name: "File", icon: "File", color: "#6b7280" },
-  { name: "Image", icon: "Image", color: "#ec4899" },
-];
+const systemTypes = Object.entries(SYSTEM_TYPES).map(([name, type]) => ({
+  name,
+  ...type,
+}));
 
 interface SeedItem {
   title: string;
@@ -314,7 +310,7 @@ CMD ["node", "server.js"]`,
 async function seedSystemTypes(): Promise<Map<string, string>> {
   const typeIds = new Map<string, string>();
 
-  for (const type of SYSTEM_TYPES) {
+  for (const type of systemTypes) {
     // Can't upsert: system types have userId = null, and Postgres treats
     // NULLs as distinct in the [userId, name] unique constraint
     const existing = await prisma.itemType.findFirst({
