@@ -20,7 +20,7 @@ current-feature.md has these sections:
 - `## Status` - Not Started | In Progress | Complete
 - `## Goals` - Bullet points of what success looks like
 - `## Notes` - Additional context, constraints, or details from spec
-- `## History` - Completed features (append only)
+- `## History` - A one-line pointer to `context/feature-history.md`, where completed features are logged (append only, oldest first). That file is never `@`-imported, so it doesn't load into every session — refer to it by plain path.
 
 ## Task
 

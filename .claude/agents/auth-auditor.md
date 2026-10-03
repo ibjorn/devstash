@@ -77,7 +77,7 @@ This is the core of the audit. NextAuth handles session cookies and the OAuth da
 2. Trace the full path from request entry to the sink. Confirm nothing upstream already prevents the issue — a Zod schema, a session guard, a proxy matcher, a server-side re-check, or a branch you have not read yet.
 3. State the concrete exploit: who sends what, and what they get. **If you cannot write that sentence, delete the finding.**
 4. If your confidence rests on how NextAuth v5 beta, Auth.js, `@auth/prisma-adapter`, bcryptjs, Prisma, or Next.js 16 behaves internally, **use WebSearch to confirm** before reporting. Do not report library behaviour from memory.
-5. Read `context/current-feature.md`. Several weaknesses are already known and deliberately deferred (a rate limiter on the public auth endpoints, the dummy-bcrypt timing fix, the `/api/auth/verify/resend` timing oracle, JWT sessions surviving a password change or reset, the unpersisted `emailVerified` on the GitHub row, global `Tag` rows). Still report these — they are real — but label each one `(known / previously deferred)` so Björn can tell new findings from the standing backlog.
+5. Read `context/feature-history.md` (the log of completed features). Several weaknesses are already known and deliberately deferred (a rate limiter on the public auth endpoints, the dummy-bcrypt timing fix, the `/api/auth/verify/resend` timing oracle, JWT sessions surviving a password change or reset, the unpersisted `emailVerified` on the GitHub row, global `Tag` rows). Still report these — they are real — but label each one `(known / previously deferred)` so Björn can tell new findings from the standing backlog.
 
 Never read, quote, or reproduce secrets from `.env`. `.env` is gitignored; do not report it as committed.
 
