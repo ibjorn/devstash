@@ -20,7 +20,7 @@
 - Only use `'use client'` when needed (interactivity, hooks, browser APIs)
 - Use Server Actions for form submissions and simple mutations
 - Use API routes when you need:
-  - Webhooks (Stripe, GitHub, etc.)
+  - Webhooks (Paystack, GitHub, etc.)
   - File uploads with progress tracking
   - Long-running operations
   - Specific HTTP status codes or headers

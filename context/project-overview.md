@@ -138,8 +138,10 @@ erDiagram
         string id PK
         string email
         boolean isPro
-        string stripeCustomerId
-        string stripeSubscriptionId
+        string paystackCustomerCode
+        string paystackSubscriptionCode
+        string subscriptionStatus
+        datetime currentPeriodEnd
     }
     ITEM {
         string id PK
@@ -190,8 +192,11 @@ model User {
 
   // Pro / billing
   isPro                Boolean   @default(false)
-  stripeCustomerId     String?   @unique
-  stripeSubscriptionId String?   @unique
+  paystackCustomerCode     String?   @unique // CUS_…
+  paystackSubscriptionCode String?   @unique // SUB_…
+  paystackEmailToken       String?
+  subscriptionStatus       String?   // active | non-renewing | attention | completed | cancelled
+  currentPeriodEnd         DateTime?
 
   // Relations
   accounts    Account[]
@@ -338,7 +343,7 @@ model Tag {
 - [**shadcn/ui**](https://ui.shadcn.com/) components
 
 ### Payments
-- [**Stripe**](https://docs.stripe.com/) for subscriptions
+- [**Paystack**](https://paystack.com/docs/payments/subscriptions/) for subscriptions — Stripe isn't available in South Africa. A South African Paystack account charges in **ZAR** only
 
 ---
 
@@ -346,7 +351,7 @@ model Tag {
 
 | | **Free** | **Pro** |
 |---|---|---|
-| **Price** | $0 | **$8 / month** or **$72 / year** |
+| **Price** | $0 | **R135 / month** or **R1,200 / year** |
 | Items | 50 total | Unlimited |
 | Collections | 3 | Unlimited |
 | System types | All except File / Image | All |
@@ -359,7 +364,9 @@ model Tag {
 | Search | Basic | Full |
 | Support | Community | Priority |
 
-> 🚧 **During development:** all users have access to all features. Pro infrastructure (Stripe, gating logic) should be wired up but disabled / bypassed until launch.
+> 💱 Pro is billed in rand. The pricing UI shows an **approximate USD** figure (daily ECB rate via Frankfurter) with the rand amount it's billed as, and falls back to rand-only when no rate is available.
+
+> 🚧 **During development:** all users have access to all features. Pro infrastructure (Paystack, gating logic) should be wired up but disabled / bypassed until launch.
 
 ---
 
@@ -427,6 +434,6 @@ Refer to the screenshots below as a base for the dashboard UI. It does not have 
 5. **Collections CRUD** — grid layout, item-collection linking
 6. **Search** — content/tag/title/type
 7. **File uploads** — Cloudflare R2 wiring
-8. **Stripe** — subscriptions, webhooks, `isPro` gating logic
+8. **Paystack** — subscriptions, webhooks, `isPro` gating logic
 9. **AI features** — auto-tags, summaries, explain, prompt optimizer
 10. **Polish** — export, recently used, pinning, favorites, mobile drawer

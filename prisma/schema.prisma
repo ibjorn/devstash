@@ -17,10 +17,14 @@ model User {
   emailVerified DateTime?
   password      String? // bcrypt hash; null for OAuth-only users
 
-  // Pro / billing
-  isPro                Boolean @default(false)
-  stripeCustomerId     String? @unique
-  stripeSubscriptionId String? @unique
+  // Pro / billing (Paystack). subscriptionStatus is Paystack's own string:
+  // active | non-renewing | attention | completed | cancelled
+  isPro                    Boolean   @default(false)
+  paystackCustomerCode     String?   @unique // CUS_…
+  paystackSubscriptionCode String?   @unique // SUB_…
+  paystackEmailToken       String? // needed to disable a subscription
+  subscriptionStatus       String?
+  currentPeriodEnd         DateTime? // next payment date, or access-until
 
   // Monaco settings; null until the user changes one. Parsed and merged over
   // defaults on read (src/lib/editor-preferences.ts), never trusted as-is

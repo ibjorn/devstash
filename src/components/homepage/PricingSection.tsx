@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { getZarToUsdRate } from "@/lib/exchange-rate";
 import { cn } from "@/lib/utils";
 
 import { Container } from "./Container";
@@ -15,6 +16,7 @@ interface PricingTier {
   price: React.ReactNode;
   features: string[];
   cta: string;
+  href: string;
   featured?: boolean;
 }
 
@@ -32,35 +34,47 @@ const FREE_PRICE = (
   </>
 );
 
-// "Go Pro" leads to registration until Stripe checkout exists
-const TIERS: PricingTier[] = [
-  {
-    name: "Free",
-    price: FREE_PRICE,
-    features: [
-      "50 items",
-      "3 collections",
-      "Snippets, prompts, commands, notes & links",
-      "Basic search",
-    ],
-    cta: "Get started",
-  },
-  {
-    name: "Pro",
-    price: <ProPrice />,
-    features: [
-      "Unlimited items & collections",
-      "File & image uploads",
-      "AI tagging, summaries & explanations",
-      "Prompt optimizer",
-      "Full search & data export",
-    ],
-    cta: "Go Pro",
-    featured: true,
-  },
-];
+// "Go Pro" goes to the billing section; the proxy sends a signed-out visitor
+// through sign-in first and back again
+function tiers(usdRate: number | null): PricingTier[] {
+  return [
+    {
+      name: "Free",
+      price: FREE_PRICE,
+      features: [
+        "50 items",
+        "3 collections",
+        "Snippets, prompts, commands, notes & links",
+        "Basic search",
+      ],
+      cta: "Get started",
+      href: "/register",
+    },
+    {
+      name: "Pro",
+      price: <ProPrice usdRate={usdRate} />,
+      features: [
+        "Unlimited items & collections",
+        "File & image uploads",
+        "AI tagging, summaries & explanations",
+        "Prompt optimizer",
+        "Full search & data export",
+      ],
+      cta: "Go Pro",
+      href: "/settings#billing",
+      featured: true,
+    },
+  ];
+}
 
-function PriceCard({ name, price, features, cta, featured }: PricingTier) {
+function PriceCard({
+  name,
+  price,
+  features,
+  cta,
+  href,
+  featured,
+}: PricingTier) {
   return (
     <Card
       className={cn(
@@ -78,7 +92,7 @@ function PriceCard({ name, price, features, cta, featured }: PricingTier) {
       {price}
       <Checklist items={features} className="mb-8 flex-1 content-start" />
       <Link
-        href="/register"
+        href={href}
         className={cn(
           buttonVariants({ variant: featured ? "default" : "outline" }),
           "h-9.5 w-full rounded-[10px] font-semibold",
@@ -90,7 +104,10 @@ function PriceCard({ name, price, features, cta, featured }: PricingTier) {
   );
 }
 
-export function PricingSection() {
+export async function PricingSection() {
+  // Fails soft to null, and the prices fall back to rand
+  const usdRate = await getZarToUsdRate();
+
   return (
     <section id="pricing" className="scroll-mt-20 py-20 md:py-28">
       <Container>
@@ -105,7 +122,7 @@ export function PricingSection() {
             <BillingToggle />
           </Reveal>
           <div className="grid justify-center gap-6 md:grid-cols-[repeat(2,minmax(0,380px))]">
-            {TIERS.map((tier) => (
+            {tiers(usdRate).map((tier) => (
               <Reveal key={tier.name}>
                 <PriceCard {...tier} />
               </Reveal>

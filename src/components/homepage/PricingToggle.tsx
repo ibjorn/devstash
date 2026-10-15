@@ -2,25 +2,9 @@
 
 import { createContext, useContext, useState } from "react";
 
+import { PlanPrice } from "@/components/billing/PlanPrice";
+import type { Billing } from "@/lib/billing";
 import { cn } from "@/lib/utils";
-
-type Billing = "monthly" | "yearly";
-
-const PRO_PRICES: Record<
-  Billing,
-  { amount: string; period: string; note: string }
-> = {
-  monthly: {
-    amount: "$8",
-    period: "/ month",
-    note: "Billed monthly. Cancel anytime.",
-  },
-  yearly: {
-    amount: "$72",
-    period: "/ year",
-    note: "Just $6 a month, billed yearly.",
-  },
-};
 
 const BillingContext = createContext<{
   billing: Billing;
@@ -96,19 +80,6 @@ export function BillingToggle() {
 }
 
 /** The Pro card's amount, period and billing note for the chosen period. */
-export function ProPrice() {
-  const price = PRO_PRICES[useBilling().billing];
-  return (
-    <>
-      <p className="mt-4 mb-2 flex items-baseline gap-2">
-        <span className="text-[2.8rem] font-extrabold tracking-[-0.03em]">
-          {price.amount}
-        </span>
-        <span className="text-muted-foreground">{price.period}</span>
-      </p>
-      <p className="mb-6 min-h-[1.6em] text-[0.92rem] text-muted-foreground">
-        {price.note}
-      </p>
-    </>
-  );
+export function ProPrice({ usdRate }: { usdRate: number | null }) {
+  return <PlanPrice billing={useBilling().billing} usdRate={usdRate} />;
 }

@@ -1,0 +1,119 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import {
+  billingForPlanCode,
+  billingState,
+  describeProPrice,
+  planCodeFor,
+  subscriptionState,
+} from "@/lib/billing";
+
+describe("describeProPrice", () => {
+  it("leads with approximate USD and states the rand it's billed as", () => {
+    expect(describeProPrice("monthly", 0.0598)).toEqual({
+      amount: "≈ $8.07",
+      period: "/ month",
+      note: "Billed as R135 monthly. Cancel anytime.",
+    });
+    expect(describeProPrice("yearly", 0.0598)).toEqual({
+      amount: "≈ $71.76",
+      period: "/ year",
+      note: "Billed as R1,200 yearly — about R100 a month.",
+    });
+  });
+
+  it("falls back to rand with no dollars anywhere when there's no rate", () => {
+    for (const billing of ["monthly", "yearly"] as const) {
+      const price = describeProPrice(billing, null);
+      expect(price.amount).toBe(billing === "monthly" ? "R135" : "R1,200");
+      expect(JSON.stringify(price)).not.toContain("$");
+    }
+  });
+});
+
+describe("plan codes", () => {
+  beforeEach(() => {
+    vi.stubEnv("PAYSTACK_PLAN_CODE_MONTHLY", "PLN_month");
+    vi.stubEnv("PAYSTACK_PLAN_CODE_YEARLY", "PLN_year");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("maps periods to configured codes and back", () => {
+    expect(planCodeFor("yearly")).toBe("PLN_year");
+    expect(billingForPlanCode("PLN_month")).toBe("monthly");
+    expect(billingForPlanCode("PLN_someone_else")).toBeNull();
+  });
+
+  it("throws rather than checking out against an unset plan", () => {
+    vi.stubEnv("PAYSTACK_PLAN_CODE_MONTHLY", "");
+    expect(() => planCodeFor("monthly")).toThrow(
+      "PAYSTACK_PLAN_CODE_MONTHLY is not set",
+    );
+  });
+});
+
+describe("subscriptionState", () => {
+  const subscription = {
+    subscription_code: "SUB_1",
+    email_token: "tok",
+    status: "active",
+    next_payment_date: "2026-11-15T00:00:00.000Z",
+  };
+
+  it("keeps Pro while the subscription lives, including non-renewing", () => {
+    for (const status of ["active", "non-renewing", "attention"]) {
+      expect(subscriptionState({ ...subscription, status }).isPro).toBe(true);
+    }
+  });
+
+  it("ends Pro once Paystack reports it over", () => {
+    for (const status of ["complete", "completed", "cancelled"]) {
+      expect(subscriptionState({ ...subscription, status }).isPro).toBe(false);
+    }
+  });
+
+  it("maps codes and the next payment date", () => {
+    expect(subscriptionState(subscription)).toEqual({
+      isPro: true,
+      paystackSubscriptionCode: "SUB_1",
+      paystackEmailToken: "tok",
+      subscriptionStatus: "active",
+      currentPeriodEnd: new Date("2026-11-15T00:00:00.000Z"),
+    });
+  });
+});
+
+describe("billingState", () => {
+  const pro = {
+    isPro: true,
+    paystackSubscriptionCode: "SUB_1",
+    subscriptionStatus: "active",
+  };
+
+  it("is free without Pro, whatever the stale status says", () => {
+    expect(billingState({ ...pro, isPro: false })).toBe("free");
+  });
+
+  it("is pending while paid Pro has no subscription synced", () => {
+    expect(
+      billingState({
+        ...pro,
+        paystackSubscriptionCode: null,
+        subscriptionStatus: null,
+      }),
+    ).toBe("pending");
+  });
+
+  it("surfaces non-renewing and attention", () => {
+    expect(billingState(pro)).toBe("active");
+    expect(billingState({ ...pro, subscriptionStatus: "non-renewing" })).toBe(
+      "non-renewing",
+    );
+    expect(billingState({ ...pro, subscriptionStatus: "attention" })).toBe(
+      "attention",
+    );
+  });
+});
