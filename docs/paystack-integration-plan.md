@@ -461,6 +461,9 @@ Update the 🚧 note to name `BILLING_ENFORCED` as the bypass mechanism.
 
 ### Vercel demo deployment (still test mode)
 
+> The full step-by-step setup and the demo walkthrough live in
+> [how-to-demo.md](how-to-demo.md). This section keeps the billing-specific notes.
+
 The demo runs on Vercel with the **same Paystack test account** as local dev.
 Nothing here involves live keys. Each step is done deliberately by Björn.
 
