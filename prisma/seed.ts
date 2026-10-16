@@ -40,7 +40,7 @@ interface SeedCollection {
 const COLLECTIONS: SeedCollection[] = [
   {
     name: "React Patterns",
-    description: "Reusable React patterns and hooks",
+    description: "Reusable React patterns, hooks and UI references",
     isFavorite: true,
     items: [
       {
@@ -114,6 +114,35 @@ export function useTheme(): ThemeContextValue {
   );
 }`,
       },
+      {
+        title: "Tailwind CSS docs",
+        description: "Utility-first CSS framework reference",
+        type: "Link",
+        contentType: "URL",
+        url: "https://tailwindcss.com/docs",
+        isFavorite: true,
+      },
+      {
+        title: "shadcn/ui",
+        description: "Copy-paste component library built on Radix",
+        type: "Link",
+        contentType: "URL",
+        url: "https://ui.shadcn.com/",
+      },
+      {
+        title: "Radix Primitives",
+        description: "Unstyled, accessible component primitives",
+        type: "Link",
+        contentType: "URL",
+        url: "https://www.radix-ui.com/primitives",
+      },
+      {
+        title: "Lucide icons",
+        description: "Open-source icon library used across DevStash",
+        type: "Link",
+        contentType: "URL",
+        url: "https://lucide.dev/",
+      },
     ],
   },
   {
@@ -174,7 +203,7 @@ Code:
   },
   {
     name: "DevOps",
-    description: "Infrastructure and deployment resources",
+    description: "Infrastructure, deployment and everyday shell commands",
     items: [
       {
         title: "Next.js multi-stage Dockerfile",
@@ -228,12 +257,6 @@ CMD ["node", "server.js"]`,
         contentType: "URL",
         url: "https://docs.github.com/en/actions",
       },
-    ],
-  },
-  {
-    name: "Terminal Commands",
-    description: "Useful shell commands for everyday development",
-    items: [
       {
         title: "Undo last commit (keep changes)",
         description: "Move HEAD back one commit but leave the work tree untouched",
@@ -266,42 +289,6 @@ CMD ["node", "server.js"]`,
         contentType: "TEXT",
         language: "bash",
         content: "npm outdated --long",
-      },
-    ],
-  },
-  {
-    name: "Design Resources",
-    description: "UI/UX resources and references",
-    isFavorite: true,
-    items: [
-      {
-        title: "Tailwind CSS docs",
-        description: "Utility-first CSS framework reference",
-        type: "Link",
-        contentType: "URL",
-        url: "https://tailwindcss.com/docs",
-        isFavorite: true,
-      },
-      {
-        title: "shadcn/ui",
-        description: "Copy-paste component library built on Radix",
-        type: "Link",
-        contentType: "URL",
-        url: "https://ui.shadcn.com/",
-      },
-      {
-        title: "Radix Primitives",
-        description: "Unstyled, accessible component primitives",
-        type: "Link",
-        contentType: "URL",
-        url: "https://www.radix-ui.com/primitives",
-      },
-      {
-        title: "Lucide icons",
-        description: "Open-source icon library used across DevStash",
-        type: "Link",
-        contentType: "URL",
-        url: "https://lucide.dev/",
       },
     ],
   },
