@@ -14,3 +14,9 @@ export const SYSTEM_TYPES = {
 } as const;
 
 export type SystemTypeName = keyof typeof SYSTEM_TYPES;
+
+// Pro-only system types, keyed by singular name
+export const PRO_TYPE_NAMES: ReadonlySet<string> = new Set<SystemTypeName>([
+  "File",
+  "Image",
+]);

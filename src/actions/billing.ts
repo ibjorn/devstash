@@ -1,18 +1,16 @@
 "use server";
 
-import {
-  billingSchema,
-  isLiveSubscriptionStatus,
-  planCodeFor,
-  PRO_PLANS,
-} from "@/lib/billing";
+import { billingSchema, planCodeFor, PRO_PLANS } from "@/lib/billing";
 import { getBillingUser } from "@/lib/db/billing";
 import { getSessionUserId } from "@/lib/db/session-user";
 import { getAppUrl } from "@/lib/email/app-url";
+import { hasProAccess } from "@/lib/entitlements";
 import { getManageLink, initializeTransaction } from "@/lib/paystack";
 import type { BillingActionResult } from "@/types/billing";
 
 const SIGNED_OUT = "You need to be signed in to manage billing.";
+const FAILED_RENEWAL =
+  "Your last payment failed. Update your card under Manage subscription instead of starting a new one.";
 
 /**
  * Starts a Paystack checkout for a Pro plan and hands back the hosted checkout
@@ -34,9 +32,16 @@ export async function startCheckout(
     const user = await getBillingUser(userId);
     if (!user) return { success: false, error: SIGNED_OUT };
 
-    // A second checkout would leave the customer paying for two subscriptions.
-    // isPro also covers the moment after paying, before the subscription syncs.
-    if (user.isPro || isLiveSubscriptionStatus(user.subscriptionStatus)) {
+    // Paystack may still retry a failed renewal, even past the grace, so a
+    // second subscription could charge the customer twice
+    if (user.subscriptionStatus === "attention") {
+      return { success: false, error: FAILED_RENEWAL };
+    }
+    // Still Pro — including the moment after paying, before the subscription
+    // syncs, and a cancelled period that hasn't run out yet. An active
+    // subscription can still charge whatever isPro says. Only an expired
+    // non-renewing one is safe to replace.
+    if (hasProAccess(user) || user.subscriptionStatus === "active") {
       return { success: false, error: "You already have a Pro subscription." };
     }
 

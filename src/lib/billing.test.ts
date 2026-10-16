@@ -87,10 +87,15 @@ describe("subscriptionState", () => {
 });
 
 describe("billingState", () => {
+  const NOW = new Date("2026-10-16T12:00:00.000Z");
+  const hoursAgo = (hours: number) =>
+    new Date(NOW.getTime() - hours * 60 * 60 * 1000);
+
   const pro = {
     isPro: true,
     paystackSubscriptionCode: "SUB_1",
     subscriptionStatus: "active",
+    currentPeriodEnd: new Date("2026-11-16T12:00:00.000Z"),
   };
 
   it("is free without Pro, whatever the stale status says", () => {
@@ -115,5 +120,29 @@ describe("billingState", () => {
     expect(billingState({ ...pro, subscriptionStatus: "attention" })).toBe(
       "attention",
     );
+  });
+
+  it("turns a non-renewing period that ran out past the grace into free", () => {
+    const nonRenewing = { ...pro, subscriptionStatus: "non-renewing" };
+
+    expect(
+      billingState({ ...nonRenewing, currentPeriodEnd: hoursAgo(25) }, NOW),
+    ).toBe("free");
+    expect(
+      billingState({ ...nonRenewing, currentPeriodEnd: hoursAgo(23) }, NOW),
+    ).toBe("non-renewing");
+  });
+
+  it("keeps showing attention past the grace, so nobody subscribes twice", () => {
+    expect(
+      billingState(
+        {
+          ...pro,
+          subscriptionStatus: "attention",
+          currentPeriodEnd: hoursAgo(25),
+        },
+        NOW,
+      ),
+    ).toBe("attention");
   });
 });

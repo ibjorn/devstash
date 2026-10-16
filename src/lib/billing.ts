@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { hasProAccess, type ProAccessFields } from "@/lib/entitlements";
 import { formatUsd, zarToUsd } from "@/lib/exchange-rate";
 
 export const BILLING_PERIODS = ["monthly", "yearly"] as const;
@@ -81,19 +82,18 @@ export type BillingState =
  * What the settings billing section shows. "pending" is paid-for Pro whose
  * subscription hasn't synced yet, so there's nothing to manage so far.
  */
-export function billingState(user: {
-  isPro: boolean;
-  paystackSubscriptionCode: string | null;
-  subscriptionStatus: string | null;
-}): BillingState {
+export function billingState(
+  user: ProAccessFields & { paystackSubscriptionCode: string | null },
+  now = new Date(),
+): BillingState {
   if (!user.isPro) return "free";
   if (!user.paystackSubscriptionCode) return "pending";
-  if (
-    user.subscriptionStatus === "non-renewing" ||
-    user.subscriptionStatus === "attention"
-  ) {
-    return user.subscriptionStatus;
-  }
+  // Paystack may still retry a failed renewal, so keep pointing the user at
+  // their card rather than at a second subscription — even past the grace
+  if (user.subscriptionStatus === "attention") return "attention";
+  // A cancelled period that ran out without subscription.disable reaching us
+  if (!hasProAccess(user, now)) return "free";
+  if (user.subscriptionStatus === "non-renewing") return "non-renewing";
   return "active";
 }
 

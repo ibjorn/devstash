@@ -16,6 +16,11 @@ import { openSubscriptionManagement, startCheckout } from "@/actions/billing";
 
 const USER_ID = "usr_1";
 
+// startCheckout reads the real clock, so period ends are set relative to it
+function hoursFromNow(hours: number): Date {
+  return new Date(Date.now() + hours * 60 * 60 * 1000);
+}
+
 const freeUser = {
   email: "dev@example.com",
   isPro: false,
@@ -62,13 +67,70 @@ describe("startCheckout", () => {
 
   it("refuses a second checkout while a subscription is live", async () => {
     for (const subscriptionStatus of ["active", "non-renewing", "attention"]) {
-      getBillingUser.mockResolvedValue({ ...freeUser, subscriptionStatus });
+      getBillingUser.mockResolvedValue({
+        ...freeUser,
+        isPro: true,
+        paystackSubscriptionCode: "SUB_1",
+        subscriptionStatus,
+        currentPeriodEnd: hoursFromNow(24 * 30),
+      });
       expect((await startCheckout("yearly")).success).toBe(false);
     }
     // Paid but not yet synced
     getBillingUser.mockResolvedValue({ ...freeUser, isPro: true });
     expect((await startCheckout("yearly")).success).toBe(false);
+    // Active can still charge, even if isPro has drifted
+    getBillingUser.mockResolvedValue({
+      ...freeUser,
+      subscriptionStatus: "active",
+    });
+    expect((await startCheckout("yearly")).success).toBe(false);
 
+    expect(initializeTransaction).not.toHaveBeenCalled();
+  });
+
+  it("refuses a non-renewing user still within the grace", async () => {
+    getBillingUser.mockResolvedValue({
+      ...freeUser,
+      isPro: true,
+      paystackSubscriptionCode: "SUB_1",
+      subscriptionStatus: "non-renewing",
+      currentPeriodEnd: hoursFromNow(-23),
+    });
+
+    expect((await startCheckout("monthly")).success).toBe(false);
+    expect(initializeTransaction).not.toHaveBeenCalled();
+  });
+
+  it("lets an expired non-renewing user subscribe again", async () => {
+    getBillingUser.mockResolvedValue({
+      ...freeUser,
+      isPro: true,
+      paystackSubscriptionCode: "SUB_1",
+      subscriptionStatus: "non-renewing",
+      currentPeriodEnd: hoursFromNow(-25),
+    });
+
+    const result = await startCheckout("monthly");
+
+    expect(result.success).toBe(true);
+    expect(initializeTransaction).toHaveBeenCalledTimes(1);
+  });
+
+  it("points an attention user at their card, expired or not", async () => {
+    for (const hours of [24 * 30, -25]) {
+      getBillingUser.mockResolvedValue({
+        ...freeUser,
+        isPro: true,
+        paystackSubscriptionCode: "SUB_1",
+        subscriptionStatus: "attention",
+        currentPeriodEnd: hoursFromNow(hours),
+      });
+
+      const result = await startCheckout("monthly");
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Manage subscription");
+    }
     expect(initializeTransaction).not.toHaveBeenCalled();
   });
 

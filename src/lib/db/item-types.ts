@@ -1,6 +1,7 @@
 import type { ItemContentType, Prisma } from "@/generated/prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import { PRO_TYPE_NAMES } from "@/lib/system-types";
 import { pluralTypeName, typeSlug } from "@/lib/type-names";
 import type { CreatableItemType, ItemTypeNavItem } from "@/types/items";
 
@@ -14,9 +15,6 @@ const SYSTEM_TYPE_ORDER = [
   "Image",
   "Link",
 ];
-
-// Pro-only system types, keyed by singular name
-const PRO_TYPE_NAMES = new Set(["File", "Image"]);
 
 // ItemType has no contentType column — it lives on each Item — so a new item's
 // is decided by its system type here. Anything not listed stores text.
