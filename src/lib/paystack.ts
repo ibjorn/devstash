@@ -25,7 +25,8 @@ export class PaystackError extends Error {
 const envelopeSchema = z.object({
   status: z.boolean(),
   message: z.string().optional(),
-  data: z.unknown(),
+  // Absent on some endpoints, e.g. /subscription/disable
+  data: z.unknown().optional(),
 });
 
 async function paystackRequest<T>(
@@ -144,6 +145,17 @@ export async function getManageLink(subscriptionCode: string) {
     z.object({ link: z.url() }),
   );
   return link;
+}
+
+/**
+ * Stops future charges immediately. Needs the email token Paystack issued with
+ * the subscription; the response carries no data.
+ */
+export async function disableSubscription(code: string, token: string) {
+  await paystackRequest("/subscription/disable", z.unknown(), {
+    method: "POST",
+    body: { code, token },
+  });
 }
 
 /**

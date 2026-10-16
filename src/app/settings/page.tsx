@@ -141,6 +141,7 @@ export default async function SettingsPage({
               email={user.email}
               itemCount={stats.items}
               collectionCount={stats.collections}
+              hasPro={hasProAccess(billing)}
             />
           </CardContent>
         </Card>

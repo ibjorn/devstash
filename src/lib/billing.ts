@@ -51,6 +51,15 @@ export function isLiveSubscriptionStatus(status: string | null): boolean {
   return status !== null && LIVE_SUBSCRIPTION_STATUSES.includes(status);
 }
 
+// The live statuses Paystack will still charge in: active renews, attention
+// retries a failed renewal. Non-renewing is already cancelled on Paystack's
+// side, so there's nothing left to disable.
+const CHARGING_SUBSCRIPTION_STATUSES = ["active", "attention"];
+
+export function isChargingSubscriptionStatus(status: string | null): boolean {
+  return status !== null && CHARGING_SUBSCRIPTION_STATUSES.includes(status);
+}
+
 interface SubscriptionLike {
   subscription_code: string;
   email_token: string;

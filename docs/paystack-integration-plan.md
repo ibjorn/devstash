@@ -167,10 +167,12 @@ Counts are already cheap: `getDashboardStats()` does `prisma.item.count({ where:
    10 hours, then gives up.
 2. **The Vercel demo isn't wired for billing yet:** production migration, test keys
    and plan codes in Vercel, `APP_URL`, and the test webhook URL.
-3. **Account deletion doesn't cancel the Paystack subscription.** `deleteAccount`
-   (`src/actions/profile.ts:119`) deletes the `User` row and leaves the subscription
-   running on Paystack. In test mode nobody is charged, so this is a loose end in the
-   data, not a cost to anyone.
+3. ✅ **Resolved (2026-10-16):** `deleteAccount` now disables an `active` or
+   `attention` subscription before deleting anything, and aborts the deletion if
+   Paystack refuses. `non-renewing` is skipped because it's already cancelled on
+   Paystack's side and a second disable could fail and block the deletion for
+   nothing. *Originally:* deletion removed the `User` row and left the
+   subscription running on Paystack.
 4. **No plan switching.** `startCheckout` refuses while the status is `non-renewing`,
    so a monthly subscriber who cancels to go yearly must wait out the period.
    Acceptable, but the UI doesn't say so.

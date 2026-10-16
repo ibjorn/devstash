@@ -6,7 +6,9 @@ import { ZodError } from "zod";
 import { signOut } from "@/auth";
 import { hashPassword } from "@/lib/auth/password";
 import { resetIdentifier } from "@/lib/auth/reset-token";
+import { isChargingSubscriptionStatus } from "@/lib/billing";
 import { requireUserId } from "@/lib/db/session-user";
+import { disableSubscription } from "@/lib/paystack";
 import { prisma } from "@/lib/prisma";
 import { deleteObjectsWithPrefix } from "@/lib/r2";
 import {
@@ -73,7 +75,8 @@ export async function changePassword(
     if (!user?.password) {
       return {
         success: false,
-        error: "This account signs in with GitHub and has no password to change.",
+        error:
+          "This account signs in with GitHub and has no password to change.",
       };
     }
 
@@ -116,6 +119,33 @@ async function deleteUserFiles(userId: string) {
   }
 }
 
+interface SubscriptionColumns {
+  paystackSubscriptionCode: string | null;
+  paystackEmailToken: string | null;
+  subscriptionStatus: string | null;
+}
+
+// Before any delete: once the row is gone nothing links this person to the
+// subscription, and Paystack would go on charging them. Returns false when the
+// cancel failed, so the caller can stop rather than strand a paying customer.
+async function cancelSubscription(user: SubscriptionColumns) {
+  const { paystackSubscriptionCode: code, paystackEmailToken: token } = user;
+  if (
+    !code ||
+    !token ||
+    !isChargingSubscriptionStatus(user.subscriptionStatus)
+  ) {
+    return true;
+  }
+  try {
+    await disableSubscription(code, token);
+    return true;
+  } catch (error) {
+    console.error("Delete account: subscription cancel failed", error);
+    return false;
+  }
+}
+
 export async function deleteAccount(
   formData: FormData,
 ): Promise<ProfileActionResult> {
@@ -129,7 +159,12 @@ export async function deleteAccount(
     userId = await requireUserId();
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { email: true },
+      select: {
+        email: true,
+        paystackSubscriptionCode: true,
+        paystackEmailToken: true,
+        subscriptionStatus: true,
+      },
     });
     if (!user) {
       return { success: false, error: "Your account could not be found." };
@@ -144,6 +179,16 @@ export async function deleteAccount(
         fieldErrors: {
           confirmEmail: "That doesn't match your email address",
         },
+      };
+    }
+
+    // The subscription.disable webhook that follows matches no row, which the
+    // handler already treats as harmless
+    if (!(await cancelSubscription(user))) {
+      return {
+        success: false,
+        error:
+          "We couldn't cancel your Pro subscription, so your account wasn't deleted. Please try again.",
       };
     }
 

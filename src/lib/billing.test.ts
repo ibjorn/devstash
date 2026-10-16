@@ -4,6 +4,7 @@ import {
   billingForPlanCode,
   billingState,
   describeProPrice,
+  isChargingSubscriptionStatus,
   planCodeFor,
   subscriptionState,
 } from "@/lib/billing";
@@ -53,6 +54,19 @@ describe("plan codes", () => {
       "PAYSTACK_PLAN_CODE_MONTHLY is not set",
     );
   });
+});
+
+describe("isChargingSubscriptionStatus", () => {
+  it.each(["active", "attention"])("is true for %s", (status) => {
+    expect(isChargingSubscriptionStatus(status)).toBe(true);
+  });
+
+  it.each(["non-renewing", "complete", "completed", "cancelled", null])(
+    "is false for %s",
+    (status) => {
+      expect(isChargingSubscriptionStatus(status)).toBe(false);
+    },
+  );
 });
 
 describe("subscriptionState", () => {

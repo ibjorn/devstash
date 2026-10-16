@@ -8,6 +8,7 @@ const {
   checkRateLimit,
   clearRateLimit,
   deleteObjectsWithPrefix,
+  disableSubscription,
 } = vi.hoisted(() => ({
   signOut: vi.fn(),
   prisma: {
@@ -18,12 +19,14 @@ const {
   checkRateLimit: vi.fn(),
   clearRateLimit: vi.fn(),
   deleteObjectsWithPrefix: vi.fn(),
+  disableSubscription: vi.fn(),
 }));
 
 vi.mock("@/auth", () => ({ signOut }));
 vi.mock("@/lib/prisma", () => ({ prisma }));
 vi.mock("@/lib/db/session-user", () => ({ requireUserId }));
 vi.mock("@/lib/r2", () => ({ deleteObjectsWithPrefix }));
+vi.mock("@/lib/paystack", () => ({ disableSubscription }));
 // Partial: the limiter itself is stubbed, but rateLimitMessage stays real so
 // the copy a user would actually see is what gets asserted.
 vi.mock("@/lib/rate-limit", async (importOriginal) => ({
@@ -343,6 +346,77 @@ describe("deleteAccount", () => {
     signOut.mockRejectedValue(redirect);
 
     await expect(deleteAccount(deleteForm(EMAIL))).rejects.toBe(redirect);
+  });
+
+  describe("with a Paystack subscription", () => {
+    const subscribed = (subscriptionStatus: string | null) => ({
+      email: EMAIL,
+      paystackSubscriptionCode: "SUB_123",
+      paystackEmailToken: "tok_456",
+      subscriptionStatus,
+    });
+
+    it.each(["active", "attention"])(
+      "cancels a %s subscription before deleting anything",
+      async (status) => {
+        prisma.user.findUnique.mockResolvedValue(subscribed(status));
+        const tx = withTransaction();
+
+        await deleteAccount(deleteForm(EMAIL));
+
+        expect(disableSubscription).toHaveBeenCalledWith("SUB_123", "tok_456");
+        expect(disableSubscription.mock.invocationCallOrder[0]).toBeLessThan(
+          tx.item.deleteMany.mock.invocationCallOrder[0],
+        );
+        expect(signOut).toHaveBeenCalled();
+      },
+    );
+
+    it("keeps the account when the cancel fails, so it can't go on charging", async () => {
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      prisma.user.findUnique.mockResolvedValue(subscribed("active"));
+      disableSubscription.mockRejectedValue(new Error("Paystack down"));
+
+      const result = await deleteAccount(deleteForm(EMAIL));
+
+      expect(result).toEqual({
+        success: false,
+        error:
+          "We couldn't cancel your Pro subscription, so your account wasn't deleted. Please try again.",
+      });
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+      expect(deleteObjectsWithPrefix).not.toHaveBeenCalled();
+      expect(signOut).not.toHaveBeenCalled();
+      consoleError.mockRestore();
+    });
+
+    it.each(["non-renewing", "completed", "cancelled", null])(
+      "doesn't call Paystack for a %s subscription",
+      async (status) => {
+        prisma.user.findUnique.mockResolvedValue(subscribed(status));
+        withTransaction();
+
+        await deleteAccount(deleteForm(EMAIL));
+
+        expect(disableSubscription).not.toHaveBeenCalled();
+        expect(prisma.$transaction).toHaveBeenCalled();
+      },
+    );
+
+    it("doesn't call Paystack without an email token to cancel with", async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        ...subscribed("active"),
+        paystackEmailToken: null,
+      });
+      withTransaction();
+
+      await deleteAccount(deleteForm(EMAIL));
+
+      expect(disableSubscription).not.toHaveBeenCalled();
+      expect(prisma.$transaction).toHaveBeenCalled();
+    });
   });
 
   it("reports a missing account", async () => {

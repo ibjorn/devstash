@@ -22,6 +22,8 @@ interface DeleteAccountDialogProps {
   email: string;
   itemCount: number;
   collectionCount: number;
+  /** The user currently has Pro, which deleting ends with no refund. */
+  hasPro: boolean;
 }
 
 function plural(count: number, noun: string) {
@@ -32,6 +34,7 @@ export function DeleteAccountDialog({
   email,
   itemCount,
   collectionCount,
+  hasPro,
 }: DeleteAccountDialogProps) {
   const [open, setOpen] = useState(false);
   const [confirmation, setConfirmation] = useState("");
@@ -90,6 +93,8 @@ export function DeleteAccountDialog({
             This permanently deletes your account along with{" "}
             {plural(itemCount, "item")} and{" "}
             {plural(collectionCount, "collection")}. It cannot be undone.
+            {hasPro &&
+              " It also cancels your Pro subscription immediately, and the rest of the paid period is forfeited."}
           </DialogDescription>
         </DialogHeader>
 
@@ -122,7 +127,11 @@ export function DeleteAccountDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" variant="destructive" disabled={!matches || pending}>
+            <Button
+              type="submit"
+              variant="destructive"
+              disabled={!matches || pending}
+            >
               {pending && <Loader2 className="size-4 animate-spin" />}
               Delete account
             </Button>
