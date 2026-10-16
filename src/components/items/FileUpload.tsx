@@ -5,7 +5,12 @@ import { useEffect, useId, useRef, useState } from "react";
 import { DropZone } from "@/components/items/DropZone";
 import { UploadedFilePreview } from "@/components/items/UploadedFilePreview";
 import { UploadProgress } from "@/components/items/UploadProgress";
-import { putWithProgress, requestGrant } from "@/lib/upload-client";
+import { useErrorToast } from "@/hooks/use-error-toast";
+import {
+  putWithProgress,
+  requestGrant,
+  UpgradeRequiredError,
+} from "@/lib/upload-client";
 import {
   acceptAttribute,
   type UploadKind,
@@ -25,6 +30,8 @@ interface FileUploadProps {
   onChange: (file: UploadedFile | null) => void;
   onUploadingChange: (uploading: boolean) => void;
   error?: string;
+  /** Called when the toast's Upgrade action leaves for the settings page. */
+  onUpgrade?: () => void;
 }
 
 /**
@@ -39,6 +46,7 @@ export function FileUpload({
   onChange,
   onUploadingChange,
   error,
+  onUpgrade,
 }: FileUploadProps) {
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -48,6 +56,7 @@ export function FileUpload({
   const [uploadingName, setUploadingName] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const showError = useErrorToast(onUpgrade);
 
   // Set on unmount. abort() alone isn't enough: between the grant request and
   // the PUT there is no open XHR to abort, so each await re-checks this.
@@ -101,6 +110,11 @@ export function FileUpload({
         uploadError.name === "AbortError"
       ) {
         return;
+      }
+      // Pro lapsed since the dialog loaded: the field says why, the toast
+      // carries the way out
+      if (uploadError instanceof UpgradeRequiredError) {
+        showError(uploadError.message, true);
       }
       setLocalError(
         uploadError instanceof Error

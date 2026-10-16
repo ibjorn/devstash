@@ -1,15 +1,22 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { auth, getCreatableItemType, createUploadUrl, checkRateLimit } =
-  vi.hoisted(() => ({
-    auth: vi.fn(),
-    getCreatableItemType: vi.fn(),
-    createUploadUrl: vi.fn(),
-    checkRateLimit: vi.fn(),
-  }));
+const {
+  auth,
+  getCreatableItemType,
+  createUploadUrl,
+  checkRateLimit,
+  getPlanUsage,
+} = vi.hoisted(() => ({
+  auth: vi.fn(),
+  getCreatableItemType: vi.fn(),
+  createUploadUrl: vi.fn(),
+  checkRateLimit: vi.fn(),
+  getPlanUsage: vi.fn(),
+}));
 
 vi.mock("@/auth", () => ({ auth }));
 vi.mock("@/lib/db/item-types", () => ({ getCreatableItemType }));
+vi.mock("@/lib/db/entitlements", () => ({ getPlanUsage }));
 vi.mock("@/lib/r2", () => ({ createUploadUrl }));
 vi.mock("@/lib/rate-limit", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/rate-limit")>()),
@@ -17,10 +24,18 @@ vi.mock("@/lib/rate-limit", async (importOriginal) => ({
 }));
 
 import { POST } from "@/app/api/items/upload/route";
+import { DENIAL_MESSAGES } from "@/lib/entitlements";
 
 const USER_ID = "usr_1";
 const imageType = { id: "typ_img", name: "Image", contentType: "FILE" };
 const snippetType = { id: "typ_snip", name: "Snippet", contentType: "TEXT" };
+const freePlan = {
+  isPro: false,
+  subscriptionStatus: null,
+  currentPeriodEnd: null,
+  items: 0,
+  collections: 0,
+};
 
 function post(body: unknown) {
   return POST(
@@ -46,6 +61,11 @@ describe("POST /api/items/upload", () => {
     getCreatableItemType.mockResolvedValue(imageType);
     checkRateLimit.mockResolvedValue({ success: true, retryAfterSeconds: 0 });
     createUploadUrl.mockResolvedValue("https://r2.example/signed");
+    getPlanUsage.mockResolvedValue(freePlan);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it("401s without a session and never signs anything", async () => {
@@ -152,6 +172,59 @@ describe("POST /api/items/upload", () => {
     await expect(response.json()).resolves.toEqual({
       success: false,
       error: "Uploads are unavailable right now.",
+    });
+  });
+
+  describe("plan gate", () => {
+    it("403s on Free without spending rate limit or signing", async () => {
+      vi.stubEnv("BILLING_ENFORCED", "true");
+
+      const response = await post(valid);
+
+      expect(response.status).toBe(403);
+      expect(await response.json()).toEqual({
+        success: false,
+        error: DENIAL_MESSAGES.PRO_TYPE,
+        upgrade: true,
+      });
+      expect(getPlanUsage).toHaveBeenCalledWith(USER_ID);
+      expect(checkRateLimit).not.toHaveBeenCalled();
+      expect(createUploadUrl).not.toHaveBeenCalled();
+    });
+
+    it("signs a URL on Pro", async () => {
+      vi.stubEnv("BILLING_ENFORCED", "true");
+      getPlanUsage.mockResolvedValue({
+        ...freePlan,
+        isPro: true,
+        subscriptionStatus: "active",
+      });
+
+      const response = await post(valid);
+
+      expect(response.status).toBe(200);
+      expect((await response.json()).data.uploadUrl).toBe(
+        "https://r2.example/signed",
+      );
+    });
+
+    it("signs a URL on Free with enforcement off", async () => {
+      expect((await post(valid)).status).toBe(200);
+    });
+
+    it("403s when the user row no longer exists", async () => {
+      getPlanUsage.mockResolvedValue(null);
+
+      expect((await post(valid)).status).toBe(403);
+      expect(createUploadUrl).not.toHaveBeenCalled();
+    });
+
+    it("400s a type that takes no upload before any plan lookup", async () => {
+      vi.stubEnv("BILLING_ENFORCED", "true");
+      getCreatableItemType.mockResolvedValue(snippetType);
+
+      expect((await post(valid)).status).toBe(400);
+      expect(getPlanUsage).not.toHaveBeenCalled();
     });
   });
 });

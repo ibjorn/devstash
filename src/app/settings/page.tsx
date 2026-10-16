@@ -18,6 +18,7 @@ import { getBillingUser } from "@/lib/db/billing";
 import { getDashboardStats } from "@/lib/db/dashboard";
 import { requireUserId } from "@/lib/db/session-user";
 import { getProfileUser } from "@/lib/db/users";
+import { hasProAccess, isBillingEnforced } from "@/lib/entitlements";
 import { getZarToUsdRate } from "@/lib/exchange-rate";
 import { formatLongDate } from "@/lib/format-date";
 import { syncPendingSubscription } from "@/lib/subscription-sync";
@@ -83,6 +84,9 @@ export default async function SettingsPage({
           }
           usdRate={usdRate}
           outcome={outcome}
+          enforced={isBillingEnforced()}
+          usage={{ items: stats.items, collections: stats.collections }}
+          paused={!hasProAccess(billing) && isBillingEnforced()}
         />
       </section>
 

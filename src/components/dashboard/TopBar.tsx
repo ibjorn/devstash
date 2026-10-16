@@ -7,10 +7,10 @@ import { SearchPalette } from "@/components/search/SearchPalette";
 import { buttonVariants } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import type { CollectionOption } from "@/types/collections";
-import type { CreatableItemType } from "@/types/items";
+import type { NewItemTypeOption } from "@/types/items";
 
 interface TopBarProps {
-  newItemTypes: CreatableItemType[];
+  newItemTypes: NewItemTypeOption[];
   collectionOptions: CollectionOption[];
 }
 

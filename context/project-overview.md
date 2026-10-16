@@ -366,7 +366,7 @@ model Tag {
 
 > 💱 Pro is billed in rand. The pricing UI shows an **approximate USD** figure (daily ECB rate via Frankfurter) with the rand amount it's billed as, and falls back to rand-only when no rate is available.
 
-> 🚧 **During development:** all users have access to all features. Pro infrastructure (Paystack, gating logic) should be wired up but disabled / bypassed until launch.
+> 🚧 **Gating is behind `BILLING_ENFORCED`.** Unset (the default), every gate runs and then allows, so all users have access to all features. Set `BILLING_ENFORCED="true"` to enforce the Free limits (50 items, 3 collections, no File / Image) and show the upgrade flow.
 
 ---
 

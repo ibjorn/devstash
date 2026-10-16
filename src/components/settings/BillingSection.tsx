@@ -19,6 +19,7 @@ import {
   type Billing,
   type BillingState,
 } from "@/lib/billing";
+import { FREE_LIMITS } from "@/lib/entitlements";
 import type { BillingActionResult } from "@/types/billing";
 import { stripSearchParam } from "@/lib/url-params";
 
@@ -29,6 +30,12 @@ interface BillingSectionProps {
   usdRate: number | null;
   /** ?billing= from the checkout callback, toasted once then stripped. */
   outcome?: string;
+  /** BILLING_ENFORCED, read on the server — the Free limits are real. */
+  enforced: boolean;
+  /** What the account holds, for the Free usage line. */
+  usage: { items: number; collections: number };
+  /** A failed renewal has run past its grace period and Pro is off. */
+  paused: boolean;
 }
 
 const OUTCOME_TOASTS: Record<string, () => void> = {
@@ -102,10 +109,11 @@ function statusLine(state: BillingState, periodEnd: string | null) {
   switch (state) {
     case "pending":
       return "Your payment went through. We're finishing setting up your subscription — refresh in a moment to manage it.";
+    // Generic on the plan: User doesn't store which one is active
     case "non-renewing":
       return periodEnd
-        ? `Cancelled — you keep Pro until ${periodEnd}.`
-        : "Cancelled — you keep Pro until the end of this billing period.";
+        ? `Cancelled — you keep Pro until ${periodEnd}. To switch between monthly and yearly, resubscribe after ${periodEnd}.`
+        : "Cancelled — you keep Pro until the end of this billing period. To switch between monthly and yearly, resubscribe after it ends.";
     default:
       return periodEnd ? `Renews on ${periodEnd}.` : "Active.";
   }
@@ -114,7 +122,8 @@ function statusLine(state: BillingState, periodEnd: string | null) {
 function SubscriptionStatus({
   state,
   periodEnd,
-}: Pick<BillingSectionProps, "state" | "periodEnd">) {
+  paused,
+}: Pick<BillingSectionProps, "state" | "periodEnd" | "paused">) {
   const { pending, run } = useRedirectAction();
 
   return (
@@ -122,8 +131,12 @@ function SubscriptionStatus({
       {state === "attention" ? (
         <p className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
           <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-500" />
-          Your last payment failed. Paystack will retry it — update your card to
-          keep Pro.
+          <span>
+            Your last payment failed. Paystack will retry it — update your card
+            to keep Pro.
+            {paused &&
+              " Pro features are paused until the payment goes through."}
+          </span>
         </p>
       ) : (
         <p className="text-sm text-muted-foreground">
@@ -151,6 +164,9 @@ export function BillingSection({
   periodEnd,
   usdRate,
   outcome,
+  enforced,
+  usage,
+  paused,
 }: BillingSectionProps) {
   // Same one-shot hand-off pattern as the sign-in page; the toast id collapses
   // Strict Mode's double-mount
@@ -176,9 +192,22 @@ export function BillingSection({
       </CardHeader>
       <CardContent>
         {isFree ? (
-          <UpgradeOptions usdRate={usdRate} />
+          <div className="flex flex-col gap-4">
+            {/* Only when the limits are real — unenforced, they'd mislead */}
+            {enforced && (
+              <p className="text-sm text-muted-foreground">
+                {usage.items} / {FREE_LIMITS.items} items · {usage.collections}{" "}
+                / {FREE_LIMITS.collections} collections
+              </p>
+            )}
+            <UpgradeOptions usdRate={usdRate} />
+          </div>
         ) : (
-          <SubscriptionStatus state={state} periodEnd={periodEnd} />
+          <SubscriptionStatus
+            state={state}
+            periodEnd={periodEnd}
+            paused={paused}
+          />
         )}
       </CardContent>
     </Card>

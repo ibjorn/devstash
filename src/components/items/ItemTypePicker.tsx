@@ -2,15 +2,16 @@
 
 import { File } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { typeColorTint } from "@/lib/type-colors";
 import { typeIcons } from "@/lib/type-icons";
 import { cn } from "@/lib/utils";
-import type { CreatableItemType } from "@/types/items";
+import type { NewItemTypeOption } from "@/types/items";
 
 interface ItemTypePickerProps {
-  types: CreatableItemType[];
+  types: NewItemTypeOption[];
   value: string | undefined;
   onChange: (typeId: string) => void;
   disabled?: boolean;
@@ -19,7 +20,8 @@ interface ItemTypePickerProps {
 /**
  * The New Item dialog's row of colour-tinted type buttons. `aria-pressed`
  * toggles rather than `role="radio"`, which would promise arrow-key behaviour
- * these buttons don't have.
+ * these buttons don't have. A locked type stays selectable, so the dialog can
+ * explain why it can't be used.
  */
 export function ItemTypePicker({
   types,
@@ -59,6 +61,14 @@ export function ItemTypePicker({
             >
               <Icon className="size-4" style={{ color: option.color }} />
               {option.name}
+              {option.locked && (
+                <Badge
+                  variant="outline"
+                  className="h-4 px-1.5 text-[10px] font-semibold tracking-wider text-muted-foreground"
+                >
+                  PRO
+                </Badge>
+              )}
             </Button>
           );
         })}

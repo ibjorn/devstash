@@ -7,6 +7,9 @@ export interface UploadGrant {
   contentType: string;
 }
 
+/** The upload was refused because of the plan, not the file. */
+export class UpgradeRequiredError extends Error {}
+
 export async function requestGrant(
   itemTypeId: string,
   file: File,
@@ -23,7 +26,10 @@ export async function requestGrant(
   });
   const body = await response.json().catch(() => null);
   if (!response.ok || !body?.success) {
-    throw new Error(body?.error ?? "Could not start the upload.");
+    const message = body?.error ?? "Could not start the upload.";
+    throw body?.upgrade
+      ? new UpgradeRequiredError(message)
+      : new Error(message);
   }
   return body.data;
 }

@@ -23,6 +23,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useErrorToast } from "@/hooks/use-error-toast";
 
 const EMPTY_VALUES: CollectionFormValues = { name: "", description: "" };
 
@@ -34,6 +35,7 @@ export function NewCollectionDialog() {
   const [values, setValues] = useState<CollectionFormValues>(EMPTY_VALUES);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [pending, setPending] = useState(false);
+  const showError = useErrorToast(() => setOpen(false));
 
   const canSave = values.name.trim().length > 0 && !pending;
 
@@ -72,7 +74,7 @@ export function NewCollectionDialog() {
     if (!result.success || !result.data) {
       setFieldErrors(result.fieldErrors ?? {});
       if (result.error) {
-        toast.error(result.error);
+        showError(result.error, result.upgrade);
       } else if (!result.fieldErrors) {
         toast.error("Could not create this collection.");
       }

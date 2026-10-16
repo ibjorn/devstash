@@ -27,6 +27,15 @@ export interface CreatableItemType {
   contentType: ItemContentType;
 }
 
+/**
+ * A creatable type as the New Item dialog shows it. `locked` is per user —
+ * a Pro-only type on an account without Pro, while billing is enforced — so it
+ * is set by AppShell from the plan, not by the plan-agnostic type query.
+ */
+export interface NewItemTypeOption extends CreatableItemType {
+  locked: boolean;
+}
+
 export interface ItemTypeSummary {
   id: string;
   name: string;

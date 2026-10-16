@@ -10,8 +10,10 @@ import {
   UnknownCollectionError,
   updateItem as updateItemQuery,
 } from "@/lib/db/items";
+import { getPlanUsage } from "@/lib/db/entitlements";
 import { getCreatableItemType } from "@/lib/db/item-types";
 import { getSessionUserId } from "@/lib/db/session-user";
+import { checkItemCreate, DENIAL_MESSAGES } from "@/lib/entitlements";
 import { isPrismaError } from "@/lib/prisma-errors";
 import { deleteObject, getObjectSize } from "@/lib/r2";
 import {
@@ -32,13 +34,15 @@ import type { CreatableItemType, ItemDetail } from "@/types/items";
  * Actions return `{ success, data, error, fieldErrors }` per the project's
  * error handling standard. `fieldErrors` is keyed by input name so the drawer
  * can put a message beside the field that caused it; `error` covers anything
- * with no field to blame and is toasted instead.
+ * with no field to blame and is toasted instead. `upgrade` marks a refusal
+ * the plan caused, so the toast can offer the way out.
  */
 export interface ItemActionResult {
   success: boolean;
   data?: ItemDetail;
   error?: string;
   fieldErrors?: Record<string, string>;
+  upgrade?: true;
 }
 
 function toFieldErrors(error: ZodError): ItemActionResult {
@@ -191,6 +195,19 @@ export async function createItem(input: unknown): Promise<ItemActionResult> {
     const type = await getCreatableItemType(data.itemTypeId);
     if (!type) {
       return { success: false, error: "That item type isn't available." };
+    }
+
+    // The authoritative File/Image check — the upload route can be skipped
+    const plan = await getPlanUsage(userId);
+    if (!plan) {
+      return {
+        success: false,
+        error: "You need to be signed in to create items.",
+      };
+    }
+    const denied = checkItemCreate(plan, type.name);
+    if (denied) {
+      return { success: false, error: DENIAL_MESSAGES[denied], upgrade: true };
     }
 
     const allowed = ALLOWED_FIELDS[type.contentType];

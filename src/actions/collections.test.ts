@@ -1,15 +1,17 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   auth,
   createCollectionQuery,
   updateCollectionQuery,
   deleteCollectionQuery,
+  getPlanUsage,
 } = vi.hoisted(() => ({
   auth: vi.fn(),
   createCollectionQuery: vi.fn(),
   updateCollectionQuery: vi.fn(),
   deleteCollectionQuery: vi.fn(),
+  getPlanUsage: vi.fn(),
 }));
 
 vi.mock("@/auth", () => ({ auth }));
@@ -18,6 +20,7 @@ vi.mock("@/lib/db/collections", () => ({
   updateCollection: updateCollectionQuery,
   deleteCollection: deleteCollectionQuery,
 }));
+vi.mock("@/lib/db/entitlements", () => ({ getPlanUsage }));
 
 import { Prisma } from "@/generated/prisma/client";
 import {
@@ -25,6 +28,7 @@ import {
   deleteCollection,
   updateCollection,
 } from "@/actions/collections";
+import { DENIAL_MESSAGES } from "@/lib/entitlements";
 
 const USER_ID = "usr_1";
 
@@ -41,10 +45,27 @@ function signedIn() {
   auth.mockResolvedValue({ user: { id: USER_ID } });
 }
 
+function plan(overrides: Record<string, unknown> = {}) {
+  return {
+    isPro: false,
+    subscriptionStatus: null,
+    currentPeriodEnd: null,
+    items: 0,
+    collections: 0,
+    ...overrides,
+  };
+}
+
 describe("createCollection", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.spyOn(console, "error").mockImplementation(() => {});
+    // A fresh Free account; the gating tests below override it
+    getPlanUsage.mockResolvedValue(plan());
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it("refuses a signed-out caller without reaching the database", async () => {
@@ -99,6 +120,72 @@ describe("createCollection", () => {
     expect(result).toEqual({
       success: false,
       error: "Could not create this collection.",
+    });
+  });
+
+  describe("plan gate", () => {
+    function readyToCreate(usage: Record<string, unknown>) {
+      signedIn();
+      getPlanUsage.mockResolvedValue(plan(usage));
+      createCollectionQuery.mockResolvedValue(summary);
+    }
+
+    it("refuses a 4th collection on Free, offering the upgrade", async () => {
+      vi.stubEnv("BILLING_ENFORCED", "true");
+      readyToCreate({ collections: 3 });
+
+      const result = await createCollection({ name: "React Patterns" });
+
+      expect(result).toEqual({
+        success: false,
+        error: DENIAL_MESSAGES.COLLECTION_LIMIT,
+        upgrade: true,
+      });
+      expect(getPlanUsage).toHaveBeenCalledWith(USER_ID);
+      expect(createCollectionQuery).not.toHaveBeenCalled();
+    });
+
+    it("creates a 3rd collection on Free", async () => {
+      vi.stubEnv("BILLING_ENFORCED", "true");
+      readyToCreate({ collections: 2 });
+
+      const result = await createCollection({ name: "React Patterns" });
+
+      expect(result.success).toBe(true);
+    });
+
+    it("creates past the Free limit on Pro", async () => {
+      vi.stubEnv("BILLING_ENFORCED", "true");
+      readyToCreate({
+        isPro: true,
+        subscriptionStatus: "active",
+        collections: 3,
+      });
+
+      const result = await createCollection({ name: "React Patterns" });
+
+      expect(result.success).toBe(true);
+    });
+
+    it("creates past the Free limit with enforcement off", async () => {
+      readyToCreate({ collections: 3 });
+
+      const result = await createCollection({ name: "React Patterns" });
+
+      expect(result.success).toBe(true);
+    });
+
+    it("treats a user row that no longer exists as signed out", async () => {
+      signedIn();
+      getPlanUsage.mockResolvedValue(null);
+
+      const result = await createCollection({ name: "React Patterns" });
+
+      expect(result).toEqual({
+        success: false,
+        error: "You need to be signed in to create collections.",
+      });
+      expect(createCollectionQuery).not.toHaveBeenCalled();
     });
   });
 });

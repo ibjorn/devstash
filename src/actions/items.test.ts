@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   auth,
@@ -10,6 +10,7 @@ const {
   updateItemQuery,
   deleteObject,
   getObjectSize,
+  getPlanUsage,
   UnknownCollectionError,
 } = vi.hoisted(() => ({
   auth: vi.fn(),
@@ -21,6 +22,7 @@ const {
   updateItemQuery: vi.fn(),
   deleteObject: vi.fn(),
   getObjectSize: vi.fn(),
+  getPlanUsage: vi.fn(),
   // A stand-in for the query module's error; the action only checks instanceof
   UnknownCollectionError: class UnknownCollectionError extends Error {},
 }));
@@ -35,10 +37,12 @@ vi.mock("@/lib/db/items", () => ({
   UnknownCollectionError,
 }));
 vi.mock("@/lib/db/item-types", () => ({ getCreatableItemType }));
+vi.mock("@/lib/db/entitlements", () => ({ getPlanUsage }));
 vi.mock("@/lib/r2", () => ({ deleteObject, getObjectSize }));
 
 import { createItem, deleteItem, updateItem } from "@/actions/items";
 import { Prisma } from "@/generated/prisma/client";
+import { DENIAL_MESSAGES } from "@/lib/entitlements";
 
 const USER_ID = "usr_1";
 const ITEM_ID = "itm_1";
@@ -360,9 +364,26 @@ describe("deleteItem", () => {
   });
 });
 
+function plan(overrides: Record<string, unknown> = {}) {
+  return {
+    isPro: false,
+    subscriptionStatus: null,
+    currentPeriodEnd: null,
+    items: 0,
+    collections: 0,
+    ...overrides,
+  };
+}
+
 describe("createItem", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    // A fresh Free account; the gating tests below override it
+    getPlanUsage.mockResolvedValue(plan());
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   const snippetType = {
@@ -641,6 +662,115 @@ describe("createItem", () => {
         error: "This item type has no file field.",
       });
       expect(getObjectSize).not.toHaveBeenCalled();
+      expect(createItemQuery).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("plan gate", () => {
+    const fileType = {
+      id: "typ_file",
+      name: "File",
+      slug: "files",
+      icon: "File",
+      color: "#6b7280",
+      contentType: "FILE",
+    };
+    const file = {
+      itemTypeId: "typ_file",
+      title: "Deploy runbook",
+      fileKey: `${USER_ID}/0f8fad5b-d9cb-469f-a165-70867728950e/runbook.pdf`,
+      tags: [],
+    };
+
+    function readyToCreate() {
+      signedIn();
+      getCreatableItemType.mockResolvedValue(snippetType);
+      createItemQuery.mockResolvedValue(detail());
+    }
+
+    // Lets a File create run through to the query, so a pass is a real pass
+    function readyToCreateFile() {
+      signedIn();
+      getCreatableItemType.mockResolvedValue(fileType);
+      isFileKeyInUse.mockResolvedValue(false);
+      getObjectSize.mockResolvedValue(2048);
+      createItemQuery.mockResolvedValue(detail({ contentType: "FILE" }));
+    }
+
+    it("refuses the 51st item on Free, offering the upgrade", async () => {
+      vi.stubEnv("BILLING_ENFORCED", "true");
+      readyToCreate();
+      getPlanUsage.mockResolvedValue(plan({ items: 50 }));
+
+      const result = await createItem(snippet);
+
+      expect(result).toEqual({
+        success: false,
+        error: DENIAL_MESSAGES.ITEM_LIMIT,
+        upgrade: true,
+      });
+      expect(getPlanUsage).toHaveBeenCalledWith(USER_ID);
+      expect(createItemQuery).not.toHaveBeenCalled();
+    });
+
+    it("refuses a File item on Free, even with no items yet", async () => {
+      vi.stubEnv("BILLING_ENFORCED", "true");
+      readyToCreateFile();
+
+      const result = await createItem(file);
+
+      expect(result).toEqual({
+        success: false,
+        error: DENIAL_MESSAGES.PRO_TYPE,
+        upgrade: true,
+      });
+      expect(getObjectSize).not.toHaveBeenCalled();
+      expect(createItemQuery).not.toHaveBeenCalled();
+    });
+
+    it("creates the 50th item on Free", async () => {
+      vi.stubEnv("BILLING_ENFORCED", "true");
+      readyToCreate();
+      getPlanUsage.mockResolvedValue(plan({ items: 49 }));
+
+      const result = await createItem(snippet);
+
+      expect(result.success).toBe(true);
+      expect(createItemQuery).toHaveBeenCalled();
+    });
+
+    it("creates past the Free limit on Pro", async () => {
+      vi.stubEnv("BILLING_ENFORCED", "true");
+      readyToCreate();
+      getPlanUsage.mockResolvedValue(
+        plan({ isPro: true, subscriptionStatus: "active", items: 50 }),
+      );
+
+      const result = await createItem(snippet);
+
+      expect(result.success).toBe(true);
+    });
+
+    it("allows everything with enforcement off", async () => {
+      readyToCreateFile();
+      getPlanUsage.mockResolvedValue(plan({ items: 50 }));
+
+      const result = await createItem(file);
+
+      expect(result.success).toBe(true);
+      expect(createItemQuery).toHaveBeenCalled();
+    });
+
+    it("treats a user row that no longer exists as signed out", async () => {
+      readyToCreate();
+      getPlanUsage.mockResolvedValue(null);
+
+      const result = await createItem(snippet);
+
+      expect(result).toEqual({
+        success: false,
+        error: "You need to be signed in to create items.",
+      });
       expect(createItemQuery).not.toHaveBeenCalled();
     });
   });

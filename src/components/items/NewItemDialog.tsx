@@ -1,8 +1,9 @@
 "use client";
 
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Lock, Plus } from "lucide-react";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
 import { createItem } from "@/actions/items";
@@ -29,10 +30,10 @@ import { useItemForm } from "@/hooks/use-item-form";
 import { uploadKindFor } from "@/lib/uploads";
 import { parseTagInput } from "@/lib/validation/items";
 import type { CollectionOption } from "@/types/collections";
-import type { CreatableItemType } from "@/types/items";
+import type { NewItemTypeOption } from "@/types/items";
 
 interface NewItemDialogProps {
-  types: CreatableItemType[];
+  types: NewItemTypeOption[];
   collections: CollectionOption[];
 }
 
@@ -48,7 +49,7 @@ const EMPTY_VALUES: ItemFormValues = {
 
 // On /items/[slug], start on that page's type; anywhere else, the first one
 function initialTypeId(
-  types: CreatableItemType[],
+  types: NewItemTypeOption[],
   pathname: string,
 ): string | undefined {
   const match = /^\/items\/([^/]+)/.exec(pathname);
@@ -58,6 +59,32 @@ function initialTypeId(
     if (fromPage) return fromPage.id;
   }
   return types[0]?.id;
+}
+
+// Shown in place of the upload field for a Pro-only type on a Free account
+function LockedTypeNote({
+  typeName,
+  onUpgrade,
+}: {
+  typeName: string;
+  onUpgrade: () => void;
+}) {
+  return (
+    <div className="flex items-start gap-3 rounded-md border p-3 text-sm">
+      <Lock className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+      <p className="text-muted-foreground">
+        {typeName} items are a Pro feature.{" "}
+        <Link
+          href="/settings#billing"
+          onClick={onUpgrade}
+          className="font-medium text-foreground underline underline-offset-4"
+        >
+          Upgrade
+        </Link>{" "}
+        to upload files and images.
+      </p>
+    </div>
+  );
 }
 
 /**
@@ -71,14 +98,18 @@ export function NewItemDialog({ types, collections }: NewItemDialogProps) {
   const { openItem } = useItemDrawer();
 
   const [open, setOpen] = useState(false);
+  // For the Upgrade link and toast action: the shell, and this dialog with
+  // it, stays mounted on /settings
+  const closeDialog = useCallback(() => setOpen(false), []);
   const [typeId, setTypeId] = useState<string | undefined>(types[0]?.id);
   const { values, handleChange, reset, fieldErrors, pending, submit } =
-    useItemForm(EMPTY_VALUES);
+    useItemForm(EMPTY_VALUES, closeDialog);
   const [file, setFile] = useState<UploadedFile | null>(null);
   const [uploading, setUploading] = useState(false);
 
   const type = types.find((candidate) => candidate.id === typeId);
-  const uploadKind = type ? uploadKindFor(type.name) : null;
+  const locked = type?.locked ?? false;
+  const uploadKind = type && !locked ? uploadKindFor(type.name) : null;
   const visible = type
     ? visibleFieldsFor(type.contentType, type.name)
     : {
@@ -91,6 +122,7 @@ export function NewItemDialog({ types, collections }: NewItemDialogProps) {
 
   const canSave =
     Boolean(type) &&
+    !locked &&
     values.title.trim().length > 0 &&
     (!visible.url || values.url.trim().length > 0) &&
     (!uploadKind || file !== null) &&
@@ -177,6 +209,10 @@ export function NewItemDialog({ types, collections }: NewItemDialogProps) {
             disabled={uploading}
           />
 
+          {locked && type && (
+            <LockedTypeNote typeName={type.name} onUpgrade={closeDialog} />
+          )}
+
           {uploadKind && type && (
             <div className="flex flex-col gap-2">
               <Label asChild>
@@ -190,6 +226,7 @@ export function NewItemDialog({ types, collections }: NewItemDialogProps) {
                 onChange={setFile}
                 onUploadingChange={setUploading}
                 error={fieldErrors.file}
+                onUpgrade={closeDialog}
               />
             </div>
           )}

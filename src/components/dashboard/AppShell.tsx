@@ -11,12 +11,15 @@ import {
   getFavoriteCollections,
   getRecentNonFavoriteCollections,
 } from "@/lib/db/collections";
+import { getPlanUsage } from "@/lib/db/entitlements";
 import {
   getCreatableItemTypes,
   getItemTypeNavItems,
 } from "@/lib/db/item-types";
 import { requireUserId } from "@/lib/db/session-user";
 import { getCurrentUser, getEditorPreferences } from "@/lib/db/users";
+import { checkProFeature } from "@/lib/entitlements";
+import { PRO_TYPE_NAMES } from "@/lib/system-types";
 
 /**
  * The signed-in chrome: sidebar, top bar, and the queries that feed them.
@@ -34,9 +37,10 @@ export async function AppShell({
     favoriteCollections,
     recentCollections,
     user,
-    newItemTypes,
+    creatableTypes,
     collectionOptions,
     editorPreferences,
+    plan,
   ] = await Promise.all([
     getItemTypeNavItems(userId),
     getFavoriteCollections(userId),
@@ -45,11 +49,19 @@ export async function AppShell({
     getCreatableItemTypes(),
     getCollectionOptions(userId),
     getEditorPreferences(userId),
+    getPlanUsage(userId),
   ]);
 
   // Signed in against a User row that no longer exists — clear the stale
   // JWT rather than crashing on every render.
-  if (!user) redirect("/api/auth/session-expired");
+  if (!user || !plan) redirect("/api/auth/session-expired");
+
+  // A courtesy only — createItem and the upload route make the real decision
+  const proAccess = checkProFeature(plan);
+  const newItemTypes = creatableTypes.map((type) => ({
+    ...type,
+    locked: PRO_TYPE_NAMES.has(type.name) && !proAccess,
+  }));
 
   return (
     <TooltipProvider>

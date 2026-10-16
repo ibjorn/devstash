@@ -1,13 +1,13 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { toast } from "sonner";
 
 import type { ItemActionResult } from "@/actions/items";
 import type {
   ItemFormChange,
   ItemFormValues,
 } from "@/components/items/ItemFormFields";
+import { useErrorToast } from "@/hooks/use-error-toast";
 import type { ItemDetail } from "@/types/items";
 
 interface SubmitMessages {
@@ -26,10 +26,11 @@ interface SubmitMessages {
  * runs after `submit` returns — so a throw on the way back can never be
  * reported as "not saved" over a save that worked.
  */
-export function useItemForm(initial: ItemFormValues) {
+export function useItemForm(initial: ItemFormValues, onUpgrade?: () => void) {
   const [values, setValues] = useState<ItemFormValues>(initial);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [pending, setPending] = useState(false);
+  const showError = useErrorToast(onUpgrade);
 
   const handleChange = useCallback<ItemFormChange>((field, value) => {
     setValues((current) => ({ ...current, [field]: value }));
@@ -51,7 +52,7 @@ export function useItemForm(initial: ItemFormValues) {
     try {
       result = await call();
     } catch {
-      toast.error(messages.unreachable);
+      showError(messages.unreachable);
       return null;
     } finally {
       setPending(false);
@@ -62,9 +63,9 @@ export function useItemForm(initial: ItemFormValues) {
       // Field messages render beside their input, so a validation failure
       // needs no toast — only a failure with no field to blame does
       if (result.error) {
-        toast.error(result.error);
+        showError(result.error, result.upgrade);
       } else if (!result.fieldErrors) {
-        toast.error(messages.failed);
+        showError(messages.failed);
       }
       return null;
     }

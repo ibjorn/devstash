@@ -5,7 +5,9 @@ import {
   deleteCollection as deleteCollectionQuery,
   updateCollection as updateCollectionQuery,
 } from "@/lib/db/collections";
+import { getPlanUsage } from "@/lib/db/entitlements";
 import { getSessionUserId } from "@/lib/db/session-user";
+import { checkCollectionCreate, DENIAL_MESSAGES } from "@/lib/entitlements";
 import { isPrismaError } from "@/lib/prisma-errors";
 import {
   createCollectionSchema,
@@ -17,12 +19,14 @@ import type { CollectionHeader, CollectionSummary } from "@/types/collections";
 /**
  * `{ success, data, error, fieldErrors }` per the project's error handling
  * standard: `fieldErrors` sits beside its input, `error` is toasted.
+ * `upgrade` marks a refusal the plan caused.
  */
 export interface CollectionActionResult<T = CollectionSummary> {
   success: boolean;
   data?: T;
   error?: string;
   fieldErrors?: Record<string, string>;
+  upgrade?: true;
 }
 
 export async function createCollection(
@@ -42,6 +46,18 @@ export async function createCollection(
   }
 
   try {
+    const plan = await getPlanUsage(userId);
+    if (!plan) {
+      return {
+        success: false,
+        error: "You need to be signed in to create collections.",
+      };
+    }
+    const denied = checkCollectionCreate(plan);
+    if (denied) {
+      return { success: false, error: DENIAL_MESSAGES[denied], upgrade: true };
+    }
+
     const created = await createCollectionQuery(userId, parsed.data);
     return { success: true, data: created };
   } catch (error) {

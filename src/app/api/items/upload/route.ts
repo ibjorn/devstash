@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 
 import { auth } from "@/auth";
+import { getPlanUsage } from "@/lib/db/entitlements";
 import { getCreatableItemType } from "@/lib/db/item-types";
+import { checkProFeature, DENIAL_MESSAGES } from "@/lib/entitlements";
 import { createUploadUrl } from "@/lib/r2";
 import { checkRateLimit, tooManyRequests } from "@/lib/rate-limit";
 import {
@@ -51,6 +53,16 @@ export async function POST(request: Request) {
 
   const invalid = validateUpload(kind, { fileName, fileSize, mimeType });
   if (invalid) return badRequest(invalid);
+
+  // Every upload kind is a Pro type. Refused before the rate limit, so it
+  // doesn't spend the user's budget, and before signing, so no orphan object
+  const plan = await getPlanUsage(userId);
+  if (!plan || !checkProFeature(plan)) {
+    return NextResponse.json(
+      { success: false, error: DENIAL_MESSAGES.PRO_TYPE, upgrade: true },
+      { status: 403 },
+    );
+  }
 
   // After validation, so a malformed request doesn't spend the user's budget
   const limit = await checkRateLimit("fileUpload", userId);
