@@ -2,9 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { AlertTriangle, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
-import { openSubscriptionManagement, startCheckout } from "@/actions/billing";
+import {
+  openSubscriptionManagement,
+  resubscribe,
+  startCheckout,
+} from "@/actions/billing";
 import { PlanPrice } from "@/components/billing/PlanPrice";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,8 +24,8 @@ import {
   type Billing,
   type BillingState,
 } from "@/lib/billing";
+import { useRedirectAction } from "@/hooks/use-redirect-action";
 import { FREE_LIMITS } from "@/lib/entitlements";
-import type { BillingActionResult } from "@/types/billing";
 import { stripSearchParam } from "@/lib/url-params";
 
 interface BillingSectionProps {
@@ -50,40 +55,14 @@ const OUTCOME_TOASTS: Record<string, () => void> = {
     ),
 };
 
-/**
- * Runs a billing action and follows the URL it returns off-site. The pending
- * state is deliberately left on after success, so the button can't be pressed
- * again while the browser is leaving for Paystack.
- */
-function useRedirectAction() {
-  const [pending, setPending] = useState<string | null>(null);
-
-  async function run(key: string, action: () => Promise<BillingActionResult>) {
-    setPending(key);
-    try {
-      const result = await action();
-      if (result.success && result.data) {
-        window.location.assign(result.data.url);
-        return;
-      }
-      toast.error(result.error ?? "Something went wrong. Please try again.");
-    } catch {
-      toast.error("Could not reach the server. Please try again.");
-    }
-    setPending(null);
-  }
-
-  return { pending, run };
+interface PlanOptionsProps {
+  usdRate: number | null;
+  labels: Record<Billing, string>;
+  pending: string | null;
+  onChoose: (billing: Billing) => void;
 }
 
-const PLAN_LABELS: Record<Billing, string> = {
-  monthly: "Upgrade monthly",
-  yearly: "Upgrade yearly",
-};
-
-function UpgradeOptions({ usdRate }: { usdRate: number | null }) {
-  const { pending, run } = useRedirectAction();
-
+function PlanOptions({ usdRate, labels, pending, onChoose }: PlanOptionsProps) {
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       {BILLING_PERIODS.map((billing) => (
@@ -94,14 +73,71 @@ function UpgradeOptions({ usdRate }: { usdRate: number | null }) {
             className="mt-auto"
             variant={billing === "yearly" ? "default" : "outline"}
             disabled={pending !== null}
-            onClick={() => run(billing, () => startCheckout(billing))}
+            onClick={() => onChoose(billing)}
           >
             {pending === billing && <Loader2 className="animate-spin" />}
-            {PLAN_LABELS[billing]}
+            {labels[billing]}
           </Button>
         </div>
       ))}
     </div>
+  );
+}
+
+function UpgradeOptions({ usdRate }: { usdRate: number | null }) {
+  const { pending, run } = useRedirectAction();
+
+  return (
+    <PlanOptions
+      usdRate={usdRate}
+      labels={{ monthly: "Upgrade monthly", yearly: "Upgrade yearly" }}
+      pending={pending}
+      onChoose={(billing) => run(billing, () => startCheckout(billing))}
+    />
+  );
+}
+
+/**
+ * Cancelled but still paid up: a new subscription on the saved card, starting
+ * when this period ends. Stays on the page — there's no checkout to visit.
+ */
+function ResubscribeOptions({
+  usdRate,
+  periodEnd,
+}: {
+  usdRate: number | null;
+  periodEnd: string | null;
+}) {
+  const router = useRouter();
+  const [pending, setPending] = useState<Billing | null>(null);
+
+  async function choose(billing: Billing) {
+    setPending(billing);
+    try {
+      const result = await resubscribe(billing);
+      if (result.success) {
+        toast.success(
+          periodEnd
+            ? `You're resubscribed — the first charge is on ${periodEnd}.`
+            : "You're resubscribed.",
+        );
+        router.refresh();
+      } else {
+        toast.error(result.error ?? "Something went wrong. Please try again.");
+      }
+    } catch {
+      toast.error("Could not reach the server. Please try again.");
+    }
+    setPending(null);
+  }
+
+  return (
+    <PlanOptions
+      usdRate={usdRate}
+      labels={{ monthly: "Resubscribe monthly", yearly: "Resubscribe yearly" }}
+      pending={pending}
+      onChoose={choose}
+    />
   );
 }
 
@@ -112,8 +148,8 @@ function statusLine(state: BillingState, periodEnd: string | null) {
     // Generic on the plan: User doesn't store which one is active
     case "non-renewing":
       return periodEnd
-        ? `Cancelled — you keep Pro until ${periodEnd}. To switch between monthly and yearly, resubscribe after ${periodEnd}.`
-        : "Cancelled — you keep Pro until the end of this billing period. To switch between monthly and yearly, resubscribe after it ends.";
+        ? `Cancelled — you keep Pro until ${periodEnd} and won't be charged again. To carry on, resubscribe on either plan: nothing is charged before ${periodEnd}, and it uses the card you paid with.`
+        : "Cancelled — you keep Pro until the end of this billing period and won't be charged again. To carry on, resubscribe on either plan: nothing is charged before then, and it uses the card you paid with.";
     default:
       return periodEnd ? `Renews on ${periodEnd}.` : "Active.";
   }
@@ -123,7 +159,8 @@ function SubscriptionStatus({
   state,
   periodEnd,
   paused,
-}: Pick<BillingSectionProps, "state" | "periodEnd" | "paused">) {
+  usdRate,
+}: Pick<BillingSectionProps, "state" | "periodEnd" | "paused" | "usdRate">) {
   const { pending, run } = useRedirectAction();
 
   return (
@@ -143,7 +180,11 @@ function SubscriptionStatus({
           {statusLine(state, periodEnd)}
         </p>
       )}
-      {state !== "pending" && (
+      {state === "non-renewing" && (
+        <ResubscribeOptions usdRate={usdRate} periodEnd={periodEnd} />
+      )}
+      {/* Paystack's page has nothing to offer a cancelled subscription */}
+      {state !== "pending" && state !== "non-renewing" && (
         <Button
           variant="outline"
           className="w-fit"
@@ -187,7 +228,9 @@ export function BillingSection({
         <CardDescription>
           {isFree
             ? "Unlimited items and collections, file and image uploads, and the AI features. Billed in rand through Paystack — cancel anytime."
-            : "Card updates and cancellation are handled on Paystack's secure page."}
+            : state === "non-renewing"
+              ? "Paystack can't reopen a cancelled subscription, so resubscribing starts a new one."
+              : "Card updates and cancellation are handled on Paystack's secure page."}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -207,6 +250,7 @@ export function BillingSection({
             state={state}
             periodEnd={periodEnd}
             paused={paused}
+            usdRate={usdRate}
           />
         )}
       </CardContent>

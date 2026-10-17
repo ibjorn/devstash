@@ -1,18 +1,34 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { auth, getBillingUser, initializeTransaction, getManageLink } =
-  vi.hoisted(() => ({
-    auth: vi.fn(),
-    getBillingUser: vi.fn(),
-    initializeTransaction: vi.fn(),
-    getManageLink: vi.fn(),
-  }));
+const {
+  auth,
+  getBillingUser,
+  updateBilling,
+  initializeTransaction,
+  getManageLink,
+  createSubscription,
+} = vi.hoisted(() => ({
+  auth: vi.fn(),
+  getBillingUser: vi.fn(),
+  updateBilling: vi.fn(),
+  initializeTransaction: vi.fn(),
+  getManageLink: vi.fn(),
+  createSubscription: vi.fn(),
+}));
 
 vi.mock("@/auth", () => ({ auth }));
-vi.mock("@/lib/db/billing", () => ({ getBillingUser }));
-vi.mock("@/lib/paystack", () => ({ initializeTransaction, getManageLink }));
+vi.mock("@/lib/db/billing", () => ({ getBillingUser, updateBilling }));
+vi.mock("@/lib/paystack", () => ({
+  initializeTransaction,
+  getManageLink,
+  createSubscription,
+}));
 
-import { openSubscriptionManagement, startCheckout } from "@/actions/billing";
+import {
+  openSubscriptionManagement,
+  resubscribe,
+  startCheckout,
+} from "@/actions/billing";
 
 const USER_ID = "usr_1";
 
@@ -195,5 +211,107 @@ describe("openSubscriptionManagement", () => {
     });
     expect(getBillingUser).toHaveBeenCalledWith(USER_ID);
     expect(getManageLink).toHaveBeenCalledWith("SUB_1");
+  });
+});
+
+describe("resubscribe", () => {
+  const periodEnd = hoursFromNow(24 * 20);
+  const cancelled = {
+    ...freeUser,
+    isPro: true,
+    paystackCustomerCode: "CUS_1",
+    paystackSubscriptionCode: "SUB_old",
+    subscriptionStatus: "non-renewing",
+    currentPeriodEnd: periodEnd,
+  };
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.stubEnv("PAYSTACK_PLAN_CODE_MONTHLY", "PLN_month");
+    vi.stubEnv("PAYSTACK_PLAN_CODE_YEARLY", "PLN_year");
+    auth.mockResolvedValue({ user: { id: USER_ID } });
+    getBillingUser.mockResolvedValue(cancelled);
+    createSubscription.mockResolvedValue({
+      subscription_code: "SUB_new",
+      email_token: "tok_new",
+      status: "active",
+      next_payment_date: null,
+      plan: null,
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("refuses a signed-out caller without reaching Paystack", async () => {
+    auth.mockResolvedValue(null);
+
+    expect((await resubscribe("monthly")).success).toBe(false);
+    expect(createSubscription).not.toHaveBeenCalled();
+  });
+
+  it("refuses a billing period that isn't monthly or yearly", async () => {
+    expect((await resubscribe("weekly")).success).toBe(false);
+    expect(createSubscription).not.toHaveBeenCalled();
+  });
+
+  it("only resubscribes a cancelled subscription that's still paid up", async () => {
+    for (const user of [
+      freeUser,
+      { ...cancelled, subscriptionStatus: "active" },
+      { ...cancelled, subscriptionStatus: "attention" },
+      // Expired past the grace — that's a fresh checkout, not a resume
+      { ...cancelled, currentPeriodEnd: hoursFromNow(-48) },
+    ]) {
+      getBillingUser.mockResolvedValue(user);
+      expect((await resubscribe("monthly")).success).toBe(false);
+    }
+    expect(createSubscription).not.toHaveBeenCalled();
+    expect(updateBilling).not.toHaveBeenCalled();
+  });
+
+  it("starts the new subscription when the paid period ends", async () => {
+    expect(await resubscribe("yearly")).toEqual({ success: true });
+
+    expect(createSubscription).toHaveBeenCalledWith({
+      customer: "CUS_1",
+      plan: "PLN_year",
+      start_date: periodEnd.toISOString(),
+    });
+    expect(updateBilling).toHaveBeenCalledWith(
+      { id: USER_ID },
+      expect.objectContaining({
+        isPro: true,
+        paystackSubscriptionCode: "SUB_new",
+        paystackEmailToken: "tok_new",
+        subscriptionStatus: "active",
+        currentPeriodEnd: periodEnd,
+      }),
+    );
+  });
+
+  it("charges straight away once the period is over but still in grace", async () => {
+    getBillingUser.mockResolvedValue({
+      ...cancelled,
+      currentPeriodEnd: hoursFromNow(-2),
+    });
+
+    expect((await resubscribe("monthly")).success).toBe(true);
+    expect(createSubscription).toHaveBeenCalledWith({
+      customer: "CUS_1",
+      plan: "PLN_month",
+    });
+  });
+
+  it("returns a generic error when Paystack fails, storing nothing", async () => {
+    createSubscription.mockRejectedValue(new Error("boom"));
+
+    expect(await resubscribe("monthly")).toEqual({
+      success: false,
+      error: "Could not resubscribe right now. Please try again.",
+    });
+    expect(updateBilling).not.toHaveBeenCalled();
   });
 });

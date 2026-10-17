@@ -13,7 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { billingState } from "@/lib/billing";
+import { billingState, isLiveSubscriptionStatus } from "@/lib/billing";
 import { getBillingUser } from "@/lib/db/billing";
 import { getDashboardStats } from "@/lib/db/dashboard";
 import { requireUserId } from "@/lib/db/session-user";
@@ -21,7 +21,10 @@ import { getProfileUser } from "@/lib/db/users";
 import { hasProAccess, isBillingEnforced } from "@/lib/entitlements";
 import { getZarToUsdRate } from "@/lib/exchange-rate";
 import { formatLongDate } from "@/lib/format-date";
-import { syncPendingSubscription } from "@/lib/subscription-sync";
+import {
+  refreshSubscription,
+  syncPendingSubscription,
+} from "@/lib/subscription-sync";
 
 export const metadata: Metadata = {
   title: "Settings · DevStash",
@@ -60,6 +63,13 @@ export default async function SettingsPage({
     !billing.paystackSubscriptionCode &&
     (await syncPendingSubscription(userId, billing.paystackCustomerCode))
   ) {
+    billing = (await getBillingUser(userId)) ?? billing;
+  } else if (
+    isLiveSubscriptionStatus(billing.subscriptionStatus) &&
+    (await refreshSubscription(billing))
+  ) {
+    // Cancelled on Paystack's page, or a missed webhook — re-read so the
+    // status line isn't still promising a renewal. One Paystack call per view.
     billing = (await getBillingUser(userId)) ?? billing;
   }
 

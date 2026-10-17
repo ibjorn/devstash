@@ -1,17 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { listSubscriptions, updateBilling } = vi.hoisted(() => ({
-  listSubscriptions: vi.fn(),
-  updateBilling: vi.fn(),
-}));
+const { listSubscriptions, fetchSubscription, updateBilling } = vi.hoisted(
+  () => ({
+    listSubscriptions: vi.fn(),
+    fetchSubscription: vi.fn(),
+    updateBilling: vi.fn(),
+  }),
+);
 
 vi.mock("@/lib/paystack", () => ({
   listSubscriptions,
+  fetchSubscription,
   fetchCustomer: vi.fn(),
 }));
 vi.mock("@/lib/db/billing", () => ({ updateBilling }));
 
-import { syncSubscription } from "@/lib/subscription-sync";
+import { refreshSubscription, syncSubscription } from "@/lib/subscription-sync";
 
 const USER_ID = "usr_1";
 
@@ -90,5 +94,66 @@ describe("syncSubscription", () => {
       { id: USER_ID },
       expect.objectContaining({ paystackSubscriptionCode: "SUB_b" }),
     );
+  });
+});
+
+describe("refreshSubscription", () => {
+  const stored = {
+    paystackSubscriptionCode: "SUB_1",
+    subscriptionStatus: "active",
+    currentPeriodEnd: new Date("2026-11-15T00:00:00.000Z"),
+  };
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  it("records a cancellation made on Paystack, keyed on the subscription code", async () => {
+    fetchSubscription.mockResolvedValue(
+      subscription({ subscription_code: "SUB_1", status: "non-renewing" }),
+    );
+
+    await expect(refreshSubscription(stored)).resolves.toBe(true);
+    expect(fetchSubscription).toHaveBeenCalledWith("SUB_1");
+    expect(updateBilling).toHaveBeenCalledWith(
+      { paystackSubscriptionCode: "SUB_1" },
+      expect.objectContaining({
+        isPro: true,
+        subscriptionStatus: "non-renewing",
+      }),
+    );
+  });
+
+  it("ends Pro when Paystack says the subscription is over", async () => {
+    fetchSubscription.mockResolvedValue(
+      subscription({
+        subscription_code: "SUB_1",
+        status: "complete",
+        next_payment_date: null,
+      }),
+    );
+
+    await refreshSubscription(stored);
+    expect(updateBilling).toHaveBeenCalledWith(
+      { paystackSubscriptionCode: "SUB_1" },
+      expect.objectContaining({ isPro: false, subscriptionStatus: "complete" }),
+    );
+  });
+
+  it("writes nothing when Paystack agrees with what's stored", async () => {
+    fetchSubscription.mockResolvedValue(
+      subscription({ subscription_code: "SUB_1" }),
+    );
+
+    await expect(refreshSubscription(stored)).resolves.toBe(false);
+    expect(updateBilling).not.toHaveBeenCalled();
+  });
+
+  it("fails soft when Paystack is unreachable", async () => {
+    fetchSubscription.mockRejectedValue(new Error("timeout"));
+
+    await expect(refreshSubscription(stored)).resolves.toBe(false);
+    expect(updateBilling).not.toHaveBeenCalled();
   });
 });

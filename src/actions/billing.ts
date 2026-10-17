@@ -1,11 +1,20 @@
 "use server";
 
-import { billingSchema, planCodeFor, PRO_PLANS } from "@/lib/billing";
-import { getBillingUser } from "@/lib/db/billing";
+import {
+  billingSchema,
+  planCodeFor,
+  PRO_PLANS,
+  subscriptionState,
+} from "@/lib/billing";
+import { getBillingUser, updateBilling } from "@/lib/db/billing";
 import { getSessionUserId } from "@/lib/db/session-user";
 import { getAppUrl } from "@/lib/email/app-url";
 import { hasProAccess } from "@/lib/entitlements";
-import { getManageLink, initializeTransaction } from "@/lib/paystack";
+import {
+  createSubscription,
+  getManageLink,
+  initializeTransaction,
+} from "@/lib/paystack";
 import type { BillingActionResult } from "@/types/billing";
 
 const SIGNED_OUT = "You need to be signed in to manage billing.";
@@ -84,6 +93,66 @@ export async function openSubscriptionManagement(): Promise<BillingActionResult>
     return {
       success: false,
       error: "Could not open subscription management. Please try again.",
+    };
+  }
+}
+
+/**
+ * Resubscribes a user who cancelled but is still inside the paid period.
+ * Paystack can't reactivate the cancelled subscription, so this starts a new
+ * one on the saved card whose first charge waits for the old period to end —
+ * no overlap, no second checkout. Once that period has run out (the grace
+ * after it) it charges straight away instead.
+ */
+export async function resubscribe(
+  billing: unknown,
+): Promise<BillingActionResult> {
+  const userId = await getSessionUserId();
+  if (!userId) return { success: false, error: SIGNED_OUT };
+
+  const parsed = billingSchema.safeParse(billing);
+  if (!parsed.success) {
+    return { success: false, error: "Choose monthly or yearly billing." };
+  }
+
+  try {
+    const user = await getBillingUser(userId);
+    if (
+      !user?.paystackCustomerCode ||
+      user.subscriptionStatus !== "non-renewing" ||
+      !hasProAccess(user)
+    ) {
+      return {
+        success: false,
+        error: "There's no cancelled subscription to resume.",
+      };
+    }
+
+    const periodEnd = user.currentPeriodEnd;
+    const deferred = periodEnd !== null && periodEnd.getTime() > Date.now();
+    const created = await createSubscription({
+      customer: user.paystackCustomerCode,
+      plan: planCodeFor(parsed.data),
+      ...(deferred && { start_date: periodEnd.toISOString() }),
+    });
+
+    // The old subscription's disable event matches its own code, so once the
+    // new code is stored it can't end the Pro this one carries on
+    const state = subscriptionState(created);
+    await updateBilling(
+      { id: userId },
+      {
+        ...state,
+        currentPeriodEnd:
+          state.currentPeriodEnd ?? (deferred ? periodEnd : null),
+      },
+    );
+    return { success: true };
+  } catch (error) {
+    console.error("resubscribe failed", error);
+    return {
+      success: false,
+      error: "Could not resubscribe right now. Please try again.",
     };
   }
 }

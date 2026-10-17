@@ -4,8 +4,10 @@ import {
   subscriptionState,
 } from "@/lib/billing";
 import { updateBilling } from "@/lib/db/billing";
+import type { BillingUser } from "@/types/billing";
 import {
   fetchCustomer,
+  fetchSubscription,
   listSubscriptions,
   type PaystackSubscription,
 } from "@/lib/paystack";
@@ -59,6 +61,37 @@ export async function syncPendingSubscription(
     return await syncSubscription(userId, customer.id);
   } catch (error) {
     console.error("Pending subscription sync failed:", error);
+    return false;
+  }
+}
+
+/**
+ * Re-reads the user's stored subscription from Paystack and records any
+ * change — a cancellation whose webhook never reached us (local dev has no
+ * public URL, and production can miss a delivery). Matched on the code, so it
+ * can't overwrite a newer subscription. Fails soft; true when it wrote.
+ */
+export async function refreshSubscription(
+  user: Pick<
+    BillingUser,
+    "paystackSubscriptionCode" | "subscriptionStatus" | "currentPeriodEnd"
+  >,
+): Promise<boolean> {
+  const code = user.paystackSubscriptionCode;
+  if (!code) return false;
+
+  try {
+    const state = subscriptionState(await fetchSubscription(code));
+    if (
+      state.subscriptionStatus === user.subscriptionStatus &&
+      state.currentPeriodEnd?.getTime() === user.currentPeriodEnd?.getTime()
+    ) {
+      return false;
+    }
+    await updateBilling({ paystackSubscriptionCode: code }, state);
+    return true;
+  } catch (error) {
+    console.error("Subscription refresh failed:", error);
     return false;
   }
 }

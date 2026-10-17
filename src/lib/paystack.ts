@@ -138,6 +138,33 @@ export function fetchCustomer(customerCode: string) {
   );
 }
 
+/** One subscription as Paystack has it now, whatever webhooks we missed. */
+export function fetchSubscription(code: string) {
+  return paystackRequest(
+    `/subscription/${encodeURIComponent(code)}`,
+    subscriptionSchema,
+  );
+}
+
+interface CreateSubscriptionInput {
+  /** CUS_ code — charged on their most recent saved card. */
+  customer: string;
+  plan: string;
+  /** ISO date of the first charge; without it Paystack charges right away. */
+  start_date?: string;
+}
+
+/**
+ * Subscribes an existing customer without a checkout. Paystack can't
+ * reactivate a cancelled subscription, so resubscribing starts a new one.
+ */
+export function createSubscription(input: CreateSubscriptionInput) {
+  return paystackRequest("/subscription", subscriptionSchema, {
+    method: "POST",
+    body: input,
+  });
+}
+
 /** Hosted page where the customer updates their card or cancels. */
 export async function getManageLink(subscriptionCode: string) {
   const { link } = await paystackRequest(
