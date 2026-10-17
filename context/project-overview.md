@@ -111,7 +111,7 @@ Powered by **NextAuth v5**.
 
 ### F. AI Features (Pro Only)
 
-Powered by **OpenAI `gpt-5-nano`**:
+Powered by **OpenAI `gpt-6-luna`** (model id via `OPENAI_MODEL` — see `docs/ai-integration-plan.md` §1):
 
 - 🏷️ AI auto-tag suggestions
 - 📝 AI summaries
@@ -336,7 +336,7 @@ model Tag {
 - GitHub OAuth
 
 ### AI
-- [**OpenAI**](https://platform.openai.com/docs) — `gpt-5-nano`
+- [**OpenAI**](https://platform.openai.com/docs) — `gpt-6-luna`
 
 ### Styling
 - [**Tailwind CSS v4**](https://tailwindcss.com/docs)

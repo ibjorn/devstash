@@ -22,7 +22,7 @@ See [context/project-overview.md](context/project-overview.md) for the full prod
 - **Auth:** NextAuth v5
 - **Styling:** Tailwind CSS v4 + shadcn/ui
 - **File storage:** Cloudflare R2
-- **AI:** OpenAI (`gpt-5-nano`)
+- **AI:** OpenAI (`gpt-6-luna`)
 - **Payments:** Stripe (subscriptions)
 
 ## 🚀 Getting Started
