@@ -138,7 +138,8 @@ About 10 minutes. The story: *Free tier → hit the wall → pay → unlocked �
    the usage counter.
 4. **Hit the wall:** create collections until the 4th one is refused with an upgrade
    prompt.
-5. **Upgrade:** Settings → Billing → monthly or yearly → Paystack checkout. Pay with
+5. **Upgrade:** the **Upgrade** button in the header (or clicking Files / Images in
+   the sidebar) opens `/upgrade` → monthly or yearly → Paystack checkout. Pay with
    Paystack's test card: `4084 0840 8408 4081`, CVV `408`, any future expiry. If asked,
    PIN `0000` and OTP `123456`. If those are refused, check Paystack's docs under
    "Test payments".
@@ -147,8 +148,10 @@ About 10 minutes. The story: *Free tier → hit the wall → pay → unlocked �
 7. **Behind the scenes (optional):** Paystack dashboard → Webhooks log shows the
    `charge.success` / `subscription.create` deliveries with 200s.
 8. **Manage:** Settings → Billing → Manage subscription (Paystack's hosted page) →
-   cancel. Back in the app the plan shows *non-renewing*, with Pro until the period
-   ends.
+   cancel. Back in Settings the plan shows cancelled, with Pro until the period ends
+   and no further charges. Paystack's own page is a dead end once cancelled, so the
+   way back is in the app: **Resubscribe monthly / yearly** starts a new subscription
+   on the same card, first charged when the current period ends.
 9. **Clean exit:** Settings → Delete account. Pro users are warned the subscription
    is cancelled.
 10. **A stocked account:** sign in as `demo@devstash.io` / `12345678` to show

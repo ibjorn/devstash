@@ -98,13 +98,14 @@ been applied **on the Neon development branch only.**
 | `src/lib/paystack.ts` | Thin `fetch` client over `api.paystack.co`: Zod-parsed envelopes, `PaystackError` on `status: false`, a 10 s timeout. Exposes `initializeTransaction`, `verifyTransaction`, `listSubscriptions`, `fetchCustomer`, `getManageLink`, `metadataUserId` and `verifyWebhookSignature` (HMAC-SHA512 + `timingSafeEqual`, length-checked first). |
 | `src/lib/billing.ts` | `PRO_PLANS`, the single home of prices (rand + subunit + plan-code env var). Also `billingSchema`, the live/ended status sets, `subscriptionState()` (Paystack subscription → `User` columns), `billingState()` (what settings shows), `planCodeFor` / `billingForPlanCode`, and the price display. |
 | `src/lib/db/billing.ts` | `getBillingUser()`, plus `updateBilling(match, data)`: an `updateMany` keyed on id, customer code or subscription code. Always an absolute set, so it's idempotent. |
-| `src/lib/subscription-sync.ts` | `syncSubscription()` pulls the newest **live** subscription on one of our plans and stores it. `syncPendingSubscription()` is the fail-soft version for `/settings`. |
+| `src/lib/subscription-sync.ts` | `syncSubscription()` pulls the newest **live** subscription on one of our plans and stores it. `syncPendingSubscription()` is the fail-soft version for `/settings`. `refreshSubscription()` re-reads a stored live subscription on each `/settings` view and writes only on change, keyed on the subscription code. |
 | `src/lib/exchange-rate.ts` | Frankfurter ZAR→USD, revalidated daily, 3 s timeout. Returns `null` on any failure, and the UI then falls back to rand only. |
-| `src/actions/billing.ts` | `startCheckout(billing)` refuses if the user is already Pro or has a live status. `openSubscriptionManagement()` fetches the short-lived manage link on click. |
+| `src/actions/billing.ts` | `startCheckout(billing)` refuses if the user is already Pro or has a live status. `openSubscriptionManagement()` fetches the short-lived manage link on click. `resubscribe(billing)` is for `non-renewing` only: a new subscription on the saved card (`POST /subscription`) starting at the period end, or straight away once inside the grace. |
 | `src/app/api/billing/callback/route.ts` | Requires a session (bouncing through sign-in to the same URL if needed). Verifies the reference with Paystack and requires `metadata.userId === session user`. Sets `isPro` and the customer code, best-effort syncs the subscription, then redirects to `/settings?billing=success\|failed#billing`. |
 | `src/app/api/webhooks/paystack/route.ts` | Verifies the signature on the raw body, then dispatches. A Zod shape error → `200` (a retry won't help). A DB error → `500` (Paystack retries, which is safe). |
-| `src/components/settings/BillingSection.tsx` | States: free / pending / active / non-renewing / attention. Upgrade buttons, manage button, toast on `?billing=`. |
-| `src/components/billing/PlanPrice.tsx`, `homepage/PricingSection.tsx`, `PricingToggle.tsx` | Shared price display. Homepage "Go Pro" → `/settings#billing`. |
+| `src/components/settings/BillingSection.tsx` | States: free / pending / active / non-renewing / attention. Upgrade buttons, manage button (hidden once non-renewing), Resubscribe monthly / yearly when non-renewing, toast on `?billing=`. |
+| `src/components/billing/PlanPrice.tsx`, `homepage/PricingSection.tsx`, `PricingToggle.tsx` | Shared price display. Homepage "Go Pro" → `/upgrade`. |
+| `src/app/upgrade/page.tsx`, `src/components/billing/UpgradePlans.tsx` | Free vs Pro cards with the billing toggle; the Pro card starts checkout. Reached from the top-bar Upgrade link (shown when `canStartCheckout()`), and from `/items/files` and `/items/images` without Pro access. Anyone who can't check out is redirected to `/settings#billing`. |
 | `src/types/billing.ts` | `BillingUser`, `BillingActionResult` |
 
 ### Webhook event map (as built)
@@ -160,12 +161,16 @@ Counts are already cheap: `getDashboardStats()` does `prisma.item.count({ where:
 
 ### Known open issues (from feature history + this review)
 
-1. **A missed `subscription.disable` leaves the user Pro forever.** Nothing re-checks
+1. ✅ **Mostly resolved (2026-10-17):** `/settings` now re-reads a live
+   subscription from Paystack on each view (`refreshSubscription`), so a cancellation
+   or ending shows up without a webhook; `hasProAccess()`'s 24-hour grace covers a
+   user who never opens settings. *Originally:* **A missed `subscription.disable` leaves the user Pro forever.** Nothing re-checks
    a `non-renewing` user whose `currentPeriodEnd` has passed. **In the demo this is
    the most visible bug**: running locally there's usually no tunnel, so cancellation
    webhooks *never* arrive. On Vercel, test mode retries a failed webhook hourly for
    10 hours, then gives up.
-2. **The Vercel demo isn't wired for billing yet:** production migration, test keys
+2. ✅ **Resolved (2026-10-17):** the demo is live and smoke-tested on Vercel.
+   *Originally:* **The Vercel demo isn't wired for billing yet:** production migration, test keys
    and plan codes in Vercel, `APP_URL`, and the test webhook URL.
 3. ✅ **Resolved (2026-10-16):** `deleteAccount` now disables an `active` or
    `attention` subscription before deleting anything, and aborts the deletion if
@@ -173,9 +178,13 @@ Counts are already cheap: `getDashboardStats()` does `prisma.item.count({ where:
    Paystack's side and a second disable could fail and block the deletion for
    nothing. *Originally:* deletion removed the `User` row and left the
    subscription running on Paystack.
-4. **No plan switching.** `startCheckout` refuses while the status is `non-renewing`,
-   so a monthly subscriber who cancels to go yearly must wait out the period.
-   Acceptable, but the UI doesn't say so.
+4. ✅ **Resolved (2026-10-17):** a `non-renewing` user can resubscribe on either
+   plan; the new subscription's first charge waits for the old period to end.
+   Paystack refuses `POST /subscription/enable` on a cancelled subscription
+   ("cannot be reactivated"), so it's always a new one. Unit-tested; the
+   `start_date` call itself is not yet confirmed in Paystack test mode. *Originally:* **No plan
+   switching** — a monthly subscriber who cancelled to go yearly had to wait out the
+   period.
 
 ---
 
@@ -394,7 +403,7 @@ if (denied) return { success: false, error: DENIAL_MESSAGES[denied], upgrade: tr
 ```
 
 Add `upgrade?: true` to `ItemActionResult`. The client toast then offers an
-"Upgrade" action linking to `/settings#billing`. Tests: limit hit, Pro type, Pro user
+"Upgrade" action linking to `/upgrade`. Tests: limit hit, Pro type, Pro user
 passes, enforcement off passes.
 
 #### `src/actions/collections.ts` → `createCollection`
@@ -432,8 +441,8 @@ the gates above enforce.
 
 - **Free:** show usage, "12 / 50 items · 2 / 3 collections". The page already loads
   `getDashboardStats`.
-- **Non-renewing:** add "To switch to yearly, resubscribe after {periodEnd}" (open
-  issue 4). This is copy only, no plan-switch logic.
+- **Non-renewing:** *as built (2026-10-17)*, "you won't be charged again" plus
+  Resubscribe monthly / yearly, which also covers switching period (open issue 4).
 
 #### `.env.example`
 
