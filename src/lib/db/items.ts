@@ -251,6 +251,12 @@ export interface UpdateItemData {
   collectionIds: string[];
 }
 
+// Prisma's interactive-transaction default is 5s. connectOrCreate runs one
+// round-trip per tag in sequence, so an edit that adds several new tags over a
+// slow link to Neon (or during a cold start) can outlive it and fail with
+// P2028 after the work is done. 15s still bounds a stuck transaction.
+const ITEM_WRITE_TX = { timeout: 15_000 };
+
 type TransactionClient = Parameters<
   Parameters<typeof prisma.$transaction>[0]
 >[0];
@@ -349,7 +355,7 @@ export async function updateItem(
     });
     await sweepOrphanTags(tx, userId);
     return updated;
-  });
+  }, ITEM_WRITE_TX);
 
   return toItemDetail(item);
 }
@@ -374,7 +380,7 @@ export async function deleteItem(
     });
     await sweepOrphanTags(tx, userId);
     return { fileKey: deleted.fileUrl };
-  });
+  }, ITEM_WRITE_TX);
 }
 
 /**
@@ -455,7 +461,7 @@ export async function createItem(
       },
       select: itemDetailSelect,
     });
-  });
+  }, ITEM_WRITE_TX);
 
   return toItemDetail(item);
 }
