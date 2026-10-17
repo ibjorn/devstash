@@ -181,8 +181,9 @@ Counts are already cheap: `getDashboardStats()` does `prisma.item.count({ where:
 4. ✅ **Resolved (2026-10-17):** a `non-renewing` user can resubscribe on either
    plan; the new subscription's first charge waits for the old period to end.
    Paystack refuses `POST /subscription/enable` on a cancelled subscription
-   ("cannot be reactivated"), so it's always a new one. Unit-tested; the
-   `start_date` call itself is not yet confirmed in Paystack test mode. *Originally:* **No plan
+   ("cannot be reactivated"), so it's always a new one. Confirmed in Paystack
+   test mode (2026-10-17): the new subscription's first charge is scheduled for
+   the old period end, and nothing was charged at resubscribe. *Originally:* **No plan
    switching** — a monthly subscriber who cancelled to go yearly had to wait out the
    period.
 
