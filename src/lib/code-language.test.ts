@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { isCodeType, isMarkdownType, toMonacoLanguage } from "./code-language";
+import {
+  isCodeType,
+  isMarkdownType,
+  LANGUAGE_OPTIONS,
+  languageOptionFor,
+  toMonacoLanguage,
+} from "./code-language";
 
 describe("isCodeType", () => {
   it("is true for the code-carrying system types", () => {
@@ -62,5 +68,30 @@ describe("toMonacoLanguage", () => {
   it("does not resolve inherited object keys as aliases", () => {
     expect(toMonacoLanguage("constructor")).toBe("plaintext");
     expect(toMonacoLanguage("toString")).toBe("plaintext");
+  });
+});
+
+describe("languageOptionFor", () => {
+  it("selects plain text when no language is stored", () => {
+    expect(languageOptionFor(null)).toBe("plaintext");
+    expect(languageOptionFor("")).toBe("plaintext");
+    expect(languageOptionFor("  ")).toBe("plaintext");
+  });
+
+  it("selects the canonical option for a known id or alias", () => {
+    expect(languageOptionFor("typescript")).toBe("typescript");
+    expect(languageOptionFor("bash")).toBe("shell");
+    expect(languageOptionFor(" TSX ")).toBe("typescript");
+  });
+
+  it("keeps an unknown language as its own option instead of dropping it", () => {
+    expect(languageOptionFor("elixir")).toBe("elixir");
+    expect(languageOptionFor("  Elixir ")).toBe("Elixir");
+  });
+
+  it("only ever offers ids Monaco highlights", () => {
+    for (const option of LANGUAGE_OPTIONS) {
+      expect(toMonacoLanguage(option.value)).toBe(option.value);
+    }
   });
 });

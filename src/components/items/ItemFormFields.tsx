@@ -9,6 +9,7 @@ import { isCodeType, isMarkdownType } from "@/lib/code-language";
 import type { CollectionOption } from "@/types/collections";
 
 import { CodeEditor } from "./CodeEditor";
+import { LanguageSelect } from "./LanguageSelect";
 import { MarkdownEditor } from "./MarkdownEditor";
 
 export interface ItemFormValues {
@@ -121,6 +122,20 @@ export function ItemFormFields({
         <FieldError id="description-error" message={errors.description} />
       </div>
 
+      {visible.language && (
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="item-language">Language</Label>
+          <LanguageSelect
+            id="item-language"
+            value={values.language}
+            onChange={(value) => onChange("language", value)}
+            invalid={Boolean(errors.language)}
+            describedBy={errors.language ? "language-error" : undefined}
+          />
+          <FieldError id="language-error" message={errors.language} />
+        </div>
+      )}
+
       {visible.content && visible.code && (
         <div className="flex flex-col gap-2">
           {/* Monaco's input isn't a labellable element; it takes an ariaLabel
@@ -181,20 +196,6 @@ export function ItemFormFields({
             placeholder="https://"
           />
           <FieldError id="url-error" message={errors.url} />
-        </div>
-      )}
-
-      {visible.language && (
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="item-language">Language</Label>
-          <Input
-            id="item-language"
-            name="language"
-            value={values.language}
-            onChange={(event) => onChange("language", event.target.value)}
-            {...errorProps("language", errors)}
-          />
-          <FieldError id="language-error" message={errors.language} />
         </div>
       )}
 
