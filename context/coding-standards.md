@@ -98,7 +98,7 @@ Example v4 configuration:
 - **Test server-side logic only: server actions, utilities and route handlers.** No component tests: no jsdom, no Testing Library
 - Colocate tests as `*.test.ts` beside the source file
 - Import test helpers from `vitest` explicitly; globals are off
-- Mock everything that leaves the process — `@/lib/prisma`, `@/auth`, `@/lib/rate-limit`. A unit test must pass with no `DATABASE_URL` and no Upstash credentials
+- Mock everything that leaves the process — `@/lib/prisma`, `@/auth`, `@/lib/rate-limit`, `@/lib/openai`. A unit test must pass with no `DATABASE_URL` and no Upstash credentials
 - Assert on behaviour worth protecting (validation, auth guards, error branches), not on implementation detail
 
 ## Code Quality

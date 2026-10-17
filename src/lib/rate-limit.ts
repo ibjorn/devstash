@@ -26,6 +26,11 @@ export const RATE_LIMITS = {
   // bounds how fast one account can fill it; generous enough for a burst of
   // honest uploads, retries included.
   fileUpload: { limit: 20, window: "10 m" },
+  // Keyed by user id, one bucket shared by every AI feature. Every call spends
+  // real money at OpenAI, so this is a cost ceiling more than an abuse guard —
+  // sized so a Pro user tagging a backlog never notices it, and a script
+  // hammering it costs cents, not rand. Checked with failClosed.
+  ai: { limit: 30, window: "10 m" },
 } as const satisfies Record<string, { limit: number; window: Duration }>;
 
 export type RateLimitName = keyof typeof RATE_LIMITS;
@@ -37,11 +42,27 @@ export interface RateLimitResult {
   reset: number;
   /** Whole seconds until a retry can succeed; 0 when no limiter ran. */
   retryAfterSeconds: number;
+  /**
+   * Refused because no limiter could run, not because the key is over its
+   * limit. Only ever set under `failClosed` — the caller answers with a 503
+   * rather than a 429 that blames the user.
+   */
+  unavailable?: true;
+}
+
+interface CheckOptions {
+  /**
+   * Refuse instead of allowing when the limiter is unconfigured or Upstash is
+   * unreachable. For limits that are the only ceiling on spend, where an
+   * outage of the feature is cheaper than an unbounded bill. Deliberately has
+   * no environment exception: nothing may quietly turn the ceiling off.
+   */
+  failClosed?: boolean;
 }
 
 // Returned whenever no limiter ran — missing config, or Upstash unreachable.
-// Rate limiting fails OPEN by design: an outage at Upstash must not become an
-// outage of sign-in.
+// Rate limiting fails OPEN by default: an outage at Upstash must not become an
+// outage of sign-in. Callers guarding spend opt into failClosed instead.
 const ALLOWED: RateLimitResult = {
   success: true,
   remaining: Number.POSITIVE_INFINITY,
@@ -114,18 +135,38 @@ function secondsUntil(reset: number): number {
   return Math.max(1, Math.ceil((reset - Date.now()) / 1000));
 }
 
+// The failClosed counterpart of ALLOWED. A minute is a guess at how long an
+// Upstash blip lasts; a config gap won't clear in one, but the 503 that this
+// becomes doesn't promise it will.
+const UNAVAILABLE: RateLimitResult = {
+  success: false,
+  remaining: 0,
+  reset: 0,
+  retryAfterSeconds: 60,
+  unavailable: true,
+};
+
 /**
  * Consume one token for `key` under the named limit.
  *
- * Never throws and never blocks on failure: if Upstash is unreachable the
- * request is allowed through.
+ * Never throws. By default it never blocks on failure either: if Upstash is
+ * unreachable the request is allowed through. With `failClosed` the same
+ * failure refuses it instead (see CheckOptions).
  */
 export async function checkRateLimit(
   name: RateLimitName,
   key: string,
+  { failClosed = false }: CheckOptions = {},
 ): Promise<RateLimitResult> {
   const limiter = getLimiter(name);
-  if (!limiter) return ALLOWED;
+  if (!limiter) {
+    if (!failClosed) return ALLOWED;
+    console.error(
+      "%s unavailable: rate limiter not configured (UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN)",
+      name === "ai" ? "AI" : name,
+    );
+    return UNAVAILABLE;
+  }
 
   try {
     const { success, remaining, reset } = await limiter.limit(key);
@@ -136,6 +177,10 @@ export async function checkRateLimit(
       retryAfterSeconds: secondsUntil(reset),
     };
   } catch (error) {
+    if (failClosed) {
+      console.error("Rate limit check failed for %s — refusing:", name, error);
+      return UNAVAILABLE;
+    }
     console.error("Rate limit check failed for %s — allowing:", name, error);
     return ALLOWED;
   }

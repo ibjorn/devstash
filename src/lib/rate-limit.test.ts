@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   RATE_LIMITS,
@@ -7,10 +7,20 @@ import {
   rateLimitMessage,
 } from "@/lib/rate-limit";
 
-// Only the pure helpers are covered here. checkRateLimit/peekRateLimit/
-// clearRateLimit talk to Upstash, and with no credentials in the test env they
-// fail open by design — asserting on that would test the absence of config
-// rather than the limiter.
+// The Upstash clients never leave the process: `limit` stands in for a
+// Ratelimit instance's own method, for the failClosed tests at the bottom.
+// Everything above them is a pure helper.
+const { limit } = vi.hoisted(() => ({ limit: vi.fn() }));
+
+vi.mock("@upstash/redis", () => ({ Redis: class {} }));
+vi.mock("@upstash/ratelimit", () => ({
+  Ratelimit: class {
+    static slidingWindow() {
+      return {};
+    }
+    limit = limit;
+  },
+}));
 
 describe("clientIp", () => {
   const headers = (init: Record<string, string>) => new Headers(init);
@@ -92,5 +102,100 @@ describe("RATE_LIMITS", () => {
       expect(limit, name).toBeGreaterThan(0);
       expect(window, name).toMatch(/^\d+\s?(ms|s|m|h|d)$/);
     }
+  });
+});
+
+describe("checkRateLimit failClosed", () => {
+  // The module caches its Redis client (or its absence) on first use, so each
+  // test imports a fresh copy under its own env
+  async function freshCheck() {
+    vi.resetModules();
+    return (await import("@/lib/rate-limit")).checkRateLimit;
+  }
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  describe("with no Upstash credentials", () => {
+    beforeEach(() => {
+      vi.stubEnv("UPSTASH_REDIS_REST_URL", "");
+      vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "");
+    });
+
+    it("refuses as unavailable, and says why server-side", async () => {
+      const checkRateLimit = await freshCheck();
+
+      const result = await checkRateLimit("ai", "usr_1", { failClosed: true });
+
+      expect(result).toMatchObject({ success: false, unavailable: true });
+      expect(console.error).toHaveBeenCalledWith(
+        expect.stringContaining("unavailable: rate limiter not configured"),
+        "AI",
+      );
+    });
+
+    it("has no environment exception", async () => {
+      vi.stubEnv("NODE_ENV", "development");
+      const checkRateLimit = await freshCheck();
+
+      const result = await checkRateLimit("ai", "usr_1", { failClosed: true });
+
+      expect(result.success).toBe(false);
+    });
+
+    it("still fails open without the option", async () => {
+      const checkRateLimit = await freshCheck();
+
+      const result = await checkRateLimit("signIn", "usr_1");
+
+      expect(result.success).toBe(true);
+      expect(result.unavailable).toBeUndefined();
+    });
+  });
+
+  describe("with Upstash configured", () => {
+    beforeEach(() => {
+      vi.stubEnv("UPSTASH_REDIS_REST_URL", "https://upstash.test");
+      vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "token");
+    });
+
+    it("refuses as unavailable when Upstash is unreachable", async () => {
+      limit.mockRejectedValue(new Error("fetch failed"));
+      const checkRateLimit = await freshCheck();
+
+      const result = await checkRateLimit("ai", "usr_1", { failClosed: true });
+
+      expect(result).toMatchObject({ success: false, unavailable: true });
+    });
+
+    it("allows the same outage through without the option", async () => {
+      limit.mockRejectedValue(new Error("fetch failed"));
+      const checkRateLimit = await freshCheck();
+
+      expect((await checkRateLimit("signIn", "usr_1")).success).toBe(true);
+    });
+
+    it("reports an over-limit key as a plain refusal, not unavailable", async () => {
+      limit.mockResolvedValue({
+        success: false,
+        remaining: 0,
+        reset: Date.now() + 30_000,
+      });
+      const checkRateLimit = await freshCheck();
+
+      const result = await checkRateLimit("ai", "usr_1", { failClosed: true });
+
+      expect(result.success).toBe(false);
+      expect(result.unavailable).toBeUndefined();
+      expect(result.retryAfterSeconds).toBeGreaterThan(0);
+    });
   });
 });

@@ -45,12 +45,13 @@ export function hasProAccess(plan: ProAccessFields, now = new Date()): boolean {
   return now.getTime() < plan.currentPeriodEnd.getTime() + EXPIRY_GRACE_MS;
 }
 
-export type Denial = "ITEM_LIMIT" | "COLLECTION_LIMIT" | "PRO_TYPE";
+export type Denial = "ITEM_LIMIT" | "COLLECTION_LIMIT" | "PRO_TYPE" | "PRO_AI";
 
 export const DENIAL_MESSAGES: Record<Denial, string> = {
   ITEM_LIMIT: `Free accounts hold up to ${FREE_LIMITS.items} items. Upgrade to Pro for unlimited.`,
   COLLECTION_LIMIT: `Free accounts have up to ${FREE_LIMITS.collections} collections. Upgrade to Pro for unlimited.`,
   PRO_TYPE: "File and image items are a Pro feature.",
+  PRO_AI: "AI features are part of Pro.",
 };
 
 // Gating off, or Pro — either way nothing is limited

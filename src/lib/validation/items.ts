@@ -8,8 +8,8 @@ const DESCRIPTION_MAX = 1000;
 const CONTENT_MAX = 100_000;
 const URL_MAX = 2048;
 const LANGUAGE_MAX = 50;
-const TAG_MAX = 50;
-const TAGS_MAX = 20;
+export const TAG_MAX = 50;
+export const TAGS_MAX = 20;
 const COLLECTIONS_MAX = 100;
 const ID_MAX = 64;
 

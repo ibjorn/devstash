@@ -6,11 +6,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { ItemContentType } from "@/generated/prisma/client";
 import { isCodeType, isMarkdownType } from "@/lib/code-language";
+import { parseTagInput } from "@/lib/validation/items";
 import type { CollectionOption } from "@/types/collections";
 
 import { CodeEditor } from "./CodeEditor";
 import { LanguageSelect } from "./LanguageSelect";
 import { MarkdownEditor } from "./MarkdownEditor";
+import { SuggestTags } from "./SuggestTags";
 
 export interface ItemFormValues {
   title: string;
@@ -61,6 +63,11 @@ interface ItemFormFieldsProps {
   tagsHint: string;
   /** Every collection the user owns, for the collections picker. */
   collections: CollectionOption[];
+  /**
+   * The item's type name, for AI tag suggestions. Pass it only for Pro users —
+   * omitted, the Suggest Tags button isn't rendered.
+   */
+  aiTypeName?: string;
 }
 
 function FieldError({ id, message }: { id: string; message?: string }) {
@@ -93,6 +100,7 @@ export function ItemFormFields({
   visible,
   tagsHint,
   collections,
+  aiTypeName,
 }: ItemFormFieldsProps) {
   return (
     <>
@@ -209,6 +217,21 @@ export function ItemFormFields({
           {...errorProps("tags", errors)}
           placeholder="react, hooks, typescript"
         />
+        {aiTypeName && (
+          <SuggestTags
+            draft={{
+              typeName: aiTypeName,
+              title: values.title,
+              // A field this type doesn't show holds nothing to tag from
+              content: visible.content ? values.content : "",
+              language: visible.language ? values.language : "",
+            }}
+            tags={values.tags}
+            onAccept={(tag) =>
+              onChange("tags", [...parseTagInput(values.tags), tag].join(", "))
+            }
+          />
+        )}
         <p className="text-xs text-muted-foreground">{tagsHint}</p>
         <FieldError id="tags-error" message={errors.tags} />
       </div>

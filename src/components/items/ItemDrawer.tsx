@@ -35,6 +35,7 @@ interface ItemDrawerProps {
   editing: boolean;
   onEditingChange: (editing: boolean) => void;
   collectionOptions: CollectionOption[];
+  aiEnabled: boolean;
 }
 
 /**
@@ -56,6 +57,7 @@ export function ItemDrawer({
   editing,
   onEditingChange,
   collectionOptions,
+  aiEnabled,
 }: ItemDrawerProps) {
   if (!item) return null;
 
@@ -76,6 +78,7 @@ export function ItemDrawer({
           <ItemEditForm
             detail={detail}
             collections={collectionOptions}
+            aiEnabled={aiEnabled}
             onCancel={() => onEditingChange(false)}
             onSaved={(updated) => {
               onEditingChange(false);

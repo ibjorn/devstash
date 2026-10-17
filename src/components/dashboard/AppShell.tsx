@@ -75,11 +75,15 @@ export async function AppShell({
             user={user}
           />
           <SidebarInset className="h-svh overflow-hidden">
-            <ItemDrawerProvider collectionOptions={collectionOptions}>
+            <ItemDrawerProvider
+              collectionOptions={collectionOptions}
+              aiEnabled={proAccess}
+            >
               <TopBar
                 newItemTypes={newItemTypes}
                 collectionOptions={collectionOptions}
                 canUpgrade={canStartCheckout(plan)}
+                aiEnabled={proAccess}
               />
               <div className="flex-1 overflow-y-auto p-6">{children}</div>
             </ItemDrawerProvider>

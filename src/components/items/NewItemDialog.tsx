@@ -35,6 +35,8 @@ import type { NewItemTypeOption } from "@/types/items";
 interface NewItemDialogProps {
   types: NewItemTypeOption[];
   collections: CollectionOption[];
+  /** Pro access — shows Suggest Tags. */
+  aiEnabled: boolean;
 }
 
 const EMPTY_VALUES: ItemFormValues = {
@@ -92,7 +94,11 @@ function LockedTypeNote({
  * item opens in the drawer, which is why this has to sit inside the
  * ItemDrawerProvider AppShell renders.
  */
-export function NewItemDialog({ types, collections }: NewItemDialogProps) {
+export function NewItemDialog({
+  types,
+  collections,
+  aiEnabled,
+}: NewItemDialogProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { openItem } = useItemDrawer();
@@ -238,6 +244,7 @@ export function NewItemDialog({ types, collections }: NewItemDialogProps) {
             visible={visible}
             tagsHint="Separate tags with commas."
             collections={collections}
+            aiTypeName={aiEnabled && type ? type.name : undefined}
           />
 
           <DialogFooter>

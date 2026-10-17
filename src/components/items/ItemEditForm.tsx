@@ -20,6 +20,8 @@ import type { ItemDetail } from "@/types/items";
 interface ItemEditFormProps {
   detail: ItemDetail;
   collections: CollectionOption[];
+  /** Pro access — shows Suggest Tags. */
+  aiEnabled: boolean;
   onCancel: () => void;
   onSaved: (updated: ItemDetail) => void;
 }
@@ -35,6 +37,7 @@ interface ItemEditFormProps {
 export function ItemEditForm({
   detail,
   collections,
+  aiEnabled,
   onCancel,
   onSaved,
 }: ItemEditFormProps) {
@@ -116,6 +119,7 @@ export function ItemEditForm({
           visible={visible}
           tagsHint="Separate tags with commas. Clearing this removes every tag."
           collections={collections}
+          aiTypeName={aiEnabled ? detail.type.name : undefined}
         />
       </div>
     </form>

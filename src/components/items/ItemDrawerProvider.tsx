@@ -59,10 +59,13 @@ function toItemDetail(data: ItemDetailResponse): ItemDetail {
 export function ItemDrawerProvider({
   children,
   collectionOptions,
+  aiEnabled,
 }: {
   children: React.ReactNode;
   /** Every collection the user owns, for edit mode's collections picker. */
   collectionOptions: CollectionOption[];
+  /** Pro access — a courtesy that shows AI suggestions in edit mode; the routes decide. */
+  aiEnabled: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [item, setItem] = useState<ItemSummary | null>(null);
@@ -146,6 +149,7 @@ export function ItemDrawerProvider({
         editing={editing}
         onEditingChange={setEditing}
         collectionOptions={collectionOptions}
+        aiEnabled={aiEnabled}
       />
     </ItemDrawerContext.Provider>
   );

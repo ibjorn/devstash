@@ -15,12 +15,15 @@ interface TopBarProps {
   collectionOptions: CollectionOption[];
   /** Free (checkout would go through) — shows the Upgrade link. */
   canUpgrade: boolean;
+  /** Pro access — shows AI suggestions in the New Item form. */
+  aiEnabled: boolean;
 }
 
 export function TopBar({
   newItemTypes,
   collectionOptions,
   canUpgrade,
+  aiEnabled,
 }: TopBarProps) {
   return (
     <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border px-4 sm:gap-4">
@@ -50,7 +53,11 @@ export function TopBar({
           <Star />
         </Link>
         <NewCollectionDialog />
-        <NewItemDialog types={newItemTypes} collections={collectionOptions} />
+        <NewItemDialog
+          types={newItemTypes}
+          collections={collectionOptions}
+          aiEnabled={aiEnabled}
+        />
       </div>
     </header>
   );

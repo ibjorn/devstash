@@ -33,7 +33,7 @@ Unit tests run on **Vitest** in the `node` environment.
 - **Scope: server-side logic only — server actions (`src/actions/`), utilities (`src/lib/`) and route handlers (`src/app/api/`).** No component tests — there is no jsdom and no Testing Library, and UI is verified visually in Windows Chrome instead.
 - Tests are **colocated** next to the code they cover: `src/lib/auth-redirect.ts` → `src/lib/auth-redirect.test.ts`.
 - Import from `vitest` explicitly (`import { describe, expect, it, vi } from "vitest"`) — globals are off.
-- **Never touch the database or the network.** Mock `@/lib/prisma`, `@/auth`, `@/lib/db/session-user` and `@/lib/rate-limit`. Vitest does not load `.env`, so a test that forgets to mock fails loudly rather than quietly reaching the Neon development branch.
+- **Never touch the database or the network.** Mock `@/lib/prisma`, `@/auth`, `@/lib/db/session-user`, `@/lib/rate-limit` and `@/lib/openai`. Vitest does not load `.env`, so a test that forgets to mock fails loudly rather than quietly reaching the Neon development branch.
 - Use `vi.hoisted()` for anything a `vi.mock` factory closes over, and `vi.resetAllMocks()` in `beforeEach` — `clearAllMocks` leaves implementations behind and they leak into the next test.
 - Cover the happy path and the error branches that matter, security guards first: redirect validation, credential checks, token namespacing, ownership. Don't write tests just to write them — if a change has no logic worth asserting, say so instead.
 
