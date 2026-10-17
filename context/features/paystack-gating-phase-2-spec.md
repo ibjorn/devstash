@@ -140,9 +140,19 @@ database matches no row on Vercel. `updateBilling` returns `0`, and nothing chan
 
 ## Webhooks: local vs Vercel
 
-Paystack has no Stripe-CLI-style forwarder. Test mode **appears to hold one
-webhook URL** (unverified; check the dashboard), and local dev and Vercel share
-test mode, so only one of them receives webhooks at a time.
+Test mode **appears to hold one webhook URL** (unverified; check the dashboard),
+and local dev and Vercel share test mode, so only one of them receives webhooks
+at a time.
+
+Paystack does have an official CLI with a Stripe-CLI-style forwarder
+(`webhook listen`), plus `webhook ping --event <name>` to send sample events.
+Unverified, so check `--help` before relying on it: the exact syntax (sources
+disagree), whether `listen` temporarily rewrites the test webhook URL (one guide
+says it does and restores it on Ctrl+C, which would cut off Vercel the same way a
+tunnel does), and whether it's still maintained. Sample `ping` payloads carry no
+real customer or subscription codes, so the handler treats them as no-ops: they
+check signature verification, not billing state. The cloudflared workflow below
+is the one we've actually used.
 
 | | Webhook URL points at Vercel (default) | Points at a local tunnel |
 |---|---|---|
@@ -240,5 +250,6 @@ server runs).
 - `docs/paystack-integration-plan.md`: Part 2 ("Files to modify", "Vercel demo deployment", "Testing checklist")
 - `context/features/paystack-billing-spec.md`: sandbox setup, test cards
 - Paystack webhooks: https://paystack.com/docs/payments/webhooks/
+- Paystack CLI: https://paystack.com/blog/product/cli
 - Paystack test payments: https://paystack.com/docs/payments/test-payments/
 - Cloudflare quick tunnels: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/

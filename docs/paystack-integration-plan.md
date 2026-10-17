@@ -458,6 +458,13 @@ Update the 🚧 note to name `BILLING_ENFORCED` as the bypass mechanism.
 3. Webhooks need a public URL. Use `cloudflared tunnel --url http://localhost:3000`
    (or ngrok) → set the **test** webhook URL to `https://<tunnel>/api/webhooks/paystack`.
    The callback route covers basic checkout without it.
+   Alternative (not yet tried here): Paystack's official CLI has `webhook listen`
+   to forward test events to localhost and `webhook ping --event <name>` to send
+   samples. The syntax, whether it rewrites the test webhook URL, and whether it's
+   still maintained are all unverified, so check `--help` first. Sample pings
+   carry no real customer or subscription codes, so they test signatures, not
+   billing state. Sources: [Paystack blog](https://paystack.com/blog/product/cli),
+   [third-party guide](https://mctaba.com/learn/paystack/debugging-paystack-with-the-paystack-cli).
 
 ### Vercel demo deployment (still test mode)
 
