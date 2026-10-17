@@ -75,7 +75,7 @@ function LockedTypeNote({
       <p className="text-muted-foreground">
         {typeName} items are a Pro feature.{" "}
         <Link
-          href="/settings#billing"
+          href="/upgrade"
           onClick={onUpgrade}
           className="font-medium text-foreground underline underline-offset-4"
         >

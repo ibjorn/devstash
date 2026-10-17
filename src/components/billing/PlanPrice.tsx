@@ -26,3 +26,20 @@ export function PlanPrice({ billing, usdRate }: PlanPriceProps) {
     </>
   );
 }
+
+/** The Free plan's price block, laid out like the Pro one beside it. */
+export function FreePlanPrice() {
+  return (
+    <>
+      <p className="mt-4 mb-2 flex items-baseline gap-2">
+        <span className="text-[2.8rem] font-extrabold tracking-[-0.03em]">
+          $0
+        </span>
+        <span className="text-muted-foreground">forever</span>
+      </p>
+      <p className="mb-6 min-h-[1.6em] text-[0.92rem] text-muted-foreground">
+        Everything you need to get your stash started.
+      </p>
+    </>
+  );
+}

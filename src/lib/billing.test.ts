@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   billingForPlanCode,
   billingState,
+  canStartCheckout,
   describeProPrice,
   isChargingSubscriptionStatus,
   planCodeFor,
@@ -53,6 +54,57 @@ describe("plan codes", () => {
     expect(() => planCodeFor("monthly")).toThrow(
       "PAYSTACK_PLAN_CODE_MONTHLY is not set",
     );
+  });
+});
+
+describe("canStartCheckout", () => {
+  const NOW = new Date("2026-10-16T12:00:00.000Z");
+  const free = {
+    isPro: false,
+    subscriptionStatus: null,
+    currentPeriodEnd: null,
+  };
+  const pro = {
+    isPro: true,
+    subscriptionStatus: "active",
+    currentPeriodEnd: new Date("2026-11-16T12:00:00.000Z"),
+  };
+  const lapsed = new Date("2026-10-14T12:00:00.000Z");
+
+  it("lets a Free user and an expired cancellation through", () => {
+    expect(canStartCheckout(free, NOW)).toBe(true);
+    expect(
+      canStartCheckout(
+        {
+          ...pro,
+          subscriptionStatus: "non-renewing",
+          currentPeriodEnd: lapsed,
+        },
+        NOW,
+      ),
+    ).toBe(true);
+  });
+
+  it("refuses Pro, including paid-but-unsynced and a running cancellation", () => {
+    expect(canStartCheckout(pro, NOW)).toBe(false);
+    expect(canStartCheckout({ ...pro, subscriptionStatus: null }, NOW)).toBe(
+      false,
+    );
+    expect(
+      canStartCheckout({ ...pro, subscriptionStatus: "non-renewing" }, NOW),
+    ).toBe(false);
+  });
+
+  it("refuses a subscription Paystack can still charge, even without Pro", () => {
+    expect(
+      canStartCheckout(
+        { ...pro, subscriptionStatus: "attention", currentPeriodEnd: lapsed },
+        NOW,
+      ),
+    ).toBe(false);
+    expect(
+      canStartCheckout({ ...free, subscriptionStatus: "active" }, NOW),
+    ).toBe(false);
   });
 });
 

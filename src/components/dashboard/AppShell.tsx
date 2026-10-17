@@ -18,6 +18,7 @@ import {
 } from "@/lib/db/item-types";
 import { requireUserId } from "@/lib/db/session-user";
 import { getCurrentUser, getEditorPreferences } from "@/lib/db/users";
+import { canStartCheckout } from "@/lib/billing";
 import { checkProFeature } from "@/lib/entitlements";
 import { PRO_TYPE_NAMES } from "@/lib/system-types";
 
@@ -78,6 +79,7 @@ export async function AppShell({
               <TopBar
                 newItemTypes={newItemTypes}
                 collectionOptions={collectionOptions}
+                canUpgrade={canStartCheckout(plan)}
               />
               <div className="flex-1 overflow-y-auto p-6">{children}</div>
             </ItemDrawerProvider>

@@ -60,6 +60,21 @@ export function isChargingSubscriptionStatus(status: string | null): boolean {
   return status !== null && CHARGING_SUBSCRIPTION_STATUSES.includes(status);
 }
 
+/**
+ * Whether startCheckout would let this user through — what the Upgrade button
+ * and /upgrade go by. Same refusals: still Pro, an active subscription, or a
+ * failed renewal Paystack is still retrying.
+ */
+export function canStartCheckout(
+  user: ProAccessFields,
+  now = new Date(),
+): boolean {
+  return (
+    !hasProAccess(user, now) &&
+    !isChargingSubscriptionStatus(user.subscriptionStatus)
+  );
+}
+
 interface SubscriptionLike {
   subscription_code: string;
   email_token: string;

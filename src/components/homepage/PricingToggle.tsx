@@ -11,7 +11,7 @@ const BillingContext = createContext<{
   setBilling: (billing: Billing) => void;
 } | null>(null);
 
-function useBilling() {
+export function useBilling() {
   const context = useContext(BillingContext);
   if (!context) throw new Error("useBilling must be used inside PricingToggle");
   return context;

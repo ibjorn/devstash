@@ -7,7 +7,7 @@ import { toast } from "sonner";
 /**
  * toast.error, plus an Upgrade action when the plan caused the refusal — the
  * `upgrade` flag create actions and the upload route return. `onUpgrade` runs
- * first, so a dialog can close itself rather than sit over the settings page.
+ * first, so a dialog can close itself rather than sit over the upgrade page.
  */
 export function useErrorToast(onUpgrade?: () => void) {
   const router = useRouter();
@@ -22,7 +22,7 @@ export function useErrorToast(onUpgrade?: () => void) {
                 label: "Upgrade",
                 onClick: () => {
                   onUpgrade?.();
-                  router.push("/settings#billing");
+                  router.push("/upgrade");
                 },
               },
             }

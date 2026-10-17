@@ -8,6 +8,7 @@ import { ImageCard } from "@/components/items/ImageCard";
 import { ItemCard } from "@/components/items/ItemCard";
 import { ItemTypeIcon } from "@/components/items/ItemTypeIcon";
 import { PaginationControls } from "@/components/pagination/PaginationControls";
+import { getPlanUsage } from "@/lib/db/entitlements";
 import { getItemsByTypeSlug } from "@/lib/db/items";
 import { requireUserId } from "@/lib/db/session-user";
 import {
@@ -16,6 +17,8 @@ import {
   pageHref,
   parsePageParam,
 } from "@/lib/pagination";
+import { checkProFeature } from "@/lib/entitlements";
+import { PRO_TYPE_NAMES } from "@/lib/system-types";
 import { pluralTypeName, typeSlug } from "@/lib/type-names";
 import { typeIcons } from "@/lib/type-icons";
 import { uploadKindFor } from "@/lib/uploads";
@@ -49,7 +52,23 @@ export default async function ItemsPage({
   const { type: slug } = await params;
   const page = parsePageParam((await searchParams).page);
   const userId = await requireUserId();
-  const { type, items, total } = await getItemsByTypeSlug(userId, slug, page);
+  const [{ type, items, total }, plan] = await Promise.all([
+    getItemsByTypeSlug(userId, slug, page),
+    getPlanUsage(userId),
+  ]);
+
+  // Files and Images are Pro: without access, send them to /upgrade rather
+  // than an empty page they can't add to. Anyone already holding some (a
+  // lapsed Pro) still sees them — it's their data.
+  if (
+    type &&
+    PRO_TYPE_NAMES.has(type.name) &&
+    total === 0 &&
+    plan &&
+    !checkProFeature(plan)
+  ) {
+    redirect("/upgrade");
+  }
 
   // Past the end — a stale link after deleting items — goes to the last page
   const basePath = type ? `/items/${typeSlug(type.name)}` : `/items/${slug}`;
