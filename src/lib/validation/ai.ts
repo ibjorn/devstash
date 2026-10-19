@@ -60,3 +60,22 @@ export const explainRequestSchema = z.object({
 });
 
 export type ExplainRequest = z.infer<typeof explainRequestSchema>;
+
+/** The optimizer's input cap — rejected past it, never cut: the answer replaces the whole prompt. */
+export const OPTIMIZE_INPUT_MAX = 20_000;
+
+// Optimize is offered on the drawer's read view of a saved prompt, so there is
+// always content. Unlike the other features it can't truncate: accepting the
+// answer overwrites the item, and a cut prompt would lose its tail
+export const optimizeRequestSchema = z.object({
+  title: z.string().trim().max(200, "Title is too long"),
+  content: z
+    .string()
+    .max(
+      OPTIMIZE_INPUT_MAX,
+      `Prompts over ${OPTIMIZE_INPUT_MAX.toLocaleString("en")} characters are too long to optimize.`,
+    )
+    .refine((content) => content.trim().length > 0, "Nothing to optimize."),
+});
+
+export type OptimizeRequest = z.infer<typeof optimizeRequestSchema>;

@@ -55,6 +55,17 @@ interface MarkdownEditorProps {
   ariaLabel?: string;
   invalid?: boolean;
   describedBy?: string;
+  /** Read-only only: extra controls in the window header, after the label. */
+  headerActions?: React.ReactNode;
+  /**
+   * Read-only only: shown instead of the preview, with the header's copy
+   * button copying `copyValue` — how the prompt optimizer shows its rewrite.
+   */
+  alternate?: {
+    content: React.ReactNode;
+    copyValue: string;
+    copyLabel: string;
+  } | null;
 }
 
 /**
@@ -70,14 +81,22 @@ export function MarkdownEditor({
   ariaLabel,
   invalid = false,
   describedBy,
+  headerActions,
+  alternate = null,
 }: MarkdownEditorProps) {
   const [tab, setTab] = useState("write");
   const header = (
-    <EditorWindowHeader value={value} copyLabel="Copy markdown">
+    <EditorWindowHeader
+      value={alternate ? alternate.copyValue : value}
+      copyLabel={alternate ? alternate.copyLabel : "Copy markdown"}
+    >
       {readOnly ? (
-        <span className="font-mono text-xs text-muted-foreground">
-          markdown
-        </span>
+        <>
+          <span className="font-mono text-xs text-muted-foreground">
+            markdown
+          </span>
+          {headerActions}
+        </>
       ) : (
         <TabsList variant="line" className="h-6! p-0">
           <TabsTrigger value="write" className="px-2 text-xs">
@@ -100,7 +119,11 @@ export function MarkdownEditor({
     return (
       <div className={frame} role="group" aria-label={ariaLabel}>
         {header}
-        <MarkdownPreview value={value} editing={false} />
+        {alternate ? (
+          alternate.content
+        ) : (
+          <MarkdownPreview value={value} editing={false} />
+        )}
       </div>
     );
   }

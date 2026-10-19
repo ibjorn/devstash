@@ -83,7 +83,14 @@ small-model generations in 14 months), the next swap should be a config change, 
 | Auto-tag | JSON `{ tags: string[] }` (≤ 5) | `none` | 200 | 8,000 chars |
 | Summary | JSON `{ summary: string }` (≤ 1,000 chars, the `description` limit) | `none` | 400 | 12,000 chars |
 | Explain code | Markdown, **streamed** | `low` | 2,000 | 40,000 chars |
-| Prompt optimizer | JSON `{ prompt: string, changes: string[] }` | `low` | 3,000 | 20,000 chars |
+| Prompt optimizer | JSON `{ prompt: string, changes: string[] }`; the route adds `unchanged` | `low` | 8,000 | 20,000 chars, **rejected** past it |
+
+> **Prompt optimizer, as built (2026-10-19):** `max_output_tokens` is 8,000, not 3,000: the answer
+> repeats the whole prompt, and a 20,000-char prompt is ~5k tokens before reasoning and the change
+> list, so 3,000 would truncate long prompts every time. Over-cap input is **rejected, not
+> truncated** like the other features: an accepted answer replaces the entire content, so optimizing
+> a cut prompt would silently drop its tail. `unchanged` is decided server-side (rewrite equals the
+> original, ignoring surrounding whitespace), not taken from the model.
 
 `max_output_tokens` counts reasoning tokens as well as visible ones, so an effort level above `low`
 makes truncation more likely. If a response comes back `status: "incomplete"` with
@@ -188,7 +195,7 @@ it authenticates itself, uses `parseJsonBody`, runs the Pro gate before the rate
 ```
 src/app/api/ai/tags/route.ts        POST → { success, data: { tags } }
 src/app/api/ai/summary/route.ts     POST → { success, data: { summary } }
-src/app/api/ai/optimize/route.ts    POST → { success, data: { prompt, changes } }
+src/app/api/ai/optimize/route.ts    POST → { success, data: { prompt, changes, unchanged } }
 src/app/api/ai/explain/route.ts     POST → text/plain stream (errors before the stream starts are JSON)
 src/lib/ai/                         prompts, input builders, the shared guard, output post-processing
 src/lib/validation/ai.ts            request schemas

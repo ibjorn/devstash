@@ -3,23 +3,28 @@
 import { CodeExplainer } from "@/components/items/CodeExplainer";
 import { DrawerSection } from "@/components/items/DrawerSection";
 import { MarkdownEditor } from "@/components/items/MarkdownEditor";
+import { PromptOptimizer } from "@/components/items/PromptOptimizer";
 import { isCodeType, isMarkdownType } from "@/lib/code-language";
 import type { ItemDetail } from "@/types/items";
 
 interface ItemContentSectionProps {
   detail: ItemDetail;
-  /** Pro access: a working Explain button on code, or the Pro lock. */
+  /** Pro access: working Explain / Optimize buttons, or the Pro lock. */
   aiEnabled: boolean;
+  /** An accepted optimized prompt was saved. */
+  onUpdated: (updated: ItemDetail) => void;
 }
 
 /**
  * The drawer's Content section: Monaco for code types, rendered Markdown for
- * notes and prompts, and plain text for everything else — which is how a
- * link's URL shows up. Renders nothing when there's no content at all.
+ * notes and prompts (with the AI optimizer on prompts), and plain text for
+ * everything else — which is how a link's URL shows up. Renders nothing when
+ * there's no content at all.
  */
 export function ItemContentSection({
   detail,
   aiEnabled,
+  onUpdated,
 }: ItemContentSectionProps) {
   const typeName = detail.type.name;
 
@@ -36,6 +41,21 @@ export function ItemContentSection({
           language={detail.language}
           ariaLabel={`${detail.title} (read-only)`}
           aiEnabled={aiEnabled}
+        />
+      </DrawerSection>
+    );
+  }
+
+  if (detail.content && typeName === "Prompt") {
+    return (
+      <DrawerSection title="Content">
+        {/* Keyed so another item never inherits this one's suggestion */}
+        <PromptOptimizer
+          key={detail.id}
+          detail={detail}
+          content={detail.content}
+          aiEnabled={aiEnabled}
+          onSaved={onUpdated}
         />
       </DrawerSection>
     );

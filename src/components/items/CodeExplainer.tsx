@@ -1,18 +1,13 @@
 "use client";
 
-import { Crown, Loader2, RotateCw, Sparkles, Square } from "lucide-react";
-import Link from "next/link";
+import { Loader2, RotateCw, Sparkles, Square } from "lucide-react";
 import { useState } from "react";
 
+import { AiProLock } from "@/components/items/AiProLock";
 import { CodeEditor } from "@/components/items/CodeEditor";
 import { MarkdownPreview } from "@/components/items/MarkdownEditor";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { useAiStream } from "@/hooks/use-ai-stream";
 
 interface ExplainRequestBody {
@@ -29,21 +24,6 @@ interface CodeExplainerProps {
   language: string | null;
   ariaLabel: string;
   aiEnabled: boolean;
-}
-
-function ProLock() {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button variant="ghost" size="icon-xs" asChild>
-          <Link href="/upgrade" aria-label="Explain code — requires Pro">
-            <Crown />
-          </Link>
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>AI features require Pro subscription</TooltipContent>
-    </Tooltip>
-  );
 }
 
 /**
@@ -74,7 +54,7 @@ export function CodeExplainer({
   }
 
   const action = !aiEnabled ? (
-    <ProLock />
+    <AiProLock label="Explain code" />
   ) : streaming ? (
     <Button
       type="button"

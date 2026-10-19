@@ -122,7 +122,11 @@ export function ItemDrawer({
                 </div>
               ) : (
                 <>
-                  <ItemContentSection detail={detail} aiEnabled={aiEnabled} />
+                  <ItemContentSection
+                    detail={detail}
+                    aiEnabled={aiEnabled}
+                    onUpdated={onUpdated}
+                  />
                   <ItemFileSection detail={detail} />
 
                   {item.tags.length > 0 && (

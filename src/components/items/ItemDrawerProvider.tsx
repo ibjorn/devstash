@@ -113,8 +113,9 @@ export function ItemDrawerProvider({
   // A save returns the item in full, so the drawer repaints from that rather
   // than refetching. The summary is refreshed too — the header, description and
   // tags render from it, and it would otherwise still show the old values.
+  // Matched by id: an optimizer save can land after another item was opened.
   const applyUpdate = useCallback((updated: ItemDetail) => {
-    setDetail(updated);
+    setDetail((current) => (current?.id === updated.id ? updated : current));
     setItem((current) => (current?.id === updated.id ? updated : current));
   }, []);
 
