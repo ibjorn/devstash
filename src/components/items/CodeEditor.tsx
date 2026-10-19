@@ -48,6 +48,18 @@ interface CodeEditorProps {
   onChange?: (value: string) => void;
   ariaLabel: string;
   invalid?: boolean;
+  /** Extra header controls, between the language and the copy button. */
+  headerActions?: React.ReactNode;
+  /**
+   * Shown in place of the code while set — the drawer's AI explanation. Monaco
+   * stays mounted underneath, so switching back doesn't reload it, and the
+   * header's copy button copies `copyValue` instead.
+   */
+  alternate?: {
+    content: React.ReactNode;
+    copyValue: string;
+    copyLabel: string;
+  } | null;
 }
 
 /**
@@ -63,6 +75,8 @@ export function CodeEditor({
   onChange,
   ariaLabel,
   invalid = false,
+  headerActions,
+  alternate = null,
 }: CodeEditorProps) {
   const { preferences } = useEditorPreferences();
   const lineHeight = editorLineHeight(preferences.fontSize);
@@ -93,70 +107,77 @@ export function CodeEditor({
         invalid && "border-destructive",
       )}
     >
-      <EditorWindowHeader value={value} copyLabel="Copy code">
+      <EditorWindowHeader
+        value={alternate ? alternate.copyValue : value}
+        copyLabel={alternate ? alternate.copyLabel : "Copy code"}
+      >
         {language && (
           <span className="truncate font-mono text-xs text-muted-foreground">
             {language}
           </span>
         )}
+        {headerActions}
       </EditorWindowHeader>
 
-      <Editor
-        height={height}
-        language={toMonacoLanguage(language)}
-        value={value}
-        theme={MONACO_THEME_IDS[preferences.theme]}
-        beforeMount={beforeMount}
-        onMount={handleMount}
-        onChange={(next) => onChange?.(next ?? "")}
-        loading={<Skeleton className="size-full rounded-none" />}
-        options={{
-          readOnly,
-          domReadOnly: readOnly,
-          ariaLabel,
-          fontFamily: "var(--font-mono), ui-monospace, monospace",
-          fontSize: preferences.fontSize,
-          lineHeight,
-          padding: { top: PADDING, bottom: PADDING },
-          wordWrap: preferences.wordWrap ? "on" : "off",
-          tabSize: preferences.tabSize,
-          // Otherwise Monaco guesses the tab size from the content and the
-          // preference only applies to an empty editor
-          detectIndentation: false,
-          minimap: {
-            enabled:
-              preferences.minimap &&
-              editorWidth !== null &&
-              editorWidth >= MINIMAP_MIN_WIDTH,
-          },
-          scrollBeyondLastLine: false,
-          automaticLayout: true,
-          lineNumbersMinChars: 3,
-          lineDecorationsWidth: 8,
-          glyphMargin: false,
-          folding: false,
-          // Pins the enclosing scope's first line over the top once scrolled,
-          // which in a 400px window reads as lines overlapping
-          stickyScroll: { enabled: false },
-          renderLineHighlight: readOnly ? "none" : "line",
-          overviewRulerLanes: 0,
-          overviewRulerBorder: false,
-          hideCursorInOverviewRuler: true,
-          contextmenu: !readOnly,
-          // Suggestion popups get clipped by the editor's own bounds inside a
-          // dialog, and word-based completions are noise in a snippet stash
-          quickSuggestions: false,
-          suggestOnTriggerCharacters: false,
-          parameterHints: { enabled: false },
-          scrollbar: {
-            verticalScrollbarSize: 8,
-            horizontalScrollbarSize: 8,
-            useShadows: false,
-            // Let the drawer or dialog scroll on once the editor hits its end
-            alwaysConsumeMouseWheel: false,
-          },
-        }}
-      />
+      {alternate?.content}
+      <div className={cn(alternate && "hidden")}>
+        <Editor
+          height={height}
+          language={toMonacoLanguage(language)}
+          value={value}
+          theme={MONACO_THEME_IDS[preferences.theme]}
+          beforeMount={beforeMount}
+          onMount={handleMount}
+          onChange={(next) => onChange?.(next ?? "")}
+          loading={<Skeleton className="size-full rounded-none" />}
+          options={{
+            readOnly,
+            domReadOnly: readOnly,
+            ariaLabel,
+            fontFamily: "var(--font-mono), ui-monospace, monospace",
+            fontSize: preferences.fontSize,
+            lineHeight,
+            padding: { top: PADDING, bottom: PADDING },
+            wordWrap: preferences.wordWrap ? "on" : "off",
+            tabSize: preferences.tabSize,
+            // Otherwise Monaco guesses the tab size from the content and the
+            // preference only applies to an empty editor
+            detectIndentation: false,
+            minimap: {
+              enabled:
+                preferences.minimap &&
+                editorWidth !== null &&
+                editorWidth >= MINIMAP_MIN_WIDTH,
+            },
+            scrollBeyondLastLine: false,
+            automaticLayout: true,
+            lineNumbersMinChars: 3,
+            lineDecorationsWidth: 8,
+            glyphMargin: false,
+            folding: false,
+            // Pins the enclosing scope's first line over the top once scrolled,
+            // which in a 400px window reads as lines overlapping
+            stickyScroll: { enabled: false },
+            renderLineHighlight: readOnly ? "none" : "line",
+            overviewRulerLanes: 0,
+            overviewRulerBorder: false,
+            hideCursorInOverviewRuler: true,
+            contextmenu: !readOnly,
+            // Suggestion popups get clipped by the editor's own bounds inside a
+            // dialog, and word-based completions are noise in a snippet stash
+            quickSuggestions: false,
+            suggestOnTriggerCharacters: false,
+            parameterHints: { enabled: false },
+            scrollbar: {
+              verticalScrollbarSize: 8,
+              horizontalScrollbarSize: 8,
+              useShadows: false,
+              // Let the drawer or dialog scroll on once the editor hits its end
+              alwaysConsumeMouseWheel: false,
+            },
+          }}
+        />
+      </div>
     </div>
   );
 }

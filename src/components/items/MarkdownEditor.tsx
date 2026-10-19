@@ -18,7 +18,7 @@ const COMPONENTS: Components = {
   ),
 };
 
-function MarkdownPreview({
+export function MarkdownPreview({
   value,
   editing,
 }: {

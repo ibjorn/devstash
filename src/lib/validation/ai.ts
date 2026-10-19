@@ -46,3 +46,17 @@ export const summaryRequestSchema = z
   );
 
 export type SummaryRequest = z.infer<typeof summaryRequestSchema>;
+
+// Explain is offered on the drawer's read view of a saved code item, so there
+// is always content — and only the two code types are worth explaining
+export const explainRequestSchema = z.object({
+  typeName: z.enum(["Snippet", "Command"]),
+  title: z.string().trim().max(200, "Title is too long"),
+  content: z
+    .string()
+    .max(CONTENT_MAX, "Content is too long")
+    .refine((content) => content.trim().length > 0, "Nothing to explain."),
+  language: z.string().trim().max(50).nullable().default(null),
+});
+
+export type ExplainRequest = z.infer<typeof explainRequestSchema>;
