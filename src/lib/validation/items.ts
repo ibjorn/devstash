@@ -4,7 +4,7 @@ import { z } from "zod";
 // query's where clause — but a server action is a public endpoint, so every
 // field a caller can send is bounded rather than trusted.
 const TITLE_MAX = 200;
-const DESCRIPTION_MAX = 1000;
+export const DESCRIPTION_MAX = 1000;
 const CONTENT_MAX = 100_000;
 const URL_MAX = 2048;
 const LANGUAGE_MAX = 50;

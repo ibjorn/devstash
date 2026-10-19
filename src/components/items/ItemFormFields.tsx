@@ -13,6 +13,7 @@ import { CodeEditor } from "./CodeEditor";
 import { LanguageSelect } from "./LanguageSelect";
 import { MarkdownEditor } from "./MarkdownEditor";
 import { SuggestTags } from "./SuggestTags";
+import { SummarizeDescription } from "./SummarizeDescription";
 
 export interface ItemFormValues {
   title: string;
@@ -65,9 +66,11 @@ interface ItemFormFieldsProps {
   collections: CollectionOption[];
   /**
    * The item's type name, for AI tag suggestions. Pass it only for Pro users —
-   * omitted, the Suggest Tags button isn't rendered.
+   * omitted, the Suggest Tags and description buttons aren't rendered.
    */
   aiTypeName?: string;
+  /** A file or image item's file name, for the AI description to go on. */
+  fileName?: string;
 }
 
 function FieldError({ id, message }: { id: string; message?: string }) {
@@ -101,6 +104,7 @@ export function ItemFormFields({
   tagsHint,
   collections,
   aiTypeName,
+  fileName,
 }: ItemFormFieldsProps) {
   return (
     <>
@@ -118,7 +122,25 @@ export function ItemFormFields({
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="item-description">Description</Label>
+        <div className="flex min-h-7 items-center justify-between gap-2">
+          <Label htmlFor="item-description">Description</Label>
+          {aiTypeName && (
+            <SummarizeDescription
+              draft={{
+                typeName: aiTypeName,
+                title: values.title,
+                // A field this type doesn't show holds nothing to describe
+                content: visible.content ? values.content : "",
+                language: visible.language ? values.language : "",
+                url: visible.url ? values.url : "",
+                fileName: fileName ?? "",
+                tags: values.tags,
+              }}
+              description={values.description}
+              onChange={(description) => onChange("description", description)}
+            />
+          )}
+        </div>
         <Textarea
           id="item-description"
           name="description"

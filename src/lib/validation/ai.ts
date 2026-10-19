@@ -23,3 +23,26 @@ export const tagRequestSchema = z
   );
 
 export type TagRequest = z.infer<typeof tagRequestSchema>;
+
+export const summaryRequestSchema = z
+  .object({
+    typeName: z.string().trim().min(1).max(50),
+    title: z.string().trim().max(200, "Title is too long"),
+    content: z.string().max(CONTENT_MAX, "Content is too long").default(""),
+    language: z.string().trim().max(50).nullable().default(null),
+    // A link or a file may have little else to go on
+    url: z.string().trim().max(2048).nullable().default(null),
+    fileName: z.string().trim().max(255).nullable().default(null),
+    // Context only — they hint at the topic
+    tags: z.array(z.string().max(50)).max(20).default([]),
+  })
+  .refine(
+    (draft) =>
+      draft.title.length > 0 ||
+      draft.content.trim().length > 0 ||
+      Boolean(draft.url) ||
+      Boolean(draft.fileName),
+    "Add a title or some content first.",
+  );
+
+export type SummaryRequest = z.infer<typeof summaryRequestSchema>;

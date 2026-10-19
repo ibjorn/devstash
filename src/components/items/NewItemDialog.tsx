@@ -245,6 +245,7 @@ export function NewItemDialog({
             tagsHint="Separate tags with commas."
             collections={collections}
             aiTypeName={aiEnabled && type ? type.name : undefined}
+            fileName={uploadKind ? file?.name : undefined}
           />
 
           <DialogFooter>
