@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
+import { PendingButton } from "@/components/forms/PendingButton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { postJson } from "@/lib/post-json";
 import { resendVerificationSchema } from "@/lib/validation/auth";
 
 interface ResendVerificationProps {
@@ -29,27 +29,19 @@ export function ResendVerification({ defaultEmail }: ResendVerificationProps) {
     }
 
     setPending(true);
-    try {
-      const response = await fetch("/api/auth/verify/resend", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(parsed.data),
-      });
-      const result = await response.json();
+    const result = await postJson<{ message?: string }>(
+      "/api/auth/verify/resend",
+      parsed.data,
+      "Could not send a new link",
+    );
+    setPending(false);
 
-      if (!response.ok) {
-        toast.error(result?.error ?? "Could not send a new link");
-        return;
-      }
-
-      toast.success("Check your inbox", {
-        description: result?.data?.message,
-      });
-    } catch {
-      toast.error("Could not reach the server. Please try again.");
-    } finally {
-      setPending(false);
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
     }
+
+    toast.success("Check your inbox", { description: result.data?.message });
   }
 
   return (
@@ -70,16 +62,15 @@ export function ResendVerification({ defaultEmail }: ResendVerificationProps) {
           />
         </div>
       )}
-      <Button
+      <PendingButton
+        pending={pending}
         type="button"
         variant="outline"
         className="w-full"
         onClick={handleResend}
-        disabled={pending}
       >
-        {pending && <Loader2 className="size-4 animate-spin" />}
         Resend verification email
-      </Button>
+      </PendingButton>
     </div>
   );
 }

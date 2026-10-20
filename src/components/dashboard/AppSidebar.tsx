@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import {
   Folder,
   FolderOpen,
@@ -10,8 +9,13 @@ import {
   Star,
 } from "lucide-react";
 
-import { CollectionNavItem } from "@/components/dashboard/CollectionNavItem";
+import {
+  CollectionDot,
+  CollectionNavItem,
+} from "@/components/dashboard/CollectionNavItem";
+import { NavLinkItem } from "@/components/dashboard/NavLinkItem";
 import { SidebarUserMenu } from "@/components/dashboard/SidebarUserMenu";
+import { FavoriteStar } from "@/components/favorites/FavoriteStar";
 import { Badge } from "@/components/ui/badge";
 import {
   Sidebar,
@@ -22,12 +26,10 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import { isActivePath, NAV_ACTIVE_CLASS } from "@/lib/nav";
 import { getTypeIcon } from "@/lib/type-icons";
 import type { CollectionSummary } from "@/types/collections";
 import type { ItemTypeNavItem } from "@/types/items";
@@ -37,6 +39,17 @@ const MAIN_LINKS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/favorites", label: "Favorites", icon: Star },
 ];
+
+function ProBadge() {
+  return (
+    <Badge
+      variant="outline"
+      className="h-4 px-1.5 text-[10px] font-semibold tracking-wider text-muted-foreground"
+    >
+      PRO
+    </Badge>
+  );
+}
 
 interface AppSidebarProps {
   itemTypes: ItemTypeNavItem[];
@@ -51,8 +64,6 @@ export function AppSidebar({
   recentCollections,
   user,
 }: AppSidebarProps) {
-  const pathname = usePathname();
-
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
@@ -74,19 +85,12 @@ export function AppSidebar({
           <SidebarGroupContent>
             <SidebarMenu>
               {MAIN_LINKS.map(({ href, label, icon: Icon }) => (
-                <SidebarMenuItem key={href}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActivePath(pathname, href)}
-                    tooltip={label}
-                    className={NAV_ACTIVE_CLASS}
-                  >
-                    <Link href={href}>
-                      <Icon />
-                      <span>{label}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                <NavLinkItem
+                  key={href}
+                  href={href}
+                  label={label}
+                  icon={<Icon />}
+                />
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
@@ -97,31 +101,17 @@ export function AppSidebar({
             <SidebarMenu>
               {itemTypes.map((type) => {
                 const Icon = getTypeIcon(type.icon);
-                const href = `/items/${type.slug}`;
                 return (
-                  <SidebarMenuItem key={type.id}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActivePath(pathname, href)}
-                      tooltip={type.name}
-                      className={NAV_ACTIVE_CLASS}
-                    >
-                      <Link href={href}>
-                        {/* data-driven color from the item type, can't be a static class */}
-                        <Icon style={{ color: type.color }} />
-                        <span>{type.name}</span>
-                        {type.isPro && (
-                          <Badge
-                            variant="outline"
-                            className="h-4 px-1.5 text-[10px] font-semibold tracking-wider text-muted-foreground"
-                          >
-                            PRO
-                          </Badge>
-                        )}
-                      </Link>
-                    </SidebarMenuButton>
-                    <SidebarMenuBadge>{type.count}</SidebarMenuBadge>
-                  </SidebarMenuItem>
+                  <NavLinkItem
+                    key={type.id}
+                    href={`/items/${type.slug}`}
+                    label={type.name}
+                    // data-driven color from the item type, can't be a static class
+                    icon={<Icon style={{ color: type.color }} />}
+                    badge={type.count}
+                  >
+                    {type.isPro && <ProBadge />}
+                  </NavLinkItem>
                 );
               })}
             </SidebarMenu>
@@ -138,9 +128,7 @@ export function AppSidebar({
                     key={collection.id}
                     collection={collection}
                     icon={<Folder />}
-                    badge={
-                      <Star className="size-3 fill-yellow-400 text-yellow-400" />
-                    }
+                    badge={<FavoriteStar className="size-3" />}
                   />
                 ))}
               </SidebarMenu>
@@ -161,40 +149,18 @@ export function AppSidebar({
                 <CollectionNavItem
                   key={collection.id}
                   collection={collection}
-                  icon={
-                    <span className="flex size-4 shrink-0 items-center justify-center">
-                      {/* dot tinted by the collection's most-used item type */}
-                      <span
-                        className="size-2.5 rounded-full"
-                        style={{
-                          backgroundColor:
-                            collection.types[0]?.color ?? "#6b7280",
-                        }}
-                      />
-                    </span>
-                  }
+                  icon={<CollectionDot collection={collection} />}
                   badge={collection.itemCount}
                 />
               ))}
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  // exact: each collection page lights its own entry instead
-                  isActive={isActivePath(pathname, "/collections", {
-                    exact: true,
-                  })}
-                  tooltip="View all collections"
-                  className={NAV_ACTIVE_CLASS}
-                >
-                  <Link
-                    href="/collections"
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    <FolderOpen />
-                    <span>View all collections</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              <NavLinkItem
+                href="/collections"
+                label="View all collections"
+                icon={<FolderOpen />}
+                // exact: each collection page lights its own entry instead
+                exact
+                linkClassName="text-muted-foreground hover:text-foreground"
+              />
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

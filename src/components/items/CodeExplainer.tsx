@@ -5,9 +5,10 @@ import { useState } from "react";
 
 import { AiProLock } from "@/components/items/AiProLock";
 import { CodeEditor } from "@/components/items/CodeEditor";
+import { EditorTabs } from "@/components/items/EditorTabs";
 import { MarkdownPreview } from "@/components/items/MarkdownEditor";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs } from "@/components/ui/tabs";
 import { useAiStream } from "@/hooks/use-ai-stream";
 
 interface ExplainRequestBody {
@@ -106,14 +107,12 @@ export function CodeExplainer({
         headerActions={
           <>
             {hasExplanation && (
-              <TabsList variant="line" className="h-6! p-0">
-                <TabsTrigger value="code" className="px-2 text-xs">
-                  Code
-                </TabsTrigger>
-                <TabsTrigger value="explain" className="px-2 text-xs">
-                  Explain
-                </TabsTrigger>
-              </TabsList>
+              <EditorTabs
+                tabs={[
+                  { value: "code", label: "Code" },
+                  { value: "explain", label: "Explain" },
+                ]}
+              />
             )}
             {action}
           </>

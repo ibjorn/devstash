@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Check, Copy, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { CARD_ICON_BUTTON } from "@/components/items/card-styles";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { cn } from "@/lib/utils";
 import type { ItemSummary } from "@/types/items";
@@ -94,7 +95,8 @@ export function CopyItemButton({ item, className }: CopyItemButtonProps) {
       aria-label={`Copy ${item.title}`}
       title="Copy"
       className={cn(
-        "flex size-8 shrink-0 cursor-pointer pointer-coarse:size-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default",
+        CARD_ICON_BUTTON,
+        "disabled:cursor-default",
         className,
       )}
     >

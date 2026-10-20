@@ -1,19 +1,22 @@
 "use client";
 
 import { CollectionPicker } from "@/components/collections/CollectionPicker";
+import {
+  errorIdFor,
+  fieldErrorProps,
+  FormField,
+} from "@/components/forms/FormField";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { ItemContentType } from "@/generated/prisma/client";
 import { isCodeType, isMarkdownType } from "@/lib/code-language";
 import { parseTagInput } from "@/lib/validation/items";
 import type { CollectionOption } from "@/types/collections";
 
-import { CodeEditor } from "./CodeEditor";
+import { ItemContentField } from "./ItemContentField";
 import { LanguageSelect } from "./LanguageSelect";
-import { MarkdownEditor } from "./MarkdownEditor";
 import { SuggestTags } from "./SuggestTags";
-import { SummarizeDescription } from "./SummarizeDescription";
+import { SummarizeDescription, type SummaryDraft } from "./SummarizeDescription";
 
 export interface ItemFormValues {
   title: string;
@@ -40,6 +43,15 @@ export interface VisibleFields {
   url: boolean;
 }
 
+/** What a form shows before a type is chosen: none of the optional fields. */
+export const NO_VISIBLE_FIELDS: VisibleFields = {
+  content: false,
+  code: false,
+  markdown: false,
+  language: false,
+  url: false,
+};
+
 /** The optional fields a type's form renders, beyond title/description/tags. */
 export function visibleFieldsFor(
   contentType: ItemContentType,
@@ -53,6 +65,25 @@ export function visibleFieldsFor(
     markdown: content && isMarkdownType(typeName),
     language: code,
     url: contentType === "URL",
+  };
+}
+
+// What the AI buttons describe and tag from. A field this type doesn't show
+// holds nothing worth sending, whatever was typed into it under another type.
+function aiDraftFrom(
+  values: ItemFormValues,
+  visible: VisibleFields,
+  typeName: string,
+  fileName: string | undefined,
+): SummaryDraft {
+  return {
+    typeName,
+    title: values.title,
+    content: visible.content ? values.content : "",
+    language: visible.language ? values.language : "",
+    url: visible.url ? values.url : "",
+    fileName: fileName ?? "",
+    tags: values.tags,
   };
 }
 
@@ -73,24 +104,6 @@ interface ItemFormFieldsProps {
   fileName?: string;
 }
 
-function FieldError({ id, message }: { id: string; message?: string }) {
-  if (!message) return null;
-  return (
-    <p id={id} className="text-xs text-destructive">
-      {message}
-    </p>
-  );
-}
-
-// Ties an input to its error text for screen readers, the way the auth forms
-// and the profile dialogs already do
-function errorProps(field: string, errors: Record<string, string>) {
-  return {
-    "aria-invalid": Boolean(errors[field]),
-    "aria-describedby": errors[field] ? `${field}-error` : undefined,
-  };
-}
-
 /**
  * The item fields shared by the New Item dialog and the drawer's edit mode, so
  * the two forms can't drift apart. Controlled: the parent owns the values and
@@ -106,148 +119,95 @@ export function ItemFormFields({
   aiTypeName,
   fileName,
 }: ItemFormFieldsProps) {
+  const draft = aiTypeName
+    ? aiDraftFrom(values, visible, aiTypeName, fileName)
+    : null;
+
   return (
     <>
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="item-title">Title</Label>
+      <FormField id="item-title" label="Title" error={errors.title}>
         <Input
           id="item-title"
           name="title"
           value={values.title}
           onChange={(event) => onChange("title", event.target.value)}
-          {...errorProps("title", errors)}
+          {...fieldErrorProps("item-title", errors.title)}
           autoFocus
         />
-        <FieldError id="title-error" message={errors.title} />
-      </div>
+      </FormField>
 
-      <div className="flex flex-col gap-2">
-        <div className="flex min-h-7 items-center justify-between gap-2">
-          <Label htmlFor="item-description">Description</Label>
-          {aiTypeName && (
+      <FormField
+        id="item-description"
+        label="Description"
+        error={errors.description}
+        labelAddon={
+          draft && (
             <SummarizeDescription
-              draft={{
-                typeName: aiTypeName,
-                title: values.title,
-                // A field this type doesn't show holds nothing to describe
-                content: visible.content ? values.content : "",
-                language: visible.language ? values.language : "",
-                url: visible.url ? values.url : "",
-                fileName: fileName ?? "",
-                tags: values.tags,
-              }}
+              draft={draft}
               description={values.description}
               onChange={(description) => onChange("description", description)}
             />
-          )}
-        </div>
+          )
+        }
+      >
         <Textarea
           id="item-description"
           name="description"
           value={values.description}
           onChange={(event) => onChange("description", event.target.value)}
-          {...errorProps("description", errors)}
+          {...fieldErrorProps("item-description", errors.description)}
           rows={2}
         />
-        <FieldError id="description-error" message={errors.description} />
-      </div>
+      </FormField>
 
       {visible.language && (
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="item-language">Language</Label>
+        <FormField id="item-language" label="Language" error={errors.language}>
           <LanguageSelect
             id="item-language"
             value={values.language}
             onChange={(value) => onChange("language", value)}
             invalid={Boolean(errors.language)}
-            describedBy={errors.language ? "language-error" : undefined}
+            describedBy={
+              errors.language ? errorIdFor("item-language") : undefined
+            }
           />
-          <FieldError id="language-error" message={errors.language} />
-        </div>
+        </FormField>
       )}
 
-      {visible.content && visible.code && (
-        <div className="flex flex-col gap-2">
-          {/* Monaco's input isn't a labellable element; it takes an ariaLabel
-              option instead, so this label is visual only */}
-          <Label asChild>
-            <span>Content</span>
-          </Label>
-          <CodeEditor
-            value={values.content}
-            language={values.language}
-            onChange={(value) => onChange("content", value)}
-            ariaLabel="Content"
-            invalid={Boolean(errors.content)}
-          />
-          <FieldError id="content-error" message={errors.content} />
-        </div>
-      )}
-
-      {visible.content && visible.markdown && (
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="item-content">Content</Label>
-          <MarkdownEditor
-            id="item-content"
-            value={values.content}
-            onChange={(value) => onChange("content", value)}
-            invalid={Boolean(errors.content)}
-            describedBy={errors.content ? "content-error" : undefined}
-          />
-          <FieldError id="content-error" message={errors.content} />
-        </div>
-      )}
-
-      {visible.content && !visible.code && !visible.markdown && (
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="item-content">Content</Label>
-          <Textarea
-            id="item-content"
-            name="content"
-            value={values.content}
-            onChange={(event) => onChange("content", event.target.value)}
-            {...errorProps("content", errors)}
-            className="min-h-48 font-mono text-xs leading-relaxed"
-          />
-          <FieldError id="content-error" message={errors.content} />
-        </div>
-      )}
+      <ItemContentField
+        value={values.content}
+        language={values.language}
+        onChange={(value) => onChange("content", value)}
+        error={errors.content}
+        visible={visible}
+      />
 
       {visible.url && (
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="item-url">URL</Label>
+        <FormField id="item-url" label="URL" error={errors.url}>
           <Input
             id="item-url"
             name="url"
             value={values.url}
             onChange={(event) => onChange("url", event.target.value)}
-            {...errorProps("url", errors)}
+            {...fieldErrorProps("item-url", errors.url)}
             inputMode="url"
             placeholder="https://"
           />
-          <FieldError id="url-error" message={errors.url} />
-        </div>
+        </FormField>
       )}
 
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="item-tags">Tags</Label>
+      <FormField id="item-tags" label="Tags" error={errors.tags}>
         <Input
           id="item-tags"
           name="tags"
           value={values.tags}
           onChange={(event) => onChange("tags", event.target.value)}
-          {...errorProps("tags", errors)}
+          {...fieldErrorProps("item-tags", errors.tags)}
           placeholder="react, hooks, typescript"
         />
-        {aiTypeName && (
+        {draft && (
           <SuggestTags
-            draft={{
-              typeName: aiTypeName,
-              title: values.title,
-              // A field this type doesn't show holds nothing to tag from
-              content: visible.content ? values.content : "",
-              language: visible.language ? values.language : "",
-            }}
+            draft={draft}
             tags={values.tags}
             onAccept={(tag) =>
               onChange("tags", [...parseTagInput(values.tags), tag].join(", "))
@@ -255,21 +215,24 @@ export function ItemFormFields({
           />
         )}
         <p className="text-xs text-muted-foreground">{tagsHint}</p>
-        <FieldError id="tags-error" message={errors.tags} />
-      </div>
+      </FormField>
 
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="item-collections">Collections</Label>
+      <FormField
+        id="item-collections"
+        label="Collections"
+        error={errors.collectionIds}
+      >
         <CollectionPicker
           id="item-collections"
           options={collections}
           value={values.collectionIds}
           onChange={(value) => onChange("collectionIds", value)}
           invalid={Boolean(errors.collectionIds)}
-          describedBy={errors.collectionIds ? "collectionIds-error" : undefined}
+          describedBy={
+            errors.collectionIds ? errorIdFor("item-collections") : undefined
+          }
         />
-        <FieldError id="collectionIds-error" message={errors.collectionIds} />
-      </div>
+      </FormField>
     </>
   );
 }

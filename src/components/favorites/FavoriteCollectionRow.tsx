@@ -2,6 +2,7 @@ import { Folder } from "lucide-react";
 import Link from "next/link";
 
 import { FavoriteDate } from "@/components/favorites/FavoriteItemRow";
+import { plural } from "@/lib/plural";
 import type { FavoriteCollection } from "@/types/collections";
 
 interface FavoriteCollectionRowProps {
@@ -12,8 +13,6 @@ interface FavoriteCollectionRowProps {
 export function FavoriteCollectionRow({
   collection,
 }: FavoriteCollectionRowProps) {
-  const count = collection.itemCount;
-
   return (
     <li>
       <Link
@@ -23,7 +22,7 @@ export function FavoriteCollectionRow({
         <Folder className="size-4 shrink-0 text-muted-foreground" />
         <span className="min-w-0 flex-1 truncate">{collection.name}</span>
         <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
-          {count} {count === 1 ? "item" : "items"}
+          {plural(collection.itemCount, "item")}
         </span>
         <span className="shrink-0 rounded border px-1.5 text-xs text-muted-foreground">
           collection

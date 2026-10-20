@@ -2,8 +2,8 @@
 
 import { useId } from "react";
 
+import { fieldErrorProps, FormField } from "@/components/forms/FormField";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 export interface CollectionFormValues {
@@ -25,58 +25,40 @@ export function CollectionFormFields({
 }: CollectionFormFieldsProps) {
   // Every card renders its own edit dialog, so ids must be unique per form
   const prefix = useId();
-  const fieldId = (field: string) => `${prefix}-${field}`;
-  const errorId = (field: string) => `${prefix}-${field}-error`;
-
-  // Ties an input to its error text for screen readers
-  function errorProps(field: string) {
-    return {
-      "aria-invalid": Boolean(fieldErrors[field]),
-      "aria-describedby": fieldErrors[field] ? errorId(field) : undefined,
-    };
-  }
-
-  function fieldError(field: string) {
-    const message = fieldErrors[field];
-    if (!message) return null;
-    return (
-      <p id={errorId(field)} className="text-xs text-destructive">
-        {message}
-      </p>
-    );
-  }
+  const nameId = `${prefix}-name`;
+  const descriptionId = `${prefix}-description`;
 
   return (
     <>
-      <div className="flex flex-col gap-2">
-        <Label htmlFor={fieldId("name")}>Name</Label>
+      <FormField id={nameId} label="Name" error={fieldErrors.name}>
         <Input
-          id={fieldId("name")}
+          id={nameId}
           name="name"
           value={values.name}
           onChange={(event) =>
             onChange({ ...values, name: event.target.value })
           }
-          {...errorProps("name")}
+          {...fieldErrorProps(nameId, fieldErrors.name)}
           autoFocus
         />
-        {fieldError("name")}
-      </div>
+      </FormField>
 
-      <div className="flex flex-col gap-2">
-        <Label htmlFor={fieldId("description")}>Description</Label>
+      <FormField
+        id={descriptionId}
+        label="Description"
+        error={fieldErrors.description}
+      >
         <Textarea
-          id={fieldId("description")}
+          id={descriptionId}
           name="description"
           value={values.description}
           onChange={(event) =>
             onChange({ ...values, description: event.target.value })
           }
-          {...errorProps("description")}
+          {...fieldErrorProps(descriptionId, fieldErrors.description)}
           rows={3}
         />
-        {fieldError("description")}
-      </div>
+      </FormField>
     </>
   );
 }

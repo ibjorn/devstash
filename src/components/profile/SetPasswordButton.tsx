@@ -1,14 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
-import {
-  EMAIL_COOLDOWN_SECONDS,
-  formatCountdown,
-} from "@/lib/auth/email-cooldown";
+import { ResetLinkSentNote } from "@/components/auth/ResetLinkSentNote";
+import { PendingButton } from "@/components/forms/PendingButton";
+import { useEmailCooldown } from "@/hooks/use-email-cooldown";
+import { postJson } from "@/lib/post-json";
 
 interface SetPasswordButtonProps {
   email: string;
@@ -23,62 +21,41 @@ interface SetPasswordButtonProps {
  */
 export function SetPasswordButton({ email }: SetPasswordButtonProps) {
   const [pending, setPending] = useState(false);
-  const [sent, setSent] = useState(false);
-  const [lockout, setLockout] = useState(0);
-
-  useEffect(() => {
-    if (lockout <= 0) return;
-    const id = setTimeout(() => setLockout((n) => n - 1), 1000);
-    return () => clearTimeout(id);
-  }, [lockout]);
+  const { sent, locked, countdown, markSent } = useEmailCooldown();
 
   async function handleClick() {
     setPending(true);
-    try {
-      const response = await fetch("/api/auth/password/forgot", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-      const result = await response.json();
+    const result = await postJson<{ message?: string }>(
+      "/api/auth/password/forgot",
+      { email },
+      "Could not send a set-up link",
+    );
+    setPending(false);
 
-      if (!response.ok) {
-        toast.error(result?.error ?? "Could not send a set-up link");
-        return;
-      }
-
-      setSent(true);
-      // The server ignores a second request inside its cooldown, so re-enabling
-      // the button sooner would only invite a click that does nothing
-      setLockout(EMAIL_COOLDOWN_SECONDS);
-      toast.success("Check your inbox", { description: result?.data?.message });
-    } catch {
-      toast.error("Could not reach the server. Please try again.");
-    } finally {
-      setPending(false);
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
     }
+
+    markSent();
+    toast.success("Check your inbox", { description: result.data?.message });
   }
 
   return (
     <div className="space-y-2">
-      <Button
+      <PendingButton
+        pending={pending}
         variant="outline"
         onClick={handleClick}
-        disabled={pending || lockout > 0}
+        disabled={locked}
       >
-        {pending && <Loader2 className="size-4 animate-spin" />}
-        {lockout > 0
-          ? `Email me a set-up link (${formatCountdown(lockout)})`
+        {locked
+          ? `Email me a set-up link (${countdown})`
           : sent
             ? "Send another link"
             : "Email me a set-up link"}
-      </Button>
-      {sent && (
-        <p className="text-sm text-muted-foreground">
-          The link expires in an hour. If it doesn&apos;t arrive, check your
-          spam folder before requesting another.
-        </p>
-      )}
+      </PendingButton>
+      {sent && <ResetLinkSentNote />}
     </div>
   );
 }

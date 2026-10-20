@@ -1,19 +1,21 @@
 "use client";
 
-import { Folder, Loader2, Search } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { useItemDrawer } from "@/components/items/ItemDrawerProvider";
-import { ItemTypeIcon } from "@/components/items/ItemTypeIcon";
+import {
+  SearchCollectionResult,
+  SearchItemResult,
+} from "@/components/search/SearchResults";
+import { SearchTrigger } from "@/components/search/SearchTrigger";
 import {
   Command,
   CommandEmpty,
   CommandGroup,
   CommandInput,
-  CommandItem,
   CommandList,
-  CommandShortcut,
 } from "@/components/ui/command";
 import {
   Dialog,
@@ -22,39 +24,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { usePaletteHotkey } from "@/hooks/use-palette-hotkey";
+import { useSearchIndex } from "@/hooks/use-search-index";
 import { scoreSearchMatch } from "@/lib/search-score";
-import { pluralTypeName } from "@/lib/type-names";
-import type {
-  SearchData,
-  SearchDataResponse,
-  SearchItem,
-} from "@/types/search";
-
-// Any open Radix dialog, sheet or alert dialog other than the palette itself
-const OPEN_DIALOG =
-  '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]';
-
-// Dates don't survive JSON; the API sends createdAt as an ISO string
-function toSearchData(body: SearchDataResponse): SearchData {
-  return {
-    items: body.items.map((item) => ({
-      ...item,
-      createdAt: new Date(item.createdAt),
-    })),
-    collections: body.collections,
-  };
-}
-
-function itemKeywords(item: SearchItem): string[] {
-  return [
-    item.title,
-    item.description ?? "",
-    item.type.name,
-    pluralTypeName(item.type.name),
-    ...item.tags,
-    item.preview ?? "",
-  ].filter(Boolean);
-}
+import type { SearchItem } from "@/types/search";
 
 /**
  * The top bar's search box and the Ctrl K / ⌘K command palette it opens.
@@ -68,58 +41,19 @@ export function SearchPalette() {
   const { openItem } = useItemDrawer();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [data, setData] = useState<SearchData | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const latestRequest = useRef(0);
+  const { data, error, load } = useSearchIndex();
   // Set when an item is chosen, so the palette doesn't hand focus back to the
   // search box while the drawer is taking it
   const openingItem = useRef(false);
-
-  const load = useCallback(async () => {
-    const request = ++latestRequest.current;
-    setError(null);
-
-    try {
-      const response = await fetch("/api/search");
-      const body = await response.json();
-      if (request !== latestRequest.current) return;
-
-      if (!response.ok || !body?.success) {
-        setError(body?.error ?? "Could not load search.");
-        return;
-      }
-
-      setData(toSearchData(body.data as SearchDataResponse));
-    } catch {
-      if (request === latestRequest.current) {
-        setError("Could not load search.");
-      }
-    }
-  }, []);
 
   const openPalette = useCallback(() => {
     setSearch("");
     setOpen(true);
     void load();
   }, [load]);
+  const closePalette = useCallback(() => setOpen(false), []);
 
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key.toLowerCase() !== "k") return;
-      if (!(event.metaKey || event.ctrlKey) || event.repeat) return;
-      // Chrome would otherwise move focus to the address bar
-      event.preventDefault();
-
-      if (open) {
-        setOpen(false);
-      } else if (!document.querySelector(OPEN_DIALOG)) {
-        openPalette();
-      }
-    }
-
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [open, openPalette]);
+  usePaletteHotkey(open, openPalette, closePalette);
 
   function selectItem(item: SearchItem) {
     // A SearchItem is an ItemSummary; the drawer fetches the rest itself
@@ -137,23 +71,7 @@ export function SearchPalette() {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={openPalette}
-        className="flex h-8 w-full max-w-md pointer-coarse:h-10 min-w-0 items-center gap-2 rounded-lg border border-input bg-transparent px-2.5 text-sm text-muted-foreground transition-colors outline-none hover:bg-muted/50 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-      >
-        <Search className="size-4 shrink-0" />
-        <span className="truncate">Search items and collections…</span>
-        <span className="ml-auto hidden shrink-0 items-center gap-1 text-xs sm:flex">
-          <kbd className="rounded border border-border bg-muted px-1.5 font-sans">
-            Ctrl K
-          </kbd>
-          <span aria-hidden>/</span>
-          <kbd className="rounded border border-border bg-muted px-1.5 font-sans">
-            ⌘K
-          </kbd>
-        </span>
-      </button>
+      <SearchTrigger onClick={openPalette} />
 
       <Dialog
         open={open}
@@ -202,47 +120,20 @@ export function SearchPalette() {
                   <CommandEmpty>No results for “{query}”.</CommandEmpty>
                   <CommandGroup heading="Items">
                     {data.items.map((item) => (
-                      <CommandItem
+                      <SearchItemResult
                         key={item.id}
-                        value={`item:${item.id}`}
-                        keywords={itemKeywords(item)}
-                        onSelect={() => selectItem(item)}
-                      >
-                        <ItemTypeIcon type={item.type} size="xs" />
-                        <div className="flex min-w-0 flex-col">
-                          <span className="truncate">{item.title}</span>
-                          {item.preview && (
-                            <span className="truncate text-xs text-muted-foreground">
-                              {item.preview}
-                            </span>
-                          )}
-                        </div>
-                        <CommandShortcut className="tracking-normal">
-                          {item.type.name}
-                        </CommandShortcut>
-                      </CommandItem>
+                        item={item}
+                        onSelect={selectItem}
+                      />
                     ))}
                   </CommandGroup>
                   <CommandGroup heading="Collections">
                     {data.collections.map((collection) => (
-                      <CommandItem
+                      <SearchCollectionResult
                         key={collection.id}
-                        value={`collection:${collection.id}`}
-                        keywords={[
-                          collection.name,
-                          collection.description ?? "",
-                        ].filter(Boolean)}
-                        onSelect={() => selectCollection(collection.id)}
-                      >
-                        <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                          <Folder className="size-3.5" />
-                        </div>
-                        <span className="truncate">{collection.name}</span>
-                        <CommandShortcut className="tracking-normal">
-                          {collection.itemCount}{" "}
-                          {collection.itemCount === 1 ? "item" : "items"}
-                        </CommandShortcut>
-                      </CommandItem>
+                        collection={collection}
+                        onSelect={selectCollection}
+                      />
                     ))}
                   </CommandGroup>
                 </>

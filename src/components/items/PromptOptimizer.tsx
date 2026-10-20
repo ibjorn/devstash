@@ -1,31 +1,31 @@
 "use client";
 
-import { Check, Loader2, RotateCw, Sparkles } from "lucide-react";
+import { Loader2, RotateCw, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { updateItem } from "@/actions/items";
 import { AiProLock } from "@/components/items/AiProLock";
+import { EditorTabs } from "@/components/items/EditorTabs";
 import {
   MarkdownEditor,
   MarkdownPreview,
 } from "@/components/items/MarkdownEditor";
+import {
+  OptimizeResultPanel,
+  type OptimizeResult,
+} from "@/components/items/OptimizeResultPanel";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs } from "@/components/ui/tabs";
 import { useActionRunner } from "@/hooks/use-action-runner";
 import { useAiSuggestion } from "@/hooks/use-ai-suggestion";
+import { updateInputFrom } from "@/lib/item-update";
 import type { ItemDetail } from "@/types/items";
 
 interface OptimizeRequestBody {
   title: string;
   content: string;
-}
-
-interface OptimizeResult {
-  prompt: string;
-  changes: string[];
-  unchanged: boolean;
 }
 
 interface PromptOptimizerProps {
@@ -72,15 +72,10 @@ export function PromptOptimizer({
     if (!suggestion) return;
     const saved = await run(
       () =>
-        updateItem(detail.id, {
-          title: detail.title,
-          description: detail.description,
-          content: suggestion.prompt,
-          language: detail.language,
-          url: detail.url,
-          tags: detail.tags,
-          collectionIds: detail.collections.map((collection) => collection.id),
-        }),
+        updateItem(
+          detail.id,
+          updateInputFrom(detail, { content: suggestion.prompt }),
+        ),
       {
         failed: "Could not save the optimized prompt.",
         unreachable: "Could not reach the server — the prompt was not changed.",
@@ -131,14 +126,12 @@ export function PromptOptimizer({
           headerActions={
             <>
               {suggestion && (
-                <TabsList variant="line" className="h-6! p-0">
-                  <TabsTrigger value="original" className="px-2 text-xs">
-                    Original
-                  </TabsTrigger>
-                  <TabsTrigger value="optimized" className="px-2 text-xs">
-                    Optimized
-                  </TabsTrigger>
-                </TabsList>
+                <EditorTabs
+                  tabs={[
+                    { value: "original", label: "Original" },
+                    { value: "optimized", label: "Optimized" },
+                  ]}
+                />
               )}
               {action}
             </>
@@ -160,52 +153,13 @@ export function PromptOptimizer({
         />
       </Tabs>
 
-      <div aria-live="polite">
-        {pending ? (
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" />
-            Optimizing…
-          </p>
-        ) : result?.unchanged ? (
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Check className="size-4" />
-            Already in good shape — no changes suggested.
-          </p>
-        ) : suggestion ? (
-          <div className="flex flex-col gap-3 rounded-lg border bg-muted/40 p-4">
-            {suggestion.changes.length > 0 && (
-              <ul className="list-disc space-y-1 pl-5 text-sm">
-                {suggestion.changes.map((change) => (
-                  <li key={change}>{change}</li>
-                ))}
-              </ul>
-            )}
-            <p className="text-sm text-muted-foreground">
-              Use the optimized prompt? It replaces the saved content.
-            </p>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                size="sm"
-                onClick={handleUse}
-                disabled={saving}
-              >
-                {saving && <Loader2 className="animate-spin" />}
-                Use optimized prompt
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setResult(null)}
-                disabled={saving}
-              >
-                Discard
-              </Button>
-            </div>
-          </div>
-        ) : null}
-      </div>
+      <OptimizeResultPanel
+        pending={pending}
+        result={result}
+        saving={saving}
+        onUse={handleUse}
+        onDiscard={() => setResult(null)}
+      />
     </div>
   );
 }
