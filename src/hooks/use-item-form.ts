@@ -7,7 +7,7 @@ import type {
   ItemFormChange,
   ItemFormValues,
 } from "@/components/items/ItemFormFields";
-import { useErrorToast } from "@/hooks/use-error-toast";
+import { useActionRunner } from "@/hooks/use-action-runner";
 import type { ItemDetail } from "@/types/items";
 
 interface SubmitMessages {
@@ -21,16 +21,13 @@ interface SubmitMessages {
  * State and submission shared by the New Item dialog and the drawer's edit
  * mode: the field values, per-field errors and the pending flag.
  *
- * `submit` resolves to the saved item, or null once it has reported a failure.
- * Only the action call is inside its `try`, and the caller's success handling
- * runs after `submit` returns — so a throw on the way back can never be
- * reported as "not saved" over a save that worked.
+ * `submit` resolves to the saved item, or null once it has reported a failure
+ * — see useActionRunner for why the caller's success handling is safe.
  */
 export function useItemForm(initial: ItemFormValues, onUpgrade?: () => void) {
   const [values, setValues] = useState<ItemFormValues>(initial);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [pending, setPending] = useState(false);
-  const showError = useErrorToast(onUpgrade);
+  const { pending, run } = useActionRunner(onUpgrade);
 
   const handleChange = useCallback<ItemFormChange>((field, value) => {
     setValues((current) => ({ ...current, [field]: value }));
@@ -45,32 +42,11 @@ export function useItemForm(initial: ItemFormValues, onUpgrade?: () => void) {
     call: () => Promise<ItemActionResult>,
     messages: SubmitMessages,
   ): Promise<ItemDetail | null> {
-    setPending(true);
-    setFieldErrors({});
-
-    let result: ItemActionResult;
-    try {
-      result = await call();
-    } catch {
-      showError(messages.unreachable);
-      return null;
-    } finally {
-      setPending(false);
-    }
-
-    if (!result.success || !result.data) {
-      setFieldErrors(result.fieldErrors ?? {});
-      // Field messages render beside their input, so a validation failure
-      // needs no toast — only a failure with no field to blame does
-      if (result.error) {
-        showError(result.error, result.upgrade);
-      } else if (!result.fieldErrors) {
-        showError(messages.failed);
-      }
-      return null;
-    }
-
-    return result.data;
+    const result = await run(call, {
+      ...messages,
+      onFieldErrors: setFieldErrors,
+    });
+    return result?.data ?? null;
   }
 
   return { values, handleChange, reset, fieldErrors, pending, submit };

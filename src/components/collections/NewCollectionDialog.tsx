@@ -5,10 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import {
-  type CollectionActionResult,
-  createCollection,
-} from "@/actions/collections";
+import { createCollection } from "@/actions/collections";
 import {
   CollectionFormFields,
   type CollectionFormValues,
@@ -23,7 +20,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { useErrorToast } from "@/hooks/use-error-toast";
+import { useActionRunner } from "@/hooks/use-action-runner";
 
 const EMPTY_VALUES: CollectionFormValues = { name: "", description: "" };
 
@@ -34,8 +31,7 @@ export function NewCollectionDialog() {
   const [open, setOpen] = useState(false);
   const [values, setValues] = useState<CollectionFormValues>(EMPTY_VALUES);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [pending, setPending] = useState(false);
-  const showError = useErrorToast(() => setOpen(false));
+  const { pending, run } = useActionRunner(() => setOpen(false));
 
   const canSave = values.name.trim().length > 0 && !pending;
 
@@ -54,32 +50,13 @@ export function NewCollectionDialog() {
     event.preventDefault();
     if (!canSave) return;
 
-    setPending(true);
-    setFieldErrors({});
-
-    // Only the action call is inside the try, so a throw in the success
-    // handling below can't be reported as "not created"
-    let result: CollectionActionResult;
-    try {
-      result = await createCollection(values);
-    } catch {
-      toast.error(
+    const result = await run(() => createCollection(values), {
+      failed: "Could not create this collection.",
+      unreachable:
         "Could not reach the server — the collection was not created.",
-      );
-      return;
-    } finally {
-      setPending(false);
-    }
-
-    if (!result.success || !result.data) {
-      setFieldErrors(result.fieldErrors ?? {});
-      if (result.error) {
-        showError(result.error, result.upgrade);
-      } else if (!result.fieldErrors) {
-        toast.error("Could not create this collection.");
-      }
-      return;
-    }
+      onFieldErrors: setFieldErrors,
+    });
+    if (!result?.data) return;
 
     setOpen(false);
     toast.success(`Created "${result.data.name}"`);

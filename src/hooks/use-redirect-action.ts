@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { UNREACHABLE_MESSAGE } from "@/lib/messages";
 import type { BillingActionResult } from "@/types/billing";
 
 /**
@@ -23,7 +24,7 @@ export function useRedirectAction() {
       }
       toast.error(result.error ?? "Something went wrong. Please try again.");
     } catch {
-      toast.error("Could not reach the server. Please try again.");
+      toast.error(UNREACHABLE_MESSAGE);
     }
     setPending(null);
   }

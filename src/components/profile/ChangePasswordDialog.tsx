@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { changePassword, type ProfileActionResult } from "@/actions/profile";
+import { changePassword } from "@/actions/profile";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useActionRunner } from "@/hooks/use-action-runner";
 import { changePasswordSchema } from "@/lib/validation/auth";
 import { fieldErrorsFrom } from "@/lib/validation/field-errors";
 
@@ -40,7 +41,7 @@ const FIELDS: { name: FieldName; label: string; autoComplete: string }[] = [
 export function ChangePasswordDialog() {
   const [open, setOpen] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const [pending, setPending] = useState(false);
+  const { pending, run } = useActionRunner();
 
   function handleOpenChange(next: boolean) {
     setOpen(next);
@@ -64,24 +65,11 @@ export function ChangePasswordDialog() {
       return;
     }
 
-    setPending(true);
-    let result: ProfileActionResult;
-    // Only the call itself is wrapped: a throw after a successful change must
-    // not toast "Could not reach the server" over a password that did update
-    try {
-      result = await changePassword(formData);
-    } catch {
-      toast.error("Could not reach the server. Please try again.");
-      return;
-    } finally {
-      setPending(false);
-    }
-
-    if (!result.success) {
-      if (result.fieldErrors) setFieldErrors(result.fieldErrors);
-      if (result.error) toast.error(result.error);
-      return;
-    }
+    const result = await run(() => changePassword(formData), {
+      failed: "Could not update your password.",
+      onFieldErrors: setFieldErrors,
+    });
+    if (!result) return;
 
     form.reset();
     handleOpenChange(false);

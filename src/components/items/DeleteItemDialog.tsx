@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { deleteItem, type ItemActionResult } from "@/actions/items";
+import { deleteItem } from "@/actions/items";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,6 +18,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { useActionRunner } from "@/hooks/use-action-runner";
 import type { ItemSummary } from "@/types/items";
 
 interface DeleteItemDialogProps {
@@ -32,7 +33,7 @@ interface DeleteItemDialogProps {
 export function DeleteItemDialog({ item, onDeleted }: DeleteItemDialogProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [pending, setPending] = useState(false);
+  const { pending, run } = useActionRunner();
 
   // Not closable mid-delete: dismissing would hide the outcome of a request
   // that's still going to land
@@ -45,24 +46,11 @@ export function DeleteItemDialog({ item, onDeleted }: DeleteItemDialogProps) {
     // until the delete has actually succeeded
     event.preventDefault();
 
-    setPending(true);
-    let result: ItemActionResult;
-    try {
-      result = await deleteItem(item.id);
-    } catch {
-      toast.error("Could not reach the server. Please try again.");
-      return;
-    } finally {
-      setPending(false);
-    }
+    const result = await run(() => deleteItem(item.id), {
+      failed: "Could not delete this item.",
+    });
+    if (!result) return;
 
-    if (!result.success) {
-      toast.error(result.error ?? "Could not delete this item.");
-      return;
-    }
-
-    // Outside the try: a throw from here on isn't a failed delete, and must
-    // not be toasted as one
     setOpen(false);
     onDeleted();
     toast.success(`Deleted "${item.title}"`);

@@ -13,6 +13,7 @@ import {
 } from "@/components/items/MarkdownEditor";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useActionRunner } from "@/hooks/use-action-runner";
 import { useAiSuggestion } from "@/hooks/use-ai-suggestion";
 import type { ItemDetail } from "@/types/items";
 
@@ -55,7 +56,7 @@ export function PromptOptimizer({
   >("/api/ai/optimize");
   const [result, setResult] = useState<OptimizeResult | null>(null);
   const [tab, setTab] = useState("optimized");
-  const [saving, setSaving] = useState(false);
+  const { pending: saving, run } = useActionRunner();
 
   const suggestion = result && !result.unchanged ? result : null;
   const showOptimized = suggestion !== null && tab === "optimized";
@@ -69,31 +70,29 @@ export function PromptOptimizer({
 
   async function handleUse() {
     if (!suggestion) return;
-    setSaving(true);
-    try {
-      const saved = await updateItem(detail.id, {
-        title: detail.title,
-        description: detail.description,
-        content: suggestion.prompt,
-        language: detail.language,
-        url: detail.url,
-        tags: detail.tags,
-        collectionIds: detail.collections.map((collection) => collection.id),
-      });
-      if (!saved.success || !saved.data) {
-        toast.error(saved.error ?? "Could not save the optimized prompt.");
-        return;
-      }
-      toast.success("Prompt updated");
-      setResult(null);
-      onSaved(saved.data);
-      // The cards behind the drawer are server-rendered
-      router.refresh();
-    } catch {
-      toast.error("Could not reach the server — the prompt was not changed.");
-    } finally {
-      setSaving(false);
-    }
+    const saved = await run(
+      () =>
+        updateItem(detail.id, {
+          title: detail.title,
+          description: detail.description,
+          content: suggestion.prompt,
+          language: detail.language,
+          url: detail.url,
+          tags: detail.tags,
+          collectionIds: detail.collections.map((collection) => collection.id),
+        }),
+      {
+        failed: "Could not save the optimized prompt.",
+        unreachable: "Could not reach the server — the prompt was not changed.",
+      },
+    );
+    if (!saved?.data) return;
+
+    toast.success("Prompt updated");
+    setResult(null);
+    onSaved(saved.data);
+    // The cards behind the drawer are server-rendered
+    router.refresh();
   }
 
   const action = !aiEnabled ? (
