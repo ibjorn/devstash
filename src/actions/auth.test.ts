@@ -17,14 +17,9 @@ import {
   type SignInState,
 } from "@/actions/auth";
 import { EmailNotVerifiedError, RateLimitedError } from "@/lib/auth/errors";
+import { formData } from "@/test/form-data";
 
 const EMPTY: SignInState = { error: null };
-
-function formData(fields: Record<string, string>): FormData {
-  const data = new FormData();
-  for (const [key, value] of Object.entries(fields)) data.append(key, value);
-  return data;
-}
 
 const credentials = (overrides: Record<string, string> = {}) =>
   formData({

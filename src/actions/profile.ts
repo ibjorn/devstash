@@ -1,13 +1,12 @@
 "use server";
 
 import bcrypt from "bcryptjs";
-import { ZodError } from "zod";
 
 import { signOut } from "@/auth";
 import { hashPassword } from "@/lib/auth/password";
 import { resetIdentifier } from "@/lib/auth/reset-token";
 import { isChargingSubscriptionStatus } from "@/lib/billing";
-import { requireUserId } from "@/lib/db/session-user";
+import { getSessionUserId } from "@/lib/db/session-user";
 import { disableSubscription } from "@/lib/paystack";
 import { prisma } from "@/lib/prisma";
 import { deleteObjectsWithPrefix } from "@/lib/r2";
@@ -21,37 +20,30 @@ import {
   changePasswordSchema,
   deleteAccountSchema,
 } from "@/lib/validation/auth";
-import { fieldErrorsFrom } from "@/lib/validation/field-errors";
+import { fieldErrorResult } from "@/lib/validation/field-errors";
+import type { ActionResult } from "@/types/actions";
 
-/**
- * Actions return `{ success, error, fieldErrors }` per the project's error
- * handling standard. `fieldErrors` is keyed by input name so the dialogs can
- * put a message next to the field that caused it; `error` is for anything with
- * no field to blame and is toasted instead.
- */
-export interface ProfileActionResult {
-  success: boolean;
-  error?: string;
-  fieldErrors?: Record<string, string>;
-}
-
-function toFieldErrors(error: ZodError): ProfileActionResult {
-  return { success: false, fieldErrors: fieldErrorsFrom(error) };
-}
+export type ProfileActionResult = ActionResult;
 
 export async function changePassword(
   formData: FormData,
 ): Promise<ProfileActionResult> {
+  const userId = await getSessionUserId();
+  if (!userId) {
+    return {
+      success: false,
+      error: "You need to be signed in to change your password.",
+    };
+  }
+
   const parsed = changePasswordSchema.safeParse({
     currentPassword: formData.get("currentPassword"),
     password: formData.get("password"),
     confirmPassword: formData.get("confirmPassword"),
   });
-  if (!parsed.success) return toFieldErrors(parsed.error);
+  if (!parsed.success) return fieldErrorResult(parsed.error);
 
   try {
-    const userId = await requireUserId();
-
     // This action takes an unlimited number of guesses at the *current*
     // password, which is what makes it a re-auth gate at all. Keyed by user id
     // rather than IP: the session already names the caller, and an attacker
@@ -149,14 +141,20 @@ async function cancelSubscription(user: SubscriptionColumns) {
 export async function deleteAccount(
   formData: FormData,
 ): Promise<ProfileActionResult> {
+  const userId = await getSessionUserId();
+  if (!userId) {
+    return {
+      success: false,
+      error: "You need to be signed in to delete your account.",
+    };
+  }
+
   const parsed = deleteAccountSchema.safeParse({
     confirmEmail: formData.get("confirmEmail"),
   });
-  if (!parsed.success) return toFieldErrors(parsed.error);
+  if (!parsed.success) return fieldErrorResult(parsed.error);
 
-  let userId: string;
   try {
-    userId = await requireUserId();
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {

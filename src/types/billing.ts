@@ -1,3 +1,5 @@
+import type { ActionResult } from "@/types/actions";
+
 export interface BillingUser {
   email: string;
   isPro: boolean;
@@ -7,9 +9,5 @@ export interface BillingUser {
   currentPeriodEnd: Date | null;
 }
 
-export interface BillingActionResult {
-  success: boolean;
-  /** Where to send the browser next — Paystack checkout or the manage page. */
-  data?: { url: string };
-  error?: string;
-}
+/** `data.url` is where to send the browser next — Paystack checkout or the manage page. */
+export type BillingActionResult = ActionResult<{ url: string }>;

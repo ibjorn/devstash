@@ -1,13 +1,9 @@
 import { getSessionUserId } from "@/lib/db/session-user";
+import { isRowId } from "@/lib/validation/ids";
+import type { ActionResult } from "@/types/actions";
 
-/**
- * `{ success, error }` per the project's error handling standard; the caller
- * already knows the value it asked for, so there is no `data`.
- */
-export interface FlagActionResult {
-  success: boolean;
-  error?: string;
-}
+/** The caller already knows the value it asked for, so there is no `data`. */
+export type FlagActionResult = ActionResult;
 
 interface SetFlagOptions {
   id: unknown;
@@ -16,10 +12,6 @@ interface SetFlagOptions {
   write: (userId: string, id: string, value: boolean) => Promise<boolean>;
   noun: "item" | "collection";
   signedOut: string;
-}
-
-function isId(id: unknown): id is string {
-  return typeof id === "string" && id.length > 0 && id.length <= 64;
 }
 
 /**
@@ -41,7 +33,7 @@ export async function setFlag({
 
   const gone = `That ${noun} no longer exists.`;
   const failed = `Could not update this ${noun}.`;
-  if (!isId(id)) return { success: false, error: gone };
+  if (!isRowId(id)) return { success: false, error: gone };
   if (typeof value !== "boolean") return { success: false, error: failed };
 
   try {

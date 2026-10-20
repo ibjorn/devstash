@@ -18,6 +18,7 @@ import {
 import type { BillingActionResult } from "@/types/billing";
 
 const SIGNED_OUT = "You need to be signed in to manage billing.";
+const INVALID_BILLING = "Choose monthly or yearly billing.";
 const FAILED_RENEWAL =
   "Your last payment failed. Update your card under Manage subscription instead of starting a new one.";
 
@@ -33,9 +34,7 @@ export async function startCheckout(
   if (!userId) return { success: false, error: SIGNED_OUT };
 
   const parsed = billingSchema.safeParse(billing);
-  if (!parsed.success) {
-    return { success: false, error: "Choose monthly or yearly billing." };
-  }
+  if (!parsed.success) return { success: false, error: INVALID_BILLING };
 
   try {
     const user = await getBillingUser(userId);
@@ -111,9 +110,7 @@ export async function resubscribe(
   if (!userId) return { success: false, error: SIGNED_OUT };
 
   const parsed = billingSchema.safeParse(billing);
-  if (!parsed.success) {
-    return { success: false, error: "Choose monthly or yearly billing." };
-  }
+  if (!parsed.success) return { success: false, error: INVALID_BILLING };
 
   try {
     const user = await getBillingUser(userId);

@@ -6,12 +6,9 @@ import {
   editorPreferencesSchema,
   type EditorPreferences,
 } from "@/lib/editor-preferences";
+import type { ActionResult } from "@/types/actions";
 
-export interface EditorPreferencesActionResult {
-  success: boolean;
-  data?: EditorPreferences;
-  error?: string;
-}
+export type EditorPreferencesActionResult = ActionResult<EditorPreferences>;
 
 /**
  * Saves the full set of editor preferences for the session user. The form

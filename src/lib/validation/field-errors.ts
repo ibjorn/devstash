@@ -1,5 +1,7 @@
 import type { ZodError } from "zod";
 
+import type { ActionResult } from "@/types/actions";
+
 /**
  * Maps a Zod error to `{ fieldName: message }`, keyed by the top-level path
  * segment so each message can sit next to the input that caused it. The first
@@ -14,4 +16,9 @@ export function fieldErrorsFrom(error: ZodError): Record<string, string> {
     if (field) fieldErrors[field] ??= issue.message;
   }
   return fieldErrors;
+}
+
+/** The failed action result for input that didn't pass its schema. */
+export function fieldErrorResult(error: ZodError): ActionResult {
+  return { success: false, fieldErrors: fieldErrorsFrom(error) };
 }

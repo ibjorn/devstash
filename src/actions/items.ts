@@ -1,7 +1,5 @@
 "use server";
 
-import { ZodError } from "zod";
-
 import {
   createItem as createItemQuery,
   deleteItem as deleteItemQuery,
@@ -10,10 +8,10 @@ import {
   UnknownCollectionError,
   updateItem as updateItemQuery,
 } from "@/lib/db/items";
-import { getPlanUsage } from "@/lib/db/entitlements";
 import { getCreatableItemType } from "@/lib/db/item-types";
 import { getSessionUserId } from "@/lib/db/session-user";
-import { checkItemCreate, DENIAL_MESSAGES } from "@/lib/entitlements";
+import { checkItemCreate } from "@/lib/entitlements";
+import { planDenial } from "@/lib/plan-gate";
 import { isPrismaError } from "@/lib/prisma-errors";
 import { deleteObject, getObjectSize } from "@/lib/r2";
 import {
@@ -27,27 +25,14 @@ import {
   type UpdateItemInput,
   updateItemSchema,
 } from "@/lib/validation/items";
-import { fieldErrorsFrom } from "@/lib/validation/field-errors";
+import { fieldErrorResult } from "@/lib/validation/field-errors";
+import { isRowId } from "@/lib/validation/ids";
+import type { ActionResult } from "@/types/actions";
 import type { CreatableItemType, ItemDetail } from "@/types/items";
 
-/**
- * Actions return `{ success, data, error, fieldErrors }` per the project's
- * error handling standard. `fieldErrors` is keyed by input name so the drawer
- * can put a message beside the field that caused it; `error` covers anything
- * with no field to blame and is toasted instead. `upgrade` marks a refusal
- * the plan caused, so the toast can offer the way out.
- */
-export interface ItemActionResult {
-  success: boolean;
-  data?: ItemDetail;
-  error?: string;
-  fieldErrors?: Record<string, string>;
-  upgrade?: true;
-}
+export type ItemActionResult = ActionResult<ItemDetail>;
 
-function toFieldErrors(error: ZodError): ItemActionResult {
-  return { success: false, fieldErrors: fieldErrorsFrom(error) };
-}
+const GONE = "That item no longer exists.";
 
 /**
  * The columns an item's content type actually gives meaning to. The drawer
@@ -173,19 +158,14 @@ function isActionResult(value: unknown): value is ItemActionResult {
   return typeof value === "object" && value !== null && "success" in value;
 }
 
+const SIGNED_OUT_CREATE = "You need to be signed in to create items.";
+
 export async function createItem(input: unknown): Promise<ItemActionResult> {
   const userId = await getSessionUserId();
-  if (!userId) {
-    return {
-      success: false,
-      error: "You need to be signed in to create items.",
-    };
-  }
+  if (!userId) return { success: false, error: SIGNED_OUT_CREATE };
 
   const parsed = createItemSchema.safeParse(input);
-  if (!parsed.success) {
-    return toFieldErrors(parsed.error);
-  }
+  if (!parsed.success) return fieldErrorResult(parsed.error);
 
   const data = parsed.data;
 
@@ -198,17 +178,12 @@ export async function createItem(input: unknown): Promise<ItemActionResult> {
     }
 
     // The authoritative File/Image check — the upload route can be skipped
-    const plan = await getPlanUsage(userId);
-    if (!plan) {
-      return {
-        success: false,
-        error: "You need to be signed in to create items.",
-      };
-    }
-    const denied = checkItemCreate(plan, type.name);
-    if (denied) {
-      return { success: false, error: DENIAL_MESSAGES[denied], upgrade: true };
-    }
+    const denied = await planDenial(
+      userId,
+      (plan) => checkItemCreate(plan, type.name),
+      SIGNED_OUT_CREATE,
+    );
+    if (denied) return denied;
 
     const allowed = ALLOWED_FIELDS[type.contentType];
     const unused = unusedFieldError(allowed, data);
@@ -247,7 +222,7 @@ export async function createItem(input: unknown): Promise<ItemActionResult> {
 }
 
 export async function updateItem(
-  itemId: string,
+  itemId: unknown,
   input: unknown,
 ): Promise<ItemActionResult> {
   const userId = await getSessionUserId();
@@ -255,10 +230,10 @@ export async function updateItem(
     return { success: false, error: "You need to be signed in to edit items." };
   }
 
+  if (!isRowId(itemId)) return { success: false, error: GONE };
+
   const parsed = updateItemSchema.safeParse(input);
-  if (!parsed.success) {
-    return toFieldErrors(parsed.error);
-  }
+  if (!parsed.success) return fieldErrorResult(parsed.error);
 
   const data = parsed.data;
 
@@ -267,9 +242,7 @@ export async function updateItem(
     // established here — the update's own where clause does that atomically —
     // but a caller who owns nothing gets the same "not found" either way.
     const existing = await getItemDetail(userId, itemId);
-    if (!existing) {
-      return { success: false, error: "That item no longer exists." };
-    }
+    if (!existing) return { success: false, error: GONE };
 
     const allowed = ALLOWED_FIELDS[existing.contentType];
     const unused = unusedFieldError(allowed, data);
@@ -295,16 +268,14 @@ export async function updateItem(
 
     // The row vanished between the read and the write, or was never the
     // caller's to begin with.
-    if (isPrismaError(error, "P2025")) {
-      return { success: false, error: "That item no longer exists." };
-    }
+    if (isPrismaError(error, "P2025")) return { success: false, error: GONE };
 
     console.error("updateItem failed", error);
     return { success: false, error: "Could not save your changes." };
   }
 }
 
-export async function deleteItem(itemId: string): Promise<ItemActionResult> {
+export async function deleteItem(itemId: unknown): Promise<ItemActionResult> {
   const userId = await getSessionUserId();
   if (!userId) {
     return {
@@ -313,18 +284,14 @@ export async function deleteItem(itemId: string): Promise<ItemActionResult> {
     };
   }
 
-  if (typeof itemId !== "string" || itemId.length === 0) {
-    return { success: false, error: "That item no longer exists." };
-  }
+  if (!isRowId(itemId)) return { success: false, error: GONE };
 
   let fileKey: string | null;
   try {
     ({ fileKey } = await deleteItemQuery(userId, itemId));
   } catch (error) {
     // Already deleted — perhaps in another tab — or never the caller's.
-    if (isPrismaError(error, "P2025")) {
-      return { success: false, error: "That item no longer exists." };
-    }
+    if (isPrismaError(error, "P2025")) return { success: false, error: GONE };
 
     console.error("deleteItem failed", error);
     return { success: false, error: "Could not delete this item." };

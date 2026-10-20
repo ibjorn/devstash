@@ -4,7 +4,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 const {
   signOut,
   prisma,
-  requireUserId,
+  getSessionUserId,
   checkRateLimit,
   clearRateLimit,
   deleteObjectsWithPrefix,
@@ -15,7 +15,7 @@ const {
     user: { findUnique: vi.fn(), update: vi.fn() },
     $transaction: vi.fn(),
   },
-  requireUserId: vi.fn(),
+  getSessionUserId: vi.fn(),
   checkRateLimit: vi.fn(),
   clearRateLimit: vi.fn(),
   deleteObjectsWithPrefix: vi.fn(),
@@ -24,7 +24,7 @@ const {
 
 vi.mock("@/auth", () => ({ signOut }));
 vi.mock("@/lib/prisma", () => ({ prisma }));
-vi.mock("@/lib/db/session-user", () => ({ requireUserId }));
+vi.mock("@/lib/db/session-user", () => ({ getSessionUserId }));
 vi.mock("@/lib/r2", () => ({ deleteObjectsWithPrefix }));
 vi.mock("@/lib/paystack", () => ({ disableSubscription }));
 // Partial: the limiter itself is stubbed, but rateLimitMessage stays real so
@@ -37,6 +37,7 @@ vi.mock("@/lib/rate-limit", async (importOriginal) => ({
 
 import { changePassword, deleteAccount } from "@/actions/profile";
 import { BCRYPT_ROUNDS } from "@/lib/auth/password";
+import { formData } from "@/test/form-data";
 
 const USER_ID = "usr_1";
 const EMAIL = "dev@devstash.io";
@@ -56,12 +57,6 @@ function transactionClient() {
     verificationToken: { deleteMany: vi.fn() },
     user: { delete: vi.fn() },
   };
-}
-
-function formData(fields: Record<string, string>): FormData {
-  const data = new FormData();
-  for (const [key, value] of Object.entries(fields)) data.append(key, value);
-  return data;
 }
 
 const changeForm = (overrides: Record<string, string> = {}) =>
@@ -85,12 +80,28 @@ beforeAll(async () => {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  requireUserId.mockResolvedValue(USER_ID);
+  getSessionUserId.mockResolvedValue(USER_ID);
   checkRateLimit.mockResolvedValue(allowed);
   clearRateLimit.mockResolvedValue(undefined);
 });
 
 describe("changePassword", () => {
+  it("refuses a caller with no session without logging a failure", async () => {
+    getSessionUserId.mockResolvedValue(null);
+    const consoleError = vi.spyOn(console, "error");
+
+    const result = await changePassword(changeForm());
+
+    expect(result).toEqual({
+      success: false,
+      error: "You need to be signed in to change your password.",
+    });
+    expect(checkRateLimit).not.toHaveBeenCalled();
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+    expect(consoleError).not.toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
+
   it("returns field errors without touching the database", async () => {
     const result = await changePassword(
       changeForm({ confirmPassword: "does-not-match" }),
@@ -218,6 +229,23 @@ describe("deleteAccount", () => {
     prisma.$transaction.mockImplementation(async (run) => run(tx));
     return tx;
   }
+
+  it("refuses a caller with no session without touching anything", async () => {
+    getSessionUserId.mockResolvedValue(null);
+    const consoleError = vi.spyOn(console, "error");
+
+    const result = await deleteAccount(deleteForm(EMAIL));
+
+    expect(result).toEqual({
+      success: false,
+      error: "You need to be signed in to delete your account.",
+    });
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(signOut).not.toHaveBeenCalled();
+    expect(consoleError).not.toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
 
   it("requires a typed confirmation", async () => {
     const result = await deleteAccount(deleteForm(""));

@@ -5,58 +5,39 @@ import {
   deleteCollection as deleteCollectionQuery,
   updateCollection as updateCollectionQuery,
 } from "@/lib/db/collections";
-import { getPlanUsage } from "@/lib/db/entitlements";
 import { getSessionUserId } from "@/lib/db/session-user";
-import { checkCollectionCreate, DENIAL_MESSAGES } from "@/lib/entitlements";
+import { checkCollectionCreate } from "@/lib/entitlements";
+import { planDenial } from "@/lib/plan-gate";
 import { isPrismaError } from "@/lib/prisma-errors";
 import {
   createCollectionSchema,
   updateCollectionSchema,
 } from "@/lib/validation/collections";
-import { fieldErrorsFrom } from "@/lib/validation/field-errors";
+import { fieldErrorResult } from "@/lib/validation/field-errors";
+import { isRowId } from "@/lib/validation/ids";
+import type { ActionResult } from "@/types/actions";
 import type { CollectionHeader, CollectionSummary } from "@/types/collections";
 
-/**
- * `{ success, data, error, fieldErrors }` per the project's error handling
- * standard: `fieldErrors` sits beside its input, `error` is toasted.
- * `upgrade` marks a refusal the plan caused.
- */
-export interface CollectionActionResult<T = CollectionSummary> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  fieldErrors?: Record<string, string>;
-  upgrade?: true;
-}
+export type CollectionActionResult<T = CollectionSummary> = ActionResult<T>;
+
+const SIGNED_OUT_CREATE = "You need to be signed in to create collections.";
 
 export async function createCollection(
   input: unknown,
 ): Promise<CollectionActionResult> {
   const userId = await getSessionUserId();
-  if (!userId) {
-    return {
-      success: false,
-      error: "You need to be signed in to create collections.",
-    };
-  }
+  if (!userId) return { success: false, error: SIGNED_OUT_CREATE };
 
   const parsed = createCollectionSchema.safeParse(input);
-  if (!parsed.success) {
-    return { success: false, fieldErrors: fieldErrorsFrom(parsed.error) };
-  }
+  if (!parsed.success) return fieldErrorResult(parsed.error);
 
   try {
-    const plan = await getPlanUsage(userId);
-    if (!plan) {
-      return {
-        success: false,
-        error: "You need to be signed in to create collections.",
-      };
-    }
-    const denied = checkCollectionCreate(plan);
-    if (denied) {
-      return { success: false, error: DENIAL_MESSAGES[denied], upgrade: true };
-    }
+    const denied = await planDenial(
+      userId,
+      checkCollectionCreate,
+      SIGNED_OUT_CREATE,
+    );
+    if (denied) return denied;
 
     const created = await createCollectionQuery(userId, parsed.data);
     return { success: true, data: created };
@@ -67,10 +48,6 @@ export async function createCollection(
 }
 
 const GONE = "That collection no longer exists.";
-
-function isCollectionId(id: unknown): id is string {
-  return typeof id === "string" && id.length > 0 && id.length <= 64;
-}
 
 export async function updateCollection(
   id: unknown,
@@ -84,12 +61,10 @@ export async function updateCollection(
     };
   }
 
-  if (!isCollectionId(id)) return { success: false, error: GONE };
+  if (!isRowId(id)) return { success: false, error: GONE };
 
   const parsed = updateCollectionSchema.safeParse(input);
-  if (!parsed.success) {
-    return { success: false, fieldErrors: fieldErrorsFrom(parsed.error) };
-  }
+  if (!parsed.success) return fieldErrorResult(parsed.error);
 
   try {
     const updated = await updateCollectionQuery(userId, id, parsed.data);
@@ -115,7 +90,7 @@ export async function deleteCollection(
     };
   }
 
-  if (!isCollectionId(id)) return { success: false, error: GONE };
+  if (!isRowId(id)) return { success: false, error: GONE };
 
   try {
     await deleteCollectionQuery(userId, id);

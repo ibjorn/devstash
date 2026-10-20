@@ -116,6 +116,19 @@ describe("updateItem", () => {
     expect(updateItemQuery).not.toHaveBeenCalled();
   });
 
+  it("rejects a missing, oversized or non-string id without querying", async () => {
+    signedIn();
+
+    for (const bad of ["", "a".repeat(65), undefined, 42, { id: ITEM_ID }]) {
+      await expect(updateItem(bad, valid)).resolves.toEqual({
+        success: false,
+        error: "That item no longer exists.",
+      });
+    }
+    expect(getItemDetail).not.toHaveBeenCalled();
+    expect(updateItemQuery).not.toHaveBeenCalled();
+  });
+
   it("runs as the session user, not as anything the caller supplied", async () => {
     signedIn();
     getItemDetail.mockResolvedValue(detail());
@@ -326,11 +339,11 @@ describe("deleteItem", () => {
     await expect(deleteItem(ITEM_ID)).resolves.toEqual({ success: true });
   });
 
-  it("rejects a missing or non-string id without querying", async () => {
+  it("rejects a missing, oversized or non-string id without querying", async () => {
     signedIn();
 
-    for (const bad of ["", undefined, 42, { id: ITEM_ID }]) {
-      const result = await deleteItem(bad as unknown as string);
+    for (const bad of ["", "a".repeat(65), undefined, 42, { id: ITEM_ID }]) {
+      const result = await deleteItem(bad);
       expect(result.success).toBe(false);
     }
     expect(deleteItemQuery).not.toHaveBeenCalled();
