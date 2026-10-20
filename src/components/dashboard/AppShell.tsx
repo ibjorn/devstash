@@ -9,7 +9,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import {
   getCollectionOptions,
   getFavoriteCollections,
-  getRecentNonFavoriteCollections,
+  getRecentCollections,
 } from "@/lib/db/collections";
 import { getPlanUsage } from "@/lib/db/entitlements";
 import {
@@ -45,7 +45,8 @@ export async function AppShell({
   ] = await Promise.all([
     getItemTypeNavItems(userId),
     getFavoriteCollections(userId),
-    getRecentNonFavoriteCollections(userId),
+    // favourites included — Recent shouldn't hide a collection for being starred
+    getRecentCollections(userId, 5),
     getCurrentUser(userId),
     getCreatableItemTypes(),
     getCollectionOptions(userId),

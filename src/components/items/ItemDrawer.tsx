@@ -69,7 +69,9 @@ export function ItemDrawer({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
-        className="flex w-full flex-col gap-0 p-0 sm:max-w-xl"
+        // Same data-[side=right] prefix as the sheet's own w-3/4 / sm:max-w-sm,
+        // so tailwind-merge replaces them — unprefixed, they lost on specificity
+        className="flex flex-col gap-0 p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-xl"
         // Nothing here describes the dialog as a whole; the sections do their
         // own labelling, and Radix warns unless the association is opted out of
         aria-describedby={undefined}

@@ -5,12 +5,8 @@ import { useActionState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-import {
-  signInWithCredentials,
-  signInWithGitHub,
-  type SignInState,
-} from "@/actions/auth";
-import { GitHubIcon } from "@/components/auth/GitHubIcon";
+import { signInWithCredentials, type SignInState } from "@/actions/auth";
+import { GitHubButton } from "@/components/auth/GitHubButton";
 import { ResendVerification } from "@/components/auth/ResendVerification";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -116,14 +112,7 @@ export function SignInForm({
         <span className="h-px flex-1 bg-border" />
       </div>
 
-      {/* Separate form — the OAuth handoff is its own server action */}
-      <form action={signInWithGitHub}>
-        <input type="hidden" name="callbackUrl" value={callbackUrl} />
-        <Button type="submit" variant="outline" className="w-full">
-          <GitHubIcon className="size-4" />
-          Sign in with GitHub
-        </Button>
-      </form>
+      <GitHubButton callbackUrl={callbackUrl} label="Sign in with GitHub" />
     </div>
   );
 }

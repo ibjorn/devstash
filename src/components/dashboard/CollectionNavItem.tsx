@@ -8,6 +8,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { isActivePath, NAV_ACTIVE_CLASS } from "@/lib/nav";
 import type { CollectionSummary } from "@/types/collections";
 
 interface CollectionNavItemProps {
@@ -31,8 +32,9 @@ export function CollectionNavItem({
     <SidebarMenuItem>
       <SidebarMenuButton
         asChild
-        isActive={pathname === href}
+        isActive={isActivePath(pathname, href)}
         tooltip={collection.name}
+        className={NAV_ACTIVE_CLASS}
       >
         <Link href={href}>
           {icon}

@@ -5,9 +5,11 @@ import { useState, type FormEvent } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { GitHubButton } from "@/components/auth/GitHubButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DEFAULT_SIGNED_IN_PATH } from "@/lib/auth-redirect";
 import { registerSchema } from "@/lib/validation/auth";
 import { fieldErrorsFrom } from "@/lib/validation/field-errors";
 
@@ -26,7 +28,7 @@ const FIELDS: {
     label: "Name",
     type: "text",
     autoComplete: "name",
-    placeholder: "Brad Traversy",
+    placeholder: "Jane Doe",
   },
   {
     name: "email",
@@ -102,33 +104,50 @@ export function RegisterForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-      {FIELDS.map((field) => (
-        <div key={field.name} className="space-y-2">
-          <Label htmlFor={field.name}>{field.label}</Label>
-          <Input
-            id={field.name}
-            name={field.name}
-            type={field.type}
-            autoComplete={field.autoComplete}
-            placeholder={field.placeholder}
-            aria-invalid={Boolean(fieldErrors[field.name])}
-            aria-describedby={
-              fieldErrors[field.name] ? `${field.name}-error` : undefined
-            }
-          />
-          {fieldErrors[field.name] && (
-            <p id={`${field.name}-error`} className="text-sm text-destructive">
-              {fieldErrors[field.name]}
-            </p>
-          )}
-        </div>
-      ))}
+    <div className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+        {FIELDS.map((field) => (
+          <div key={field.name} className="space-y-2">
+            <Label htmlFor={field.name}>{field.label}</Label>
+            <Input
+              id={field.name}
+              name={field.name}
+              type={field.type}
+              autoComplete={field.autoComplete}
+              placeholder={field.placeholder}
+              aria-invalid={Boolean(fieldErrors[field.name])}
+              aria-describedby={
+                fieldErrors[field.name] ? `${field.name}-error` : undefined
+              }
+            />
+            {fieldErrors[field.name] && (
+              <p
+                id={`${field.name}-error`}
+                className="text-sm text-destructive"
+              >
+                {fieldErrors[field.name]}
+              </p>
+            )}
+          </div>
+        ))}
 
-      <Button type="submit" className="w-full" disabled={pending}>
-        {pending && <Loader2 className="size-4 animate-spin" />}
-        Create account
-      </Button>
-    </form>
+        <Button type="submit" className="w-full" disabled={pending}>
+          {pending && <Loader2 className="size-4 animate-spin" />}
+          Create account
+        </Button>
+      </form>
+
+      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+        <span className="h-px flex-1 bg-border" />
+        OR
+        <span className="h-px flex-1 bg-border" />
+      </div>
+
+      {/* GitHub sign-in creates the account on first use, so it doubles as sign-up */}
+      <GitHubButton
+        callbackUrl={DEFAULT_SIGNED_IN_PATH}
+        label="Sign up with GitHub"
+      />
+    </div>
   );
 }

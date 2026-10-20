@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Folder, FolderOpen, Layers, Star } from "lucide-react";
+import {
+  Folder,
+  FolderOpen,
+  Layers,
+  LayoutDashboard,
+  Star,
+} from "lucide-react";
 
 import { CollectionNavItem } from "@/components/dashboard/CollectionNavItem";
 import { SidebarUserMenu } from "@/components/dashboard/SidebarUserMenu";
@@ -21,10 +27,16 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
+import { isActivePath, NAV_ACTIVE_CLASS } from "@/lib/nav";
 import { getTypeIcon } from "@/lib/type-icons";
 import type { CollectionSummary } from "@/types/collections";
 import type { ItemTypeNavItem } from "@/types/items";
 import type { CurrentUser } from "@/types/users";
+
+const MAIN_LINKS = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/favorites", label: "Favorites", icon: Star },
+];
 
 interface AppSidebarProps {
   itemTypes: ItemTypeNavItem[];
@@ -59,6 +71,27 @@ export function AppSidebar({
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {MAIN_LINKS.map(({ href, label, icon: Icon }) => (
+                <SidebarMenuItem key={href}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isActivePath(pathname, href)}
+                    tooltip={label}
+                    className={NAV_ACTIVE_CLASS}
+                  >
+                    <Link href={href}>
+                      <Icon />
+                      <span>{label}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        <SidebarGroup>
           <SidebarGroupLabel>Types</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -69,8 +102,9 @@ export function AppSidebar({
                   <SidebarMenuItem key={type.id}>
                     <SidebarMenuButton
                       asChild
-                      isActive={pathname === href}
+                      isActive={isActivePath(pathname, href)}
                       tooltip={type.name}
+                      className={NAV_ACTIVE_CLASS}
                     >
                       <Link href={href}>
                         {/* data-driven color from the item type, can't be a static class */}
@@ -145,8 +179,12 @@ export function AppSidebar({
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
-                  isActive={pathname === "/collections"}
+                  // exact: each collection page lights its own entry instead
+                  isActive={isActivePath(pathname, "/collections", {
+                    exact: true,
+                  })}
                   tooltip="View all collections"
+                  className={NAV_ACTIVE_CLASS}
                 >
                   <Link
                     href="/collections"

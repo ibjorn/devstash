@@ -123,18 +123,6 @@ export async function getFavoriteCollectionList(
   }));
 }
 
-// Sidebar "Recent" group; favorites are excluded since they have their own group
-export async function getRecentNonFavoriteCollections(
-  userId: string,
-  limit = 5
-): Promise<CollectionSummary[]> {
-  return findCollectionSummaries(
-    userId,
-    { isFavorite: false },
-    { take: limit },
-  );
-}
-
 /**
  * One page of the user's collections, newest activity first, for
  * /collections, plus how many they have in all.
