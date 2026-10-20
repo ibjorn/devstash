@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import type { FlagActionResult } from "@/lib/flag-action";
+import { UNREACHABLE_MESSAGE } from "@/lib/messages";
 
 interface UseFlagToggleOptions {
   /** The saved value, from the server-rendered props. */
@@ -60,7 +61,7 @@ export function useFlagToggle({
     try {
       result = await save(next);
     } catch {
-      result = { success: false, error: "Could not reach the server." };
+      result = { success: false, error: UNREACHABLE_MESSAGE };
     } finally {
       pending.current = false;
     }

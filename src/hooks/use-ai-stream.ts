@@ -1,8 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 
+import { useAbortablePost } from "@/hooks/use-abortable-post";
 import { useErrorToast } from "@/hooks/use-error-toast";
+import { UNREACHABLE_MESSAGE } from "@/lib/messages";
+import { readTextStream } from "@/lib/read-text-stream";
 
 interface AiFailure {
   error?: string;
@@ -17,32 +20,21 @@ interface AiFailure {
  * means the server gave up (out of tokens, upstream failure), so the partial
  * text is dropped rather than shown as if it were the whole answer.
  */
-export function useAiStream<Body>(path: string) {
+export function useAiStream<Body>(path: string, onUpgrade?: () => void) {
   const [text, setText] = useState("");
   const [streaming, setStreaming] = useState(false);
-  const controllerRef = useRef<AbortController | null>(null);
-  const showError = useErrorToast();
-
-  useEffect(() => () => controllerRef.current?.abort(), []);
-
-  const stop = useCallback(() => controllerRef.current?.abort(), []);
+  const { begin, abort } = useAbortablePost();
+  const showError = useErrorToast(onUpgrade);
 
   const start = useCallback(
     async (body: Body) => {
-      controllerRef.current?.abort();
-      const controller = new AbortController();
-      controllerRef.current = controller;
+      const inFlight = begin();
       setText("");
       setStreaming(true);
       let receiving = false;
 
       try {
-        const response = await fetch(path, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-          signal: controller.signal,
-        });
+        const response = await inFlight.post(path, body);
         if (!response.ok || !response.body) {
           const result = (await response
             .json()
@@ -55,33 +47,25 @@ export function useAiStream<Body>(path: string) {
         }
 
         receiving = true;
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        for (;;) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          const chunk = decoder.decode(value, { stream: true });
-          setText((previous) => previous + chunk);
-        }
+        await readTextStream(response.body, (chunk) =>
+          setText((previous) => previous + chunk),
+        );
       } catch {
         // Stop keeps what has arrived; anything else is a broken answer
-        if (!controller.signal.aborted) {
+        if (!inFlight.signal.aborted) {
           setText("");
           showError(
             receiving
               ? "The response was cut off — try again."
-              : "Could not reach the server — try again.",
+              : UNREACHABLE_MESSAGE,
           );
         }
       } finally {
-        if (controllerRef.current === controller) {
-          controllerRef.current = null;
-          setStreaming(false);
-        }
+        if (inFlight.isCurrent()) setStreaming(false);
       }
     },
-    [path, showError],
+    [begin, path, showError],
   );
 
-  return { text, streaming, start, stop };
+  return { text, streaming, start, stop: abort };
 }

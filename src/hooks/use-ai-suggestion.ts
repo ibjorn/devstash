@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 
+import { useAbortablePost } from "@/hooks/use-abortable-post";
 import { useErrorToast } from "@/hooks/use-error-toast";
+import { UNREACHABLE_MESSAGE } from "@/lib/messages";
 
 interface AiResult<T> {
   success: boolean;
@@ -24,25 +26,16 @@ export function useAiSuggestion<Body, Data>(
   onUpgrade?: () => void,
 ) {
   const [pending, setPending] = useState(false);
-  const controllerRef = useRef<AbortController | null>(null);
+  const { begin } = useAbortablePost();
   const showError = useErrorToast(onUpgrade);
-
-  useEffect(() => () => controllerRef.current?.abort(), []);
 
   const request = useCallback(
     async (body: Body): Promise<Data | null> => {
-      controllerRef.current?.abort();
-      const controller = new AbortController();
-      controllerRef.current = controller;
+      const inFlight = begin();
       setPending(true);
 
       try {
-        const response = await fetch(path, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-          signal: controller.signal,
-        });
+        const response = await inFlight.post(path, body);
         const result = (await response
           .json()
           .catch(() => null)) as AiResult<Data> | null;
@@ -55,18 +48,13 @@ export function useAiSuggestion<Body, Data>(
         }
         return result.data;
       } catch {
-        if (!controller.signal.aborted) {
-          showError("Could not reach the server — try again.");
-        }
+        if (!inFlight.signal.aborted) showError(UNREACHABLE_MESSAGE);
         return null;
       } finally {
-        if (controllerRef.current === controller) {
-          controllerRef.current = null;
-          setPending(false);
-        }
+        if (inFlight.isCurrent()) setPending(false);
       }
     },
-    [path, showError],
+    [begin, path, showError],
   );
 
   return { request, pending };

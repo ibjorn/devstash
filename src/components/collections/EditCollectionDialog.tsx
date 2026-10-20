@@ -5,10 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import {
-  type CollectionActionResult,
-  updateCollection,
-} from "@/actions/collections";
+import { updateCollection } from "@/actions/collections";
 import {
   CollectionFormFields,
   type CollectionFormValues,
@@ -22,6 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { type RunAction, useActionRunner } from "@/hooks/use-action-runner";
 import type { CollectionHeader } from "@/types/collections";
 
 export type EditableCollection = Pick<
@@ -44,7 +42,7 @@ export function EditCollectionDialog({
   open,
   onOpenChange,
 }: EditCollectionDialogProps) {
-  const [pending, setPending] = useState(false);
+  const { pending, run } = useActionRunner();
 
   // A request in flight is going to land either way; closing would only hide
   // its outcome
@@ -59,7 +57,7 @@ export function EditCollectionDialog({
         <EditCollectionForm
           collection={collection}
           pending={pending}
-          onPendingChange={setPending}
+          run={run}
           onClose={() => onOpenChange(false)}
         />
       </DialogContent>
@@ -70,14 +68,14 @@ export function EditCollectionDialog({
 interface EditCollectionFormProps {
   collection: EditableCollection;
   pending: boolean;
-  onPendingChange: (pending: boolean) => void;
+  run: RunAction;
   onClose: () => void;
 }
 
 function EditCollectionForm({
   collection,
   pending,
-  onPendingChange,
+  run,
   onClose,
 }: EditCollectionFormProps) {
   const router = useRouter();
@@ -93,30 +91,12 @@ function EditCollectionForm({
     event.preventDefault();
     if (!canSave) return;
 
-    onPendingChange(true);
-    setFieldErrors({});
-
-    // Only the action call is inside the try, so a throw in the success
-    // handling below can't be reported as "not saved"
-    let result: CollectionActionResult<CollectionHeader>;
-    try {
-      result = await updateCollection(collection.id, values);
-    } catch {
-      toast.error("Could not reach the server — your changes were not saved.");
-      return;
-    } finally {
-      onPendingChange(false);
-    }
-
-    if (!result.success || !result.data) {
-      setFieldErrors(result.fieldErrors ?? {});
-      if (result.error) {
-        toast.error(result.error);
-      } else if (!result.fieldErrors) {
-        toast.error("Could not save this collection.");
-      }
-      return;
-    }
+    const result = await run(() => updateCollection(collection.id, values), {
+      failed: "Could not save this collection.",
+      unreachable: "Could not reach the server — your changes were not saved.",
+      onFieldErrors: setFieldErrors,
+    });
+    if (!result?.data) return;
 
     onClose();
     toast.success(`Saved "${result.data.name}"`);

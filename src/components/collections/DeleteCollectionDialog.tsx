@@ -2,13 +2,10 @@
 
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, type MouseEvent } from "react";
+import { type MouseEvent } from "react";
 import { toast } from "sonner";
 
-import {
-  type CollectionActionResult,
-  deleteCollection,
-} from "@/actions/collections";
+import { deleteCollection } from "@/actions/collections";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,6 +16,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useActionRunner } from "@/hooks/use-action-runner";
 
 interface DeleteCollectionDialogProps {
   collection: { id: string; name: string };
@@ -39,7 +37,7 @@ export function DeleteCollectionDialog({
   redirectTo,
 }: DeleteCollectionDialogProps) {
   const router = useRouter();
-  const [pending, setPending] = useState(false);
+  const { pending, run } = useActionRunner();
 
   // Not closable mid-delete: dismissing would hide the outcome of a request
   // that's still going to land
@@ -52,24 +50,11 @@ export function DeleteCollectionDialog({
     // until the delete has actually succeeded
     event.preventDefault();
 
-    setPending(true);
-    let result: CollectionActionResult<never>;
-    try {
-      result = await deleteCollection(collection.id);
-    } catch {
-      toast.error("Could not reach the server. Please try again.");
-      return;
-    } finally {
-      setPending(false);
-    }
+    const result = await run(() => deleteCollection(collection.id), {
+      failed: "Could not delete this collection.",
+    });
+    if (!result) return;
 
-    if (!result.success) {
-      toast.error(result.error ?? "Could not delete this collection.");
-      return;
-    }
-
-    // Outside the try: a throw from here on isn't a failed delete, and must
-    // not be toasted as one
     onOpenChange(false);
     toast.success(`Deleted "${collection.name}"`);
     // replace, not push: Back would land on a page that now 404s
