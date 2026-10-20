@@ -2,6 +2,7 @@
 
 import { Download, Pin } from "lucide-react";
 
+import { CARD_ICON_BUTTON } from "@/components/items/card-styles";
 import { FavoriteItemButton } from "@/components/items/FavoriteItemButton";
 import { useItemDrawer } from "@/components/items/ItemDrawerProvider";
 import { ItemTypeIcon } from "@/components/items/ItemTypeIcon";
@@ -65,7 +66,7 @@ export function FileRow({ item }: FileRowProps) {
         download
         aria-label={`Download ${name}`}
         title="Download"
-        className="flex size-8 shrink-0 items-center pointer-coarse:size-10 justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className={CARD_ICON_BUTTON}
       >
         <Download className="size-4" />
       </a>

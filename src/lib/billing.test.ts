@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   billingForPlanCode,
   billingState,
+  billingStatusLine,
   canStartCheckout,
   describeProPrice,
   isChargingSubscriptionStatus,
@@ -210,5 +211,32 @@ describe("billingState", () => {
         NOW,
       ),
     ).toBe("attention");
+  });
+});
+
+describe("billingStatusLine", () => {
+  it("says when an active subscription renews", () => {
+    expect(billingStatusLine("active", "1 Dec 2026")).toBe(
+      "Renews on 1 Dec 2026.",
+    );
+    expect(billingStatusLine("active", null)).toBe("Active.");
+  });
+
+  it("names the date a cancelled subscription keeps Pro until", () => {
+    const line = billingStatusLine("non-renewing", "1 Dec 2026");
+    expect(line).toContain("you keep Pro until 1 Dec 2026");
+    expect(line).toContain("nothing is charged before 1 Dec 2026");
+  });
+
+  it("falls back to the billing period when the end date is unknown", () => {
+    expect(billingStatusLine("non-renewing", null)).toContain(
+      "until the end of this billing period",
+    );
+  });
+
+  it("explains a paid subscription that hasn't synced yet", () => {
+    expect(billingStatusLine("pending", null)).toContain(
+      "finishing setting up your subscription",
+    );
   });
 });

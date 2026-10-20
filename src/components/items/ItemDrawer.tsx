@@ -2,7 +2,10 @@
 
 import { Folder, Tag } from "lucide-react";
 
-import { DrawerSection } from "@/components/items/DrawerSection";
+import {
+  BadgeListSection,
+  DrawerSection,
+} from "@/components/items/DrawerSection";
 import { ItemContentSection } from "@/components/items/ItemContentSection";
 import { ItemDetailsSection } from "@/components/items/ItemDetailsSection";
 import { ItemDrawerActions } from "@/components/items/ItemDrawerActions";
@@ -131,29 +134,21 @@ export function ItemDrawer({
                   />
                   <ItemFileSection detail={detail} />
 
-                  {item.tags.length > 0 && (
-                    <DrawerSection icon={Tag} title="Tags">
-                      <div className="flex flex-wrap gap-1.5">
-                        {item.tags.map((tag) => (
-                          <Badge key={tag} variant="secondary">
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                    </DrawerSection>
-                  )}
-
-                  {detail.collections.length > 0 && (
-                    <DrawerSection icon={Folder} title="Collections">
-                      <div className="flex flex-wrap gap-1.5">
-                        {detail.collections.map((collection) => (
-                          <Badge key={collection.id} variant="outline">
-                            {collection.name}
-                          </Badge>
-                        ))}
-                      </div>
-                    </DrawerSection>
-                  )}
+                  <BadgeListSection
+                    icon={Tag}
+                    title="Tags"
+                    badges={item.tags.map((tag) => ({ key: tag, label: tag }))}
+                    variant="secondary"
+                  />
+                  <BadgeListSection
+                    icon={Folder}
+                    title="Collections"
+                    badges={detail.collections.map((collection) => ({
+                      key: collection.id,
+                      label: collection.name,
+                    }))}
+                    variant="outline"
+                  />
 
                   <ItemDetailsSection detail={detail} />
                 </>

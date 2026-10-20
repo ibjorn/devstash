@@ -1,12 +1,13 @@
 "use client";
 
-import { Copy, Pencil, Pin, Star } from "lucide-react";
-import { toast } from "sonner";
+import { Check, Copy, Pencil, Pin } from "lucide-react";
 
 import { setItemFavorite } from "@/actions/favorites";
 import { setItemPinned } from "@/actions/pins";
+import { FavoriteStar } from "@/components/favorites/FavoriteStar";
 import { DeleteItemDialog } from "@/components/items/DeleteItemDialog";
 import { Button } from "@/components/ui/button";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { useFavoriteToggle } from "@/hooks/use-favorite-toggle";
 import { useFlagToggle } from "@/hooks/use-flag-toggle";
 import { cn } from "@/lib/utils";
@@ -52,16 +53,7 @@ export function ItemDrawerActions({
   // Text content or a link. A file's fileUrl is a private object key, not
   // something worth putting on a clipboard — files have a Download button.
   const copyable = detail?.content ?? detail?.url ?? null;
-
-  async function handleCopy() {
-    if (!copyable) return;
-    try {
-      await navigator.clipboard.writeText(copyable);
-      toast.success("Copied to clipboard");
-    } catch {
-      toast.error("Could not copy — your browser blocked clipboard access");
-    }
-  }
+  const { copied, copy } = useCopyToClipboard();
 
   return (
     <div className="flex items-center gap-1">
@@ -71,12 +63,7 @@ export function ItemDrawerActions({
         onClick={toggle}
         aria-pressed={isFavorite}
       >
-        <Star
-          className={cn(
-            "size-4",
-            isFavorite && "fill-yellow-400 text-yellow-400",
-          )}
-        />
+        <FavoriteStar active={isFavorite} className="size-4" />
         Favorite
       </Button>
       <Button
@@ -91,11 +78,11 @@ export function ItemDrawerActions({
       <Button
         variant="ghost"
         size="sm"
-        onClick={handleCopy}
+        onClick={() => copyable && copy(copyable)}
         // Nothing to put on the clipboard until the detail fetch lands
         disabled={!copyable}
       >
-        <Copy className="size-4" />
+        {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
         Copy
       </Button>
 

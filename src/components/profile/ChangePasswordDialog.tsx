@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { changePassword } from "@/actions/profile";
+import { fieldErrorProps, FormField } from "@/components/forms/FormField";
+import { PendingButton } from "@/components/forms/PendingButton";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,7 +17,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useActionRunner } from "@/hooks/use-action-runner";
 import { changePasswordSchema } from "@/lib/validation/auth";
 import { fieldErrorsFrom } from "@/lib/validation/field-errors";
@@ -91,34 +91,26 @@ export function ChangePasswordDialog() {
 
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           {FIELDS.map((field) => (
-            <div key={field.name} className="space-y-2">
-              <Label htmlFor={field.name}>{field.label}</Label>
+            <FormField
+              key={field.name}
+              id={field.name}
+              label={field.label}
+              error={fieldErrors[field.name]}
+            >
               <Input
                 id={field.name}
                 name={field.name}
                 type="password"
                 autoComplete={field.autoComplete}
-                aria-invalid={Boolean(fieldErrors[field.name])}
-                aria-describedby={
-                  fieldErrors[field.name] ? `${field.name}-error` : undefined
-                }
+                {...fieldErrorProps(field.name, fieldErrors[field.name])}
               />
-              {fieldErrors[field.name] && (
-                <p
-                  id={`${field.name}-error`}
-                  className="text-sm text-destructive"
-                >
-                  {fieldErrors[field.name]}
-                </p>
-              )}
-            </div>
+            </FormField>
           ))}
 
           <DialogFooter>
-            <Button type="submit" disabled={pending}>
-              {pending && <Loader2 className="size-4 animate-spin" />}
+            <PendingButton pending={pending} type="submit">
               Update password
-            </Button>
+            </PendingButton>
           </DialogFooter>
         </form>
       </DialogContent>

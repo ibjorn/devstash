@@ -1,14 +1,10 @@
 "use client";
 
-import { MoreHorizontal, Pencil, Star, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 
-import { setCollectionFavorite } from "@/actions/favorites";
-import { DeleteCollectionDialog } from "@/components/collections/DeleteCollectionDialog";
-import {
-  EditCollectionDialog,
-  type EditableCollection,
-} from "@/components/collections/EditCollectionDialog";
+import type { EditableCollection } from "@/components/collections/EditCollectionDialog";
+import { FavoriteStar } from "@/components/favorites/FavoriteStar";
+import { CARD_ICON_BUTTON } from "@/components/items/card-styles";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useFavoriteToggle } from "@/hooks/use-favorite-toggle";
+import { useCollectionActions } from "@/hooks/use-collection-actions";
 import { cn } from "@/lib/utils";
 
 interface CollectionCardMenuProps {
@@ -34,12 +30,8 @@ export function CollectionCardMenu({
   collection,
   className,
 }: CollectionCardMenuProps) {
-  const [editOpen, setEditOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const { isFavorite, toggle } = useFavoriteToggle({
-    isFavorite: collection.isFavorite,
-    save: (next) => setCollectionFavorite(collection.id, next),
-  });
+  const { isFavorite, toggleFavorite, openEdit, openDelete, dialogs } =
+    useCollectionActions(collection);
 
   return (
     <>
@@ -48,44 +40,31 @@ export function CollectionCardMenu({
           aria-label={`Actions for ${collection.name}`}
           title="Actions"
           className={cn(
-            "flex size-8 cursor-pointer pointer-coarse:size-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-accent data-[state=open]:text-foreground",
+            CARD_ICON_BUTTON,
+            "data-[state=open]:bg-accent data-[state=open]:text-foreground",
             className,
           )}
         >
           <MoreHorizontal className="size-4" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onSelect={() => setEditOpen(true)}>
+          <DropdownMenuItem onSelect={openEdit}>
             <Pencil />
             Edit
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={toggle}>
-            <Star
-              className={cn(isFavorite && "fill-yellow-400 text-yellow-400")}
-            />
+          <DropdownMenuItem onSelect={toggleFavorite}>
+            <FavoriteStar active={isFavorite} />
             {isFavorite ? "Unfavorite" : "Favorite"}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem
-            variant="destructive"
-            onSelect={() => setDeleteOpen(true)}
-          >
+          <DropdownMenuItem variant="destructive" onSelect={openDelete}>
             <Trash2 />
             Delete
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <EditCollectionDialog
-        collection={collection}
-        open={editOpen}
-        onOpenChange={setEditOpen}
-      />
-      <DeleteCollectionDialog
-        collection={collection}
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-      />
+      {dialogs}
     </>
   );
 }

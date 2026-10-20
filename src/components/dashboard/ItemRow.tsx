@@ -2,13 +2,15 @@
 
 import { Pin } from "lucide-react";
 
-import { CopyItemButton, isCopyable } from "@/components/items/CopyItemButton";
-import { FavoriteItemButton } from "@/components/items/FavoriteItemButton";
+import { itemBorderStyle } from "@/components/items/card-styles";
+import {
+  ItemCardActions,
+  overlayClearance,
+} from "@/components/items/ItemCardActions";
 import { useItemDrawer } from "@/components/items/ItemDrawerProvider";
+import { ItemTagList } from "@/components/items/ItemTagList";
 import { ItemTypeIcon } from "@/components/items/ItemTypeIcon";
-import { Badge } from "@/components/ui/badge";
 import { formatShortDate } from "@/lib/format-date";
-import { typeColorTint } from "@/lib/type-colors";
 import { cn } from "@/lib/utils";
 import type { ItemSummary } from "@/types/items";
 
@@ -16,9 +18,7 @@ interface ItemRowProps {
   item: ItemSummary;
 }
 
-// A button rather than a link — the item detail view is a drawer, not a page.
-// The favorite and copy buttons overlay the top-right corner as the row's
-// siblings, since they can't nest inside the row's <button>.
+// A button rather than a link — the item detail view is a drawer, not a page
 export function ItemRow({ item }: ItemRowProps) {
   const { openItem } = useItemDrawer();
 
@@ -28,11 +28,7 @@ export function ItemRow({ item }: ItemRowProps) {
         type="button"
         onClick={() => openItem(item)}
         className="flex w-full cursor-pointer items-start gap-3 rounded-xl border border-l-4 bg-card p-4 text-left transition-shadow hover:ring-1 hover:ring-foreground/25"
-        // subtle border all round, with a solid accent edge in the item type's color
-        style={{
-          borderColor: typeColorTint(item.type.color, 25),
-          borderLeftColor: item.type.color,
-        }}
+        style={itemBorderStyle(item.type, { accent: true })}
       >
         <ItemTypeIcon type={item.type} size="sm" />
         <div className="min-w-0 flex-1 space-y-1.5">
@@ -47,32 +43,18 @@ export function ItemRow({ item }: ItemRowProps) {
               {item.description}
             </p>
           )}
-          {item.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {item.tags.map((tag) => (
-                <Badge key={tag} variant="secondary">
-                  {tag}
-                </Badge>
-              ))}
-            </div>
-          )}
+          <ItemTagList tags={item.tags} />
         </div>
         <span
           className={cn(
             "shrink-0 text-xs text-muted-foreground",
-            // clear of the buttons overlaying this corner
-            isCopyable(item)
-              ? "mr-16 pointer-coarse:mr-20"
-              : "mr-7 pointer-coarse:mr-9",
+            overlayClearance(item),
           )}
         >
           {formatShortDate(item.createdAt)}
         </span>
       </button>
-      <div className="absolute top-2.5 right-2.5 flex gap-1">
-        <FavoriteItemButton item={item} />
-        <CopyItemButton item={item} />
-      </div>
+      <ItemCardActions item={item} className="top-2.5 right-2.5" />
     </div>
   );
 }

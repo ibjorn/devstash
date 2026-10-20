@@ -4,8 +4,9 @@ import { useState } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import { EditorTabs } from "@/components/items/EditorTabs";
 import { EditorWindowHeader } from "@/components/items/EditorWindowHeader";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
 // User content: links leave the app in a new tab without handing it a
@@ -17,6 +18,11 @@ const COMPONENTS: Components = {
     </a>
   ),
 };
+
+const WRITE_PREVIEW_TABS = [
+  { value: "write", label: "Write" },
+  { value: "preview", label: "Preview" },
+];
 
 export function MarkdownPreview({
   value,
@@ -98,14 +104,7 @@ export function MarkdownEditor({
           {headerActions}
         </>
       ) : (
-        <TabsList variant="line" className="h-6! p-0">
-          <TabsTrigger value="write" className="px-2 text-xs">
-            Write
-          </TabsTrigger>
-          <TabsTrigger value="preview" className="px-2 text-xs">
-            Preview
-          </TabsTrigger>
-        </TabsList>
+        <EditorTabs tabs={WRITE_PREVIEW_TABS} />
       )}
     </EditorWindowHeader>
   );

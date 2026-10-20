@@ -1,10 +1,11 @@
 "use client";
 
-import { Loader2, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { updateItem } from "@/actions/items";
+import { PendingButton } from "@/components/forms/PendingButton";
 import {
   ItemFormFields,
   visibleFieldsFor,
@@ -13,6 +14,7 @@ import { ItemSheetHeading } from "@/components/items/ItemSheetHeading";
 import { Button } from "@/components/ui/button";
 import { SheetHeader } from "@/components/ui/sheet";
 import { useItemForm } from "@/hooks/use-item-form";
+import { updateInputFrom } from "@/lib/item-update";
 import { parseTagInput } from "@/lib/validation/items";
 import type { CollectionOption } from "@/types/collections";
 import type { ItemDetail } from "@/types/items";
@@ -63,15 +65,18 @@ export function ItemEditForm({
 
     const saved = await submit(
       () =>
-        updateItem(detail.id, {
-          title: values.title,
-          description: values.description,
-          content: visible.content ? values.content : detail.content,
-          language: visible.language ? values.language : detail.language,
-          url: visible.url ? values.url : detail.url,
-          tags: parseTagInput(values.tags),
-          collectionIds: values.collectionIds,
-        }),
+        updateItem(
+          detail.id,
+          updateInputFrom(detail, {
+            title: values.title,
+            description: values.description,
+            ...(visible.content && { content: values.content }),
+            ...(visible.language && { language: values.language }),
+            ...(visible.url && { url: values.url }),
+            tags: parseTagInput(values.tags),
+            collectionIds: values.collectionIds,
+          }),
+        ),
       {
         unreachable:
           "Could not reach the server — your changes were not saved.",
@@ -104,10 +109,14 @@ export function ItemEditForm({
             <X className="size-4" />
             Cancel
           </Button>
-          <Button type="submit" size="sm" disabled={!canSave}>
-            {pending && <Loader2 className="size-4 animate-spin" />}
+          <PendingButton
+            pending={pending}
+            type="submit"
+            size="sm"
+            disabled={!canSave}
+          >
             Save
-          </Button>
+          </PendingButton>
         </div>
       </SheetHeader>
 

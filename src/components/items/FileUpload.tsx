@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 
+import { FieldError, fieldErrorProps } from "@/components/forms/FormField";
 import { DropZone } from "@/components/items/DropZone";
 import { UploadedFilePreview } from "@/components/items/UploadedFilePreview";
 import { UploadProgress } from "@/components/items/UploadProgress";
@@ -23,7 +24,7 @@ export interface UploadedFile {
   size: number;
 }
 
-interface FileUploadProps {
+export interface FileUploadProps {
   itemTypeId: string;
   kind: UploadKind;
   value: UploadedFile | null;
@@ -175,15 +176,10 @@ export function FileUpload({
         accept={acceptAttribute(kind)}
         className="sr-only"
         onChange={(event) => handleFiles(event.target.files)}
-        aria-invalid={Boolean(message)}
-        aria-describedby={message ? "file-error" : undefined}
+        {...fieldErrorProps(inputId, message)}
       />
 
-      {message && (
-        <p id="file-error" className="text-xs text-destructive">
-          {message}
-        </p>
-      )}
+      <FieldError inputId={inputId} message={message} />
     </div>
   );
 }

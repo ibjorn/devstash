@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { deleteAccount, type ProfileActionResult } from "@/actions/profile";
+import { fieldErrorProps, FormField } from "@/components/forms/FormField";
+import { PendingButton } from "@/components/forms/PendingButton";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,7 +17,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { plural } from "@/lib/plural";
 
 interface DeleteAccountDialogProps {
   email: string;
@@ -24,10 +25,6 @@ interface DeleteAccountDialogProps {
   collectionCount: number;
   /** The user currently has Pro, which deleting ends with no refund. */
   hasPro: boolean;
-}
-
-function plural(count: number, noun: string) {
-  return `${count} ${noun}${count === 1 ? "" : "s"}`;
 }
 
 export function DeleteAccountDialog({
@@ -99,25 +96,24 @@ export function DeleteAccountDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-          <div className="space-y-2">
-            <Label htmlFor="confirmEmail">
-              Type <span className="font-mono">{email}</span> to confirm
-            </Label>
+          <FormField
+            id="confirmEmail"
+            label={
+              <>
+                Type <span className="font-mono">{email}</span> to confirm
+              </>
+            }
+            error={fieldError}
+          >
             <Input
               id="confirmEmail"
               name="confirmEmail"
               autoComplete="off"
               value={confirmation}
               onChange={(event) => setConfirmation(event.target.value)}
-              aria-invalid={Boolean(fieldError)}
-              aria-describedby={fieldError ? "confirmEmail-error" : undefined}
+              {...fieldErrorProps("confirmEmail", fieldError)}
             />
-            {fieldError && (
-              <p id="confirmEmail-error" className="text-sm text-destructive">
-                {fieldError}
-              </p>
-            )}
-          </div>
+          </FormField>
 
           <DialogFooter>
             <Button
@@ -127,14 +123,14 @@ export function DeleteAccountDialog({
             >
               Cancel
             </Button>
-            <Button
+            <PendingButton
+              pending={pending}
               type="submit"
               variant="destructive"
-              disabled={!matches || pending}
+              disabled={!matches}
             >
-              {pending && <Loader2 className="size-4 animate-spin" />}
               Delete account
-            </Button>
+            </PendingButton>
           </DialogFooter>
         </form>
       </DialogContent>

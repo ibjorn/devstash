@@ -2,9 +2,9 @@
 
 import { Pin } from "lucide-react";
 
+import { itemBorderStyle } from "@/components/items/card-styles";
 import { FavoriteItemButton } from "@/components/items/FavoriteItemButton";
 import { useItemDrawer } from "@/components/items/ItemDrawerProvider";
-import { typeColorTint } from "@/lib/type-colors";
 import type { ItemSummary } from "@/types/items";
 
 interface ImageCardProps {
@@ -32,7 +32,7 @@ export function ImageCard({ item }: ImageCardProps) {
         onClick={() => openItem(item)}
         className="group flex w-full cursor-pointer flex-col overflow-hidden rounded-xl border bg-card text-left transition-shadow hover:ring-1 hover:ring-foreground/25"
         // same subtle type-tinted border the other item cards use
-        style={{ borderColor: typeColorTint(item.type.color, 25) }}
+        style={itemBorderStyle(item.type)}
       >
         <div className="aspect-video w-full overflow-hidden bg-muted/40">
           {/* A plain <img>: the file proxy needs the session cookie, and

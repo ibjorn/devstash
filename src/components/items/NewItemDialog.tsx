@@ -1,20 +1,23 @@
 "use client";
 
-import { Loader2, Lock, Plus } from "lucide-react";
-import Link from "next/link";
+import { Plus } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
 import { createItem } from "@/actions/items";
-import { FileUpload, type UploadedFile } from "@/components/items/FileUpload";
+import { PendingButton } from "@/components/forms/PendingButton";
+import type { UploadedFile } from "@/components/items/FileUpload";
 import { useItemDrawer } from "@/components/items/ItemDrawerProvider";
 import {
   ItemFormFields,
   type ItemFormValues,
+  NO_VISIBLE_FIELDS,
   visibleFieldsFor,
 } from "@/components/items/ItemFormFields";
 import { ItemTypePicker } from "@/components/items/ItemTypePicker";
+import { ItemUploadField } from "@/components/items/ItemUploadField";
+import { LockedTypeNote } from "@/components/items/LockedTypeNote";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -25,8 +28,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { useItemForm } from "@/hooks/use-item-form";
+import { initialTypeId } from "@/lib/initial-type-id";
 import { uploadKindFor } from "@/lib/uploads";
 import { parseTagInput } from "@/lib/validation/items";
 import type { CollectionOption } from "@/types/collections";
@@ -48,46 +51,6 @@ const EMPTY_VALUES: ItemFormValues = {
   tags: "",
   collectionIds: [],
 };
-
-// On /items/[slug], start on that page's type; anywhere else, the first one
-function initialTypeId(
-  types: NewItemTypeOption[],
-  pathname: string,
-): string | undefined {
-  const match = /^\/items\/([^/]+)/.exec(pathname);
-  if (match) {
-    const slug = decodeURIComponent(match[1]).toLowerCase();
-    const fromPage = types.find((type) => type.slug === slug);
-    if (fromPage) return fromPage.id;
-  }
-  return types[0]?.id;
-}
-
-// Shown in place of the upload field for a Pro-only type on a Free account
-function LockedTypeNote({
-  typeName,
-  onUpgrade,
-}: {
-  typeName: string;
-  onUpgrade: () => void;
-}) {
-  return (
-    <div className="flex items-start gap-3 rounded-md border p-3 text-sm">
-      <Lock className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-      <p className="text-muted-foreground">
-        {typeName} items are a Pro feature.{" "}
-        <Link
-          href="/upgrade"
-          onClick={onUpgrade}
-          className="font-medium text-foreground underline underline-offset-4"
-        >
-          Upgrade
-        </Link>{" "}
-        to upload files and images.
-      </p>
-    </div>
-  );
-}
 
 /**
  * The top bar's New Item button and the dialog it opens. On success the new
@@ -118,13 +81,7 @@ export function NewItemDialog({
   const uploadKind = type && !locked ? uploadKindFor(type.name) : null;
   const visible = type
     ? visibleFieldsFor(type.contentType, type.name)
-    : {
-        content: false,
-        code: false,
-        markdown: false,
-        language: false,
-        url: false,
-      };
+    : NO_VISIBLE_FIELDS;
 
   const canSave =
     Boolean(type) &&
@@ -220,21 +177,16 @@ export function NewItemDialog({
           )}
 
           {uploadKind && type && (
-            <div className="flex flex-col gap-2">
-              <Label asChild>
-                <span>{uploadKind === "image" ? "Image" : "File"}</span>
-              </Label>
-              <FileUpload
-                key={type.id}
-                itemTypeId={type.id}
-                kind={uploadKind}
-                value={file}
-                onChange={setFile}
-                onUploadingChange={setUploading}
-                error={fieldErrors.file}
-                onUpgrade={closeDialog}
-              />
-            </div>
+            <ItemUploadField
+              key={type.id}
+              itemTypeId={type.id}
+              kind={uploadKind}
+              value={file}
+              onChange={setFile}
+              onUploadingChange={setUploading}
+              error={fieldErrors.file}
+              onUpgrade={closeDialog}
+            />
           )}
 
           <ItemFormFields
@@ -257,10 +209,9 @@ export function NewItemDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={!canSave}>
-              {pending && <Loader2 className="size-4 animate-spin" />}
+            <PendingButton pending={pending} type="submit" disabled={!canSave}>
               Create
-            </Button>
+            </PendingButton>
           </DialogFooter>
         </form>
       </DialogContent>

@@ -121,6 +121,27 @@ export function billingState(
   return "active";
 }
 
+/**
+ * The status line under a Pro subscription in settings. Generic on the plan:
+ * User doesn't store which one is active. "attention" gets its own warning
+ * instead, and "free" has no subscription to describe.
+ */
+export function billingStatusLine(
+  state: BillingState,
+  periodEnd: string | null,
+): string {
+  switch (state) {
+    case "pending":
+      return "Your payment went through. We're finishing setting up your subscription — refresh in a moment to manage it.";
+    case "non-renewing":
+      return periodEnd
+        ? `Cancelled — you keep Pro until ${periodEnd} and won't be charged again. To carry on, resubscribe on either plan: nothing is charged before ${periodEnd}, and it uses the card you paid with.`
+        : "Cancelled — you keep Pro until the end of this billing period and won't be charged again. To carry on, resubscribe on either plan: nothing is charged before then, and it uses the card you paid with.";
+    default:
+      return periodEnd ? `Renews on ${periodEnd}.` : "Active.";
+  }
+}
+
 /** Server-only: the configured plan code for a billing period. */
 export function planCodeFor(billing: Billing): string {
   const code = process.env[PRO_PLANS[billing].planCodeEnv];

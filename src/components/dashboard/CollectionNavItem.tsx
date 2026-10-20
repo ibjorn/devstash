@@ -1,14 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-
-import {
-  SidebarMenuBadge,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from "@/components/ui/sidebar";
-import { isActivePath, NAV_ACTIVE_CLASS } from "@/lib/nav";
+import { NavLinkItem } from "@/components/dashboard/NavLinkItem";
 import type { CollectionSummary } from "@/types/collections";
 
 interface CollectionNavItemProps {
@@ -25,23 +17,25 @@ export function CollectionNavItem({
   icon,
   badge,
 }: CollectionNavItemProps) {
-  const pathname = usePathname();
-  const href = `/collections/${collection.id}`;
-
   return (
-    <SidebarMenuItem>
-      <SidebarMenuButton
-        asChild
-        isActive={isActivePath(pathname, href)}
-        tooltip={collection.name}
-        className={NAV_ACTIVE_CLASS}
-      >
-        <Link href={href}>
-          {icon}
-          <span>{collection.name}</span>
-        </Link>
-      </SidebarMenuButton>
-      <SidebarMenuBadge>{badge}</SidebarMenuBadge>
-    </SidebarMenuItem>
+    <NavLinkItem
+      href={`/collections/${collection.id}`}
+      label={collection.name}
+      icon={icon}
+      badge={badge}
+    />
+  );
+}
+
+/** The recents' dot, tinted by the collection's most-used item type. */
+export function CollectionDot({ collection }: { collection: CollectionSummary }) {
+  return (
+    <span className="flex size-4 shrink-0 items-center justify-center">
+      {/* data-driven color, can't be a static class */}
+      <span
+        className="size-2.5 rounded-full"
+        style={{ backgroundColor: collection.types[0]?.color ?? "#6b7280" }}
+      />
+    </span>
   );
 }

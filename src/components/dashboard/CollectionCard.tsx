@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { Star } from "lucide-react";
 
 import { CollectionCardMenu } from "@/components/collections/CollectionCardMenu";
+import { FavoriteStar } from "@/components/favorites/FavoriteStar";
 import {
   Card,
   CardContent,
@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { plural } from "@/lib/plural";
 import { typeColorTint } from "@/lib/type-colors";
 import { getTypeIcon } from "@/lib/type-icons";
 import type { CollectionSummary } from "@/types/collections";
@@ -44,12 +45,11 @@ export function CollectionCard({ collection }: CollectionCardProps) {
             <CardTitle className="flex min-w-0 items-center gap-2 pr-10 pointer-coarse:pr-12">
               <span className="truncate">{collection.name}</span>
               {collection.isFavorite && (
-                <Star className="size-3.5 shrink-0 fill-yellow-400 text-yellow-400" />
+                <FavoriteStar className="size-3.5 shrink-0" />
               )}
             </CardTitle>
             <CardDescription>
-              {collection.itemCount}{" "}
-              {collection.itemCount === 1 ? "item" : "items"}
+              {plural(collection.itemCount, "item")}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-1 flex-col gap-4">

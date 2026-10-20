@@ -1,6 +1,6 @@
 "use client";
 
-import { FolderPlus, Loader2 } from "lucide-react";
+import { FolderPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -10,6 +10,7 @@ import {
   CollectionFormFields,
   type CollectionFormValues,
 } from "@/components/collections/CollectionFormFields";
+import { PendingButton } from "@/components/forms/PendingButton";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -99,10 +100,9 @@ export function NewCollectionDialog() {
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={!canSave}>
-              {pending && <Loader2 className="size-4 animate-spin" />}
+            <PendingButton pending={pending} type="submit" disabled={!canSave}>
               Create
-            </Button>
+            </PendingButton>
           </DialogFooter>
         </form>
       </DialogContent>

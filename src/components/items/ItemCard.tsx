@@ -2,13 +2,15 @@
 
 import { Pin } from "lucide-react";
 
-import { CopyItemButton, isCopyable } from "@/components/items/CopyItemButton";
-import { FavoriteItemButton } from "@/components/items/FavoriteItemButton";
+import { itemBorderStyle } from "@/components/items/card-styles";
+import {
+  ItemCardActions,
+  overlayClearance,
+} from "@/components/items/ItemCardActions";
 import { useItemDrawer } from "@/components/items/ItemDrawerProvider";
+import { ItemTagList } from "@/components/items/ItemTagList";
 import { ItemTypeIcon } from "@/components/items/ItemTypeIcon";
-import { Badge } from "@/components/ui/badge";
 import { formatShortDate } from "@/lib/format-date";
-import { typeColorTint } from "@/lib/type-colors";
 import { cn } from "@/lib/utils";
 import type { ItemSummary } from "@/types/items";
 
@@ -22,8 +24,6 @@ interface ItemCardProps {
  * taller shape a two-column grid wants, sharing its type-colour treatment.
  *
  * A button rather than a link — the item detail view is a drawer, not a page.
- * The favorite and copy buttons overlay the top-right corner as the card's
- * siblings, since they can't nest inside the card's <button>.
  */
 export function ItemCard({ item }: ItemCardProps) {
   const { openItem } = useItemDrawer();
@@ -34,21 +34,14 @@ export function ItemCard({ item }: ItemCardProps) {
         type="button"
         onClick={() => openItem(item)}
         className="flex h-full w-full cursor-pointer flex-col gap-3 rounded-xl border border-l-4 bg-card p-4 text-left transition-shadow hover:ring-1 hover:ring-foreground/25"
-        // subtle border all round, with a solid accent edge in the item type's color
-        style={{
-          borderColor: typeColorTint(item.type.color, 25),
-          borderLeftColor: item.type.color,
-        }}
+        style={itemBorderStyle(item.type, { accent: true })}
       >
         <div className="flex items-start justify-between gap-2">
           <ItemTypeIcon type={item.type} size="sm" />
-          {/* Clear of the buttons overlaying this corner */}
           <div
             className={cn(
               "flex shrink-0 items-center gap-1.5 pt-1",
-              isCopyable(item)
-                ? "pr-16 pointer-coarse:pr-20"
-                : "pr-7 pointer-coarse:pr-9",
+              overlayClearance(item),
             )}
           >
             {item.isPinned && (
@@ -67,22 +60,13 @@ export function ItemCard({ item }: ItemCardProps) {
         </div>
 
         <div className="flex items-end justify-between gap-2">
-          <div className="flex min-w-0 flex-wrap gap-1.5">
-            {item.tags.map((tag) => (
-              <Badge key={tag} variant="secondary">
-                {tag}
-              </Badge>
-            ))}
-          </div>
-          <span className="shrink-0 text-xs text-muted-foreground">
+          <ItemTagList tags={item.tags} className="min-w-0" />
+          <span className="ml-auto shrink-0 text-xs text-muted-foreground">
             {formatShortDate(item.createdAt)}
           </span>
         </div>
       </button>
-      <div className="absolute top-3 right-3 flex gap-1">
-        <FavoriteItemButton item={item} />
-        <CopyItemButton item={item} />
-      </div>
+      <ItemCardActions item={item} className="top-3 right-3" />
     </div>
   );
 }

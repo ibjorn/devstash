@@ -1,7 +1,5 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
-
 import { startCheckout } from "@/actions/billing";
 import { FreePlanPrice } from "@/components/billing/PlanPrice";
 import { PriceCard } from "@/components/billing/PriceCard";
@@ -9,6 +7,7 @@ import {
   FREE_FEATURES,
   PRO_FEATURES,
 } from "@/components/billing/plan-features";
+import { PendingButton } from "@/components/forms/PendingButton";
 import {
   BillingToggle,
   PricingToggle,
@@ -26,14 +25,14 @@ function CheckoutButton() {
   const { pending, run } = useRedirectAction();
 
   return (
-    <Button
+    <PendingButton
+      pending={pending !== null}
       className={CTA}
       disabled={pending !== null}
       onClick={() => run(billing, () => startCheckout(billing))}
     >
-      {pending && <Loader2 className="animate-spin" />}
       Upgrade {billing}
-    </Button>
+    </PendingButton>
   );
 }
 

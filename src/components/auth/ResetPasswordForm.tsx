@@ -2,12 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
-import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
+import { fieldErrorProps, FormField } from "@/components/forms/FormField";
+import { PendingButton } from "@/components/forms/PendingButton";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { postJson } from "@/lib/post-json";
 import { resetPasswordSchema } from "@/lib/validation/auth";
 
 type FieldName = "password" | "confirmPassword";
@@ -63,56 +63,45 @@ export function ResetPasswordForm({
     }
 
     setPending(true);
-    try {
-      const response = await fetch("/api/auth/password/reset", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(parsed.data),
-      });
-      const result = await response.json();
+    const result = await postJson(
+      "/api/auth/password/reset",
+      parsed.data,
+      "Could not update your password",
+    );
+    setPending(false);
 
-      if (!response.ok) {
-        toast.error(result?.error ?? "Could not update your password");
-        return;
-      }
-
-      // The sign-in page owns the success toast, so it fires once and survives
-      // a hard load of the URL as well as this soft navigation
-      router.push("/sign-in?reset=1");
-    } catch {
-      toast.error("Could not reach the server. Please try again.");
-    } finally {
-      setPending(false);
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
     }
+
+    // The sign-in page owns the success toast, so it fires once and survives
+    // a hard load of the URL as well as this soft navigation
+    router.push("/sign-in?reset=1");
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4" noValidate>
       {fields(hasPassword).map((field) => (
-        <div key={field.name} className="space-y-2">
-          <Label htmlFor={field.name}>{field.label}</Label>
+        <FormField
+          key={field.name}
+          id={field.name}
+          label={field.label}
+          error={fieldErrors[field.name]}
+        >
           <Input
             id={field.name}
             name={field.name}
             type="password"
             autoComplete="new-password"
-            aria-invalid={Boolean(fieldErrors[field.name])}
-            aria-describedby={
-              fieldErrors[field.name] ? `${field.name}-error` : undefined
-            }
+            {...fieldErrorProps(field.name, fieldErrors[field.name])}
           />
-          {fieldErrors[field.name] && (
-            <p id={`${field.name}-error`} className="text-sm text-destructive">
-              {fieldErrors[field.name]}
-            </p>
-          )}
-        </div>
+        </FormField>
       ))}
 
-      <Button type="submit" className="w-full" disabled={pending}>
-        {pending && <Loader2 className="size-4 animate-spin" />}
+      <PendingButton pending={pending} type="submit" className="w-full">
         {hasPassword ? "Update password" : "Set password"}
-      </Button>
+      </PendingButton>
     </form>
   );
 }

@@ -2,16 +2,16 @@
 
 import Link from "next/link";
 import { useActionState, useEffect } from "react";
-import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { signInWithCredentials, type SignInState } from "@/actions/auth";
+import { AuthDivider } from "@/components/auth/AuthDivider";
 import { GitHubButton } from "@/components/auth/GitHubButton";
 import { ResendVerification } from "@/components/auth/ResendVerification";
-import { Button } from "@/components/ui/button";
+import { PendingButton } from "@/components/forms/PendingButton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { stripSearchParam } from "@/lib/url-params";
+import { useHandoffToast } from "@/hooks/use-handoff-toast";
 
 const INITIAL_STATE: SignInState = { error: null };
 
@@ -39,21 +39,15 @@ export function SignInForm({
     INITIAL_STATE,
   );
 
-  // Surface whatever NextAuth put in the query string, then strip the param so
-  // a refresh doesn't replay a stale failure. The id collapses the duplicate
-  // toast that Strict Mode's double-mount would otherwise produce.
-  useEffect(() => {
-    if (!initialError) return;
-    toast.error(initialError, { id: "sign-in-error" });
-    stripSearchParam("error");
-  }, [initialError]);
+  // Whatever NextAuth put in the query string — a failed OAuth callback
+  useHandoffToast(initialError, "error", (error) =>
+    toast.error(error, { id: "sign-in-error" }),
+  );
 
   // Same treatment for a success hand-off — email verified, password reset
-  useEffect(() => {
-    if (!initialSuccess) return;
-    toast.success(initialSuccess, { id: "sign-in-success" });
-    if (successParam) stripSearchParam(successParam);
-  }, [initialSuccess, successParam]);
+  useHandoffToast(initialSuccess, successParam, (success) =>
+    toast.success(success, { id: "sign-in-success" }),
+  );
 
   // Every failed submit returns a fresh state object, so repeat failures
   // re-fire rather than going silent
@@ -94,10 +88,9 @@ export function SignInForm({
             required
           />
         </div>
-        <Button type="submit" className="w-full" disabled={pending}>
-          {pending && <Loader2 className="size-4 animate-spin" />}
+        <PendingButton pending={pending} type="submit" className="w-full">
           Sign in
-        </Button>
+        </PendingButton>
       </form>
 
       {/* Shown once we know an address is unverified, or when the user
@@ -106,11 +99,7 @@ export function SignInForm({
         <ResendVerification defaultEmail={state.unverifiedEmail} />
       )}
 
-      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-        <span className="h-px flex-1 bg-border" />
-        OR
-        <span className="h-px flex-1 bg-border" />
-      </div>
+      <AuthDivider />
 
       <GitHubButton callbackUrl={callbackUrl} label="Sign in with GitHub" />
     </div>
